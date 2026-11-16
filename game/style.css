@@ -25,7 +25,7 @@ img { -webkit-user-drag: none; }
   display: flex; flex-direction: column;
   padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
 }
-.sky { background: linear-gradient(#6FCDF8 0%, #CFF1FF 62%, #8EDB6E 62%, #5CCB5F 100%); }
+.title-bg { background: #4CB85A url("assets/title-bg.svg") center bottom / cover no-repeat; }
 
 /* Buttons */
 .btn {
@@ -65,11 +65,11 @@ img { -webkit-user-drag: none; }
   transform: rotate(3deg);
 }
 .logo span { color: var(--leaf); }
-.hero { width: min(52vw, 230px); height: auto; filter: drop-shadow(0 6px 0 rgba(43,27,61,.25)); }
+.hero { width: min(52vw, 230px); height: auto; filter: drop-shadow(0 6px 0 rgba(43,27,61,.3)) drop-shadow(0 0 18px rgba(255,255,255,.55)); }
 .chars-box { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; }
-.chars { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+.chars { display: flex; gap: 5px; justify-content: center; flex-wrap: wrap; }
 .char {
-  width: 54px; height: 54px; border-radius: 18px; padding: 4px;
+  width: min(50px, 13vw); height: min(50px, 13vw); border-radius: 18px; padding: 4px;
   border: 3px solid var(--ink); background: rgba(255,255,255,.85);
   position: relative; display: grid; place-items: center;
 }

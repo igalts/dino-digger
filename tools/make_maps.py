@@ -189,11 +189,50 @@ def map_night():
     return wrap(body, ("#140E36", "#3E3A8C"))
 
 
+def title_bg():
+    """Title screen: one landscape mixing all five worlds. The middle stays calm for the logo and buttons."""
+    sky = ('<defs><linearGradient id="tsky" x1="0" y1="0" x2="0" y2="1">'
+           '<stop offset="0" stop-color="#1E1A5C"/><stop offset="0.22" stop-color="#4C6BC8"/>'
+           '<stop offset="0.45" stop-color="#8FD3FA"/><stop offset="0.62" stop-color="#D6F3FF"/></linearGradient></defs>'
+           f'<rect width="{W}" height="{H}" fill="url(#tsky)" stroke="none"/>')
+    star_field = "".join(
+        f'<circle cx="{x}" cy="{y}" r="{r}" fill="#FFF6C9" stroke="none" opacity="{1 - y / 190:.2f}"/>'
+        for x, y, r in ((20, 20, 2), (70, 44, 1.6), (120, 16, 2.2), (170, 52, 1.4), (210, 24, 1.8), (250, 60, 1.5),
+                        (300, 18, 2), (340, 48, 1.6), (90, 96, 1.4), (230, 104, 1.2), (330, 120, 1.3), (150, 130, 1.2)))
+    snowy = ('<path d="M190 420 L270 250 L310 310 L350 230 L400 330 L400 440 L190 440 Z" fill="#D6D0EE"/>'
+             '<path d="M270 250 L290 290 L276 284 L262 298 L252 276 Z M350 230 L370 268 L356 262 L342 276 Z" fill="#FFFFFF" stroke-width="4"/>')
+    sea = ('<path d="M230 640 Q300 628 370 636 L370 790 L230 790 Z" fill="#2FA7E0"/>'
+           '<path d="M240 660 q8 -6 16 0 q8 6 16 0 M300 690 q8 -6 16 0 q8 6 16 0 M260 730 q8 -6 16 0 q8 6 16 0" fill="none" stroke="#FFFFFF" stroke-width="3"/>'
+           '<path d="M180 700 Q250 660 300 690 Q340 712 370 700 L370 790 L160 790 Z" fill="#FFD98A"/>')
+    body = (star_field + ms.moon(44, 128, 22) + ms.shooting_star(300, 40, 60) + ms.sun(316, 250, 26) +
+            ms.cloud(150, 230, 0.55) +
+            ms.volcano(110, 450, 260, 200, erupt=True, color="#6E5486") + snowy +
+            layer(440, "#B9DE8E", 41, 24) + layer(520, "#8ED16E", 42, 30) +
+            ms.fly("petra", 250, 330, 0.32, flip=True, colors=ms.PETRA_ORANGE) + ms.fly("petra", 80, 200, 0.24, colors=ms.PETRA_TEAL) +
+            ms.pine(330, 520, 0.6) + ms.pine(300, 540, 0.45) +
+            layer(600, "#6FC25A", 43, 26) + sea + layer(700, "#4CB85A", 44, 22) +
+            '<path d="M140 760 Q180 700 230 720 L250 790 L120 790 Z" fill="#4CB85A" stroke="none"/>' +
+            ms.trunk(10, 44) + ms.vine(52, 300, 6) +
+            "".join(f'<circle cx="{x}" cy="{y}" r="{r}" fill="#2B1B3D" stroke-width="10"/>' for x, y, r in ((0, 280, 54), (54, 300, 40), (20, 340, 36))) +
+            "".join(f'<circle cx="{x}" cy="{y}" r="{r}" fill="{c}" stroke="none"/>' for x, y, r, c in
+                    ((0, 280, 54, "#2F8F3A"), (54, 300, 40, "#3FA244"), (20, 340, 36, "#2F8F3A"))) +
+            ms.palm(345, 760, 0.85, flip=True) + ms.starfish(250, 755, 10) + ms.shell(205, 770, 0.9) +
+            ms.mushroom(70, 700, 0.8, "#39C1B5", "#C9F2EE", glow="#5CF2E0") + ms.mushroom(30, 760, 0.6, "#A884E8", "#E3D6FF", glow="#C9A8FF") +
+            ms.fern(120, 760, 0.8, "#2F8F3A") +
+            "".join(ms.firefly(x, y) for x, y in ((100, 650), (30, 610), (140, 700))) +
+            ms.flowers([(160, 560), (230, 600), (110, 610), (200, 680)]))
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" preserveAspectRatio="xMidYMax slice">'
+            f'<defs>{ms.DEFS}</defs>'
+            f'<g stroke="{INK}" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">{sky}{body}</g></svg>')
+
+
 def main():
     for i, fn in enumerate((map_volcano, map_jungle, map_beach, map_ice, map_night), 1):
         with open(os.path.join(OUT, f"map-{i}.svg"), "w", encoding="utf8") as f:
             f.write(fn())
-    print("wrote 5 maps")
+    with open(os.path.join(OUT, "title-bg.svg"), "w", encoding="utf8") as f:
+        f.write(title_bg())
+    print("wrote 5 maps + title background")
 
 
 if __name__ == "__main__":
