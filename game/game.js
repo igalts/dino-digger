@@ -1111,10 +1111,19 @@
     }
     return w;
   }
+  // Level spots on the 360x780 map pictures (bottom to top). Keep in sync with NODES in tools/make_maps.py.
+  const MAP_NODES = [[95, 625], [262, 530], [100, 420], [262, 305], [150, 195]];
+
   function buildMap() {
     const w = currentMapWorld();
     const world = WORLDS[w];
     $('#map').dataset.world = String(w + 1);
+    $('#mapBg').src = `assets/map-${w + 1}.svg`;
+    const prize = CHARS[world.unlock];
+    const prizeImg = $('#mapPrize');
+    prizeImg.src = `assets/${prize.img}.svg`;
+    prizeImg.classList.toggle('locked', !store.data.unlocked.includes(world.unlock));
+    prizeImg.style.transform = `translate(-50%, -50%)${prize.faceLeft ? '' : ' scaleX(-1)'}`;
     $('#worldName').textContent = world.name;
     $('#worldNum').textContent = `עולם ${w + 1} מתוך ${WORLDS.length}`;
     $('#prevWorld').disabled = w === 0;
@@ -1128,6 +1137,8 @@
       const open = levelOpen(w, i);
       const b = document.createElement('button');
       b.className = `level${open ? '' : ' locked'}`;
+      b.style.left = `${MAP_NODES[i][0] / 360 * 100}%`;
+      b.style.top = `${MAP_NODES[i][1] / 780 * 100}%`;
       b.setAttribute('aria-label', open ? `שלב ${i + 1}` : `שלב ${i + 1} נעול`);
       b.innerHTML = `${i + 1}<span class="st">${[0, 1, 2].map((k) => `<span class="${k < stars ? 'on' : 'off'}">★</span>`).join('')}</span>`;
       b.disabled = !open;

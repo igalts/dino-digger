@@ -1,4 +1,4 @@
-# דינו חופר · Dino Digger
+# דינו סוגר שטחים · Dino Digger
 
 A Hebrew area-claiming game for young kids, made for Android phones (works in any modern browser).
 Pip the baby triceratops fences off dirt to uncover a hidden dinosaur picture while Magma Rex and his gang try to stop him.
@@ -30,5 +30,6 @@ Then open `http://localhost:8080`, or `http://<computer-ip>:8080` from a phone o
 | `game/assets/s<world>-<level>.svg` | Hidden pictures (generated) |
 | `assets/` | Source character art |
 | `tools/make_scenes.py` | Builds the 25 hidden pictures from the character art — `py -I tools/make_scenes.py` |
+| `tools/make_maps.py` | Builds the 5 world maps (road + level spots) — `py -I tools/make_maps.py` |
 | `moodboard.html` | First look-and-feel board |
 | `serve.py` | Local no-cache server for phone testing |

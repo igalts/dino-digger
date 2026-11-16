@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#2B1B3D">
 <meta name="mobile-web-app-capable" content="yes">
-<title>דינו חופר</title>
+<title>דינו סוגר שטחים</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -17,7 +17,7 @@
 
 <section id="title" class="screen sky">
   <div class="title-inner">
-    <div class="logo">דינו <span>חופר!</span></div>
+    <div class="logo">דינו<br><span>סוגר שטחים!</span></div>
     <img id="titleHero" class="hero bob" src="assets/pip.svg" alt="">
     <button id="playBtn" class="btn big">שחק!</button>
     <div class="chars-box">
@@ -28,13 +28,17 @@
   <button id="muteBtn" class="icon-btn corner" aria-label="צליל">🔊</button>
 </section>
 
-<section id="map" class="screen sky" hidden>
+<section id="map" class="screen" hidden>
+  <div id="mapStage" class="map-stage">
+    <img id="mapBg" class="map-bg" alt="">
+    <div id="levels" class="levels"></div>
+    <img id="mapPrize" class="map-prize" alt="">
+  </div>
   <header class="map-head">
     <button id="mapBack" class="icon-btn" aria-label="חזרה">→</button>
     <h1 id="worldName"></h1>
   </header>
   <div id="worldLocked" class="world-locked" hidden></div>
-  <div id="levels" class="levels"></div>
   <div class="world-nav">
     <button id="prevWorld" class="icon-btn" aria-label="עולם קודם">→</button>
     <span id="worldNum"></span>
