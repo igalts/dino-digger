@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 560">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5EC8F7"/>
+      <stop offset="0.6" stop-color="#C9F1FF"/>
+    </linearGradient>
+    <g id="cloud"><circle cx="0" cy="0" r="16"/><circle cx="18" cy="-8" r="20"/><circle cx="38" cy="0" r="15"/><rect x="0" y="0" width="38" height="14" rx="7"/></g>
+    <g id="bush"><circle cx="0" cy="0" r="18"/><circle cx="22" cy="-8" r="22"/><circle cx="46" cy="2" r="17"/><rect x="0" y="0" width="46" height="18"/></g>
+  </defs>
+  <rect width="360" height="560" fill="url(#sky)"/>
+  <g stroke="#2B1B3D" stroke-linejoin="round" stroke-linecap="round">
+    <!-- sun -->
+    <circle cx="292" cy="78" r="44" fill="#FFE98A" stroke="none" opacity="0.7"/>
+    <circle cx="292" cy="78" r="32" fill="#FFD23F" stroke-width="5"/>
+    <!-- clouds -->
+    <g transform="translate(36 112)"><use href="#cloud" fill="#2B1B3D" stroke-width="10"/><use href="#cloud" fill="#FFFFFF" stroke="none"/></g>
+    <g transform="translate(176 52) scale(0.75)"><use href="#cloud" fill="#2B1B3D" stroke-width="12"/><use href="#cloud" fill="#FFFFFF" stroke="none"/></g>
+    <!-- pterodactyls -->
+    <path d="M206 138 Q218 124 230 138 Q242 124 254 138 Q240 136 230 148 Q220 136 206 138 Z" fill="#FF9F1C" stroke-width="4"/>
+    <path d="M150 182 Q158 173 166 182 Q174 173 182 182 Q173 181 166 189 Q159 181 150 182 Z" fill="#FF9F1C" stroke-width="3"/>
+    <!-- volcano smoke -->
+    <circle cx="96" cy="104" r="11" fill="#E4DEEE" stroke-width="4"/>
+    <circle cx="106" cy="128" r="13" fill="#E4DEEE" stroke-width="4"/>
+    <circle cx="92" cy="152" r="15" fill="#E4DEEE" stroke-width="4"/>
+    <!-- volcano -->
+    <path d="M-10 330 L66 176 L114 176 L196 330 Z" fill="#7A5A8E" stroke-width="5"/>
+    <path d="M66 176 L114 176 L108 196 Q101 206 95 192 Q88 212 81 190 Q75 200 70 188 Z" fill="#FF6B2C" stroke-width="4"/>
+    <path d="M95 204 Q102 232 94 262" fill="none" stroke="#FF6B2C" stroke-width="6"/>
+    <path d="M58 220 L44 250 M136 230 L148 258" fill="none" stroke="#5E4370" stroke-width="4"/>
+    <!-- back hills -->
+    <path d="M-10 330 Q90 270 180 312 Q270 262 370 300 L370 420 L-10 420 Z" fill="#8EDB6E" stroke-width="5"/>
+    <!-- palm tree -->
+    <path d="M290 400 L294 250 L310 250 L314 400 Z" fill="#B57745" stroke-width="5"/>
+    <path d="M294 300 L310 300 M293 340 L311 340 M292 370 L312 370" fill="none" stroke="#8A5634" stroke-width="3"/>
+    <path d="M302 248 Q270 222 238 238 Q266 236 302 256 Z" fill="#3FA244" stroke-width="4"/>
+    <path d="M302 248 Q300 214 270 200 Q290 222 298 252 Z" fill="#3FA244" stroke-width="4"/>
+    <path d="M302 248 Q330 210 356 220 Q330 226 306 254 Z" fill="#3FA244" stroke-width="4"/>
+    <path d="M302 248 Q340 248 360 274 Q332 262 304 256 Z" fill="#3FA244" stroke-width="4"/>
+    <path d="M302 248 Q270 260 256 290 Q276 268 304 256 Z" fill="#3FA244" stroke-width="4"/>
+    <circle cx="298" cy="258" r="6" fill="#8A5634" stroke-width="3"/>
+    <circle cx="310" cy="254" r="6" fill="#8A5634" stroke-width="3"/>
+    <!-- ground -->
+    <path d="M-10 384 Q180 352 370 384 L370 570 L-10 570 Z" fill="#4CB85A" stroke-width="5"/>
+    <!-- river -->
+    <path d="M370 420 Q260 424 236 452 Q212 488 130 498 Q60 506 -10 540 L-10 570 L30 570 Q90 530 150 524 Q246 514 268 476 Q286 448 370 446 Z" fill="#4FC3F7" stroke-width="5"/>
+    <path d="M300 434 L326 434 M196 500 L220 494 M60 526 L84 518" fill="none" stroke="#FFFFFF" stroke-width="4"/>
+    <!-- bush -->
+    <g transform="translate(18 448)"><use href="#bush" fill="#2B1B3D" stroke-width="10"/><use href="#bush" fill="#3FA244" stroke="none"/></g>
+    <!-- brachiosaurus -->
+    <path d="M178 342 Q196 292 246 252 L264 270 Q222 300 206 356 Z" fill="#7C8CFF" stroke-width="5"/>
+    <rect x="102" y="370" width="24" height="58" rx="10" fill="#5E6EE0" stroke-width="5"/>
+    <rect x="168" y="370" width="24" height="58" rx="10" fill="#5E6EE0" stroke-width="5"/>
+    <rect x="84" y="376" width="26" height="62" rx="10" fill="#7C8CFF" stroke-width="5"/>
+    <rect x="148" y="376" width="26" height="62" rx="10" fill="#7C8CFF" stroke-width="5"/>
+    <path d="M76 352 Q36 344 14 382 Q44 372 80 378 Z" fill="#7C8CFF" stroke-width="5"/>
+    <ellipse cx="140" cy="362" rx="68" ry="40" fill="#7C8CFF" stroke-width="5"/>
+    <circle cx="118" cy="345" r="8" fill="#A9B4FF"/>
+    <circle cx="146" cy="337" r="6" fill="#A9B4FF"/>
+    <circle cx="168" cy="352" r="7" fill="#A9B4FF"/>
+    <circle cx="214" cy="306" r="4" fill="#A9B4FF"/>
+    <circle cx="232" cy="284" r="4" fill="#A9B4FF"/>
+    <ellipse cx="262" cy="252" rx="25" ry="15" transform="rotate(-20 262 252)" fill="#7C8CFF" stroke-width="5"/>
+    <circle cx="264" cy="245" r="5" fill="#FFFFFF" stroke-width="3"/>
+    <circle cx="265.5" cy="245.5" r="2.5" fill="#2B1B3D" stroke="none"/>
+    <path d="M270 260 Q278 260 284 252" fill="none" stroke-width="3"/>
+    <ellipse cx="274" cy="256" rx="4" ry="2.5" fill="#FF8FA3" stroke="none"/>
+    <!-- nest + eggs -->
+    <ellipse cx="292" cy="500" rx="10" ry="13" fill="#FFF3D6" stroke-width="4"/>
+    <ellipse cx="320" cy="500" rx="10" ry="13" fill="#FFF3D6" stroke-width="4"/>
+    <ellipse cx="306" cy="496" rx="10" ry="13" fill="#FFF3D6" stroke-width="4"/>
+    <circle cx="303" cy="492" r="3" fill="#7C8CFF" stroke="none"/>
+    <circle cx="317" cy="498" r="3" fill="#7C8CFF" stroke="none"/>
+    <circle cx="290" cy="498" r="3" fill="#7C8CFF" stroke="none"/>
+    <path d="M270 506 Q306 528 342 506 L338 520 Q306 536 274 520 Z" fill="#B57745" stroke-width="4"/>
+    <path d="M280 514 L298 520 M312 520 L330 513" fill="none" stroke="#8A5634" stroke-width="3"/>
+    <!-- flowers -->
+    <g stroke-width="2.5">
+      <circle cx="62" cy="430" r="6" fill="#FF8FA3"/><circle cx="62" cy="430" r="2.5" fill="#FFD23F" stroke="none"/>
+      <circle cx="210" cy="414" r="6" fill="#FF8FA3"/><circle cx="210" cy="414" r="2.5" fill="#FFD23F" stroke="none"/>
+      <circle cx="236" cy="432" r="5" fill="#FFFFFF"/><circle cx="236" cy="432" r="2" fill="#FFD23F" stroke="none"/>
+      <circle cx="40" cy="398" r="5" fill="#FFFFFF"/><circle cx="40" cy="398" r="2" fill="#FFD23F" stroke="none"/>
+      <circle cx="330" cy="396" r="6" fill="#FF8FA3"/><circle cx="330" cy="396" r="2.5" fill="#FFD23F" stroke="none"/>
+    </g>
+  </g>
+</svg>

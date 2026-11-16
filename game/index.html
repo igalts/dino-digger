@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#2B1B3D">
+<meta name="mobile-web-app-capable" content="yes">
+<title>דינו חופר</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Rubik:wght@500;700&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<section id="title" class="screen sky">
+  <div class="title-inner">
+    <div class="logo">דינו <span>חופר!</span></div>
+    <img id="titleHero" class="hero bob" src="assets/pip.svg" alt="">
+    <button id="playBtn" class="btn big">שחק!</button>
+    <div class="chars-box">
+      <div id="chars" class="chars"></div>
+      <div id="charPerk" class="perk"></div>
+    </div>
+  </div>
+  <button id="muteBtn" class="icon-btn corner" aria-label="צליל">🔊</button>
+</section>
+
+<section id="map" class="screen sky" hidden>
+  <header class="map-head">
+    <button id="mapBack" class="icon-btn" aria-label="חזרה">→</button>
+    <h1 id="worldName"></h1>
+  </header>
+  <div id="worldLocked" class="world-locked" hidden></div>
+  <div id="levels" class="levels"></div>
+  <div class="world-nav">
+    <button id="prevWorld" class="icon-btn" aria-label="עולם קודם">→</button>
+    <span id="worldNum"></span>
+    <button id="nextWorld" class="icon-btn" aria-label="עולם הבא">←</button>
+  </div>
+</section>
+
+<section id="game" class="screen" hidden>
+  <div class="hud">
+    <button id="pauseBtn" class="icon-btn small" aria-label="הפסקה">❚❚</button>
+    <div id="lives" class="lives"></div>
+    <div id="levelName" class="level-name"></div>
+    <div class="meter">
+      <div class="meter-bar"><div id="meterFill" class="meter-fill"></div><div id="meterGoal" class="meter-goal"></div></div>
+      <div id="meterNum" class="meter-num"></div>
+    </div>
+  </div>
+  <div id="boardWrap" class="board-wrap">
+    <canvas id="cv"></canvas>
+    <div id="banner" class="banner" hidden></div>
+  </div>
+  <div id="hint" class="hint" hidden></div>
+  <div id="pad" class="pad" aria-label="חיצים">
+    <div class="arr up" data-d="up"><svg viewBox="0 0 24 24"><path d="M12 5 L20 17 L4 17 Z"/></svg></div>
+    <div class="arr right" data-d="right"><svg viewBox="0 0 24 24"><path d="M19 12 L7 20 L7 4 Z"/></svg></div>
+    <div class="arr down" data-d="down"><svg viewBox="0 0 24 24"><path d="M12 19 L4 7 L20 7 Z"/></svg></div>
+    <div class="arr left" data-d="left"><svg viewBox="0 0 24 24"><path d="M5 12 L17 4 L17 20 Z"/></svg></div>
+  </div>
+  <div id="stick" class="stick" hidden><div id="knob" class="knob"></div></div>
+
+  <div id="pause" class="overlay" hidden>
+    <div class="panel">
+      <h2>הפסקה</h2>
+      <button id="resumeBtn" class="btn">ממשיכים</button>
+      <button id="restartBtn" class="btn alt">מתחילים מחדש</button>
+      <button id="pauseMapBtn" class="btn alt">למפה</button>
+      <button id="controlBtn" class="btn alt"></button>
+      <button id="pauseMuteBtn" class="btn alt"></button>
+    </div>
+  </div>
+
+  <div id="win" class="overlay bottom" hidden>
+    <div class="panel">
+      <h2 id="winTitle">כל הכבוד!</h2>
+      <div id="winStars" class="stars-big"></div>
+      <div id="winScore" class="score"></div>
+      <div id="unlock" class="unlock" hidden>
+        <img id="unlockImg" alt="">
+        <div id="unlockText"></div>
+      </div>
+      <button id="nextBtn" class="btn">לשלב הבא</button>
+      <button id="winRetryBtn" class="btn alt">שוב</button>
+      <button id="winMapBtn" class="btn alt">למפה</button>
+    </div>
+  </div>
+
+  <div id="lose" class="overlay" hidden>
+    <div class="panel">
+      <img id="loseImg" class="sad" src="assets/pip.svg" alt="">
+      <h2>אוי! הביצים נגמרו</h2>
+      <button id="retryBtn" class="btn">ננסה שוב!</button>
+      <button id="loseMapBtn" class="btn alt">למפה</button>
+    </div>
+  </div>
+</section>
+
+<script src="game.js"></script>
+</body>
+</html>

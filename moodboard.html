@@ -1,0 +1,451 @@
+<title>דינו חופר</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Rubik:wght@500;700;800&display=swap">
+<style>
+/* Layout: sticker-sheet board, right-to-left — chunky outlined cards with hard drop shadows on a sky ground; one deliberate light look (single theme by choice). */
+:root {
+  --sky: #DDF3FF;
+  --ink: #2B1B3D;
+  --paper: #FFFFFF;
+  --leaf: #5CCB5F;
+  --sun: #FFD23F;
+  --lava: #E8553D;
+  --muted: #5B4A6E;
+  --display: "Fredoka", "Arial Rounded MT Bold", "Segoe UI", sans-serif;
+  --body: "Rubik", "Segoe UI", "Arial", sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--sky);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.55;
+}
+.wrap {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding-block: 32px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+}
+h1, h2, h3 { font-family: var(--display); font-weight: 700; margin: 0; text-wrap: balance; }
+h2 { font-size: 30px; }
+h3 { font-size: 22px; }
+p { margin: 0; }
+.eyebrow { font-weight: 800; font-size: 14px; color: var(--muted); }
+
+/* Hero */
+.hero { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 40px; align-items: center; }
+.hero-text { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.logo {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: clamp(60px, 12vw, 116px);
+  line-height: 1;
+  color: var(--sun);
+  -webkit-text-stroke: 10px var(--ink);
+  paint-order: stroke fill;
+  text-shadow: -6px 7px 0 var(--ink);
+  transform: rotate(3deg);
+  transform-origin: right center;
+}
+.logo span { color: var(--leaf); }
+.pitch { font-size: 19px; max-width: 36ch; font-weight: 700; }
+.facts { display: flex; flex-wrap: wrap; gap: 10px; }
+.chip {
+  border: 3px solid var(--ink); border-radius: 999px; background: var(--paper);
+  padding: 4px 14px; font-weight: 800; font-size: 14px;
+}
+
+/* Phone */
+.phone {
+  width: min(340px, 100%);
+  background: var(--ink);
+  border-radius: 40px;
+  padding: 14px 12px 18px;
+  box-shadow: -10px 12px 0 rgba(43, 27, 61, 0.25);
+  justify-self: center;
+}
+.screen { border-radius: 28px; overflow: hidden; background: #3A2A4E; display: flex; flex-direction: column; }
+.hud { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 12px 8px; color: #FFFFFF; }
+.lives { display: flex; gap: 3px; }
+.lives img { width: 20px; height: auto; }
+.lives img.lost { opacity: 0.3; filter: grayscale(1); }
+.level { font-family: var(--display); font-weight: 700; font-size: 16px; }
+.meter { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.meter-bar { position: relative; width: 84px; height: 14px; border-radius: 99px; background: #1E1229; border: 2px solid #FFFFFF; overflow: hidden; }
+.meter-fill { position: absolute; top: 0; bottom: 0; inset-inline-start: 0; width: 54%; background: var(--leaf); }
+.meter-goal { position: absolute; top: -2px; bottom: -2px; inset-inline-start: 80%; width: 3px; background: var(--sun); }
+.meter-num { font-family: var(--display); font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums; }
+.board { position: relative; aspect-ratio: 360 / 560; width: 100%; overflow: hidden; direction: ltr; }
+.board > img.scene { position: absolute; inset: 0; width: 100%; height: 100%; }
+.dirt {
+  position: absolute; inset: 0;
+  background: url("assets/dirt-tile.svg") 0 0 / 40px 40px repeat;
+  clip-path: polygon(30.556% 0, 100% 0, 100% 53.571%, 69.444% 53.571%, 69.444% 75%, 30.556% 75%);
+}
+.lines { position: absolute; inset: 0; width: 100%; height: 100%; }
+.sprite { position: absolute; transform: translate(-50%, -50%); height: auto; filter: drop-shadow(0 3px 0 rgba(43, 27, 61, 0.35)); }
+.hint {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 10px 12px 12px; color: #FFFFFF; font-weight: 800; font-size: 15px;
+}
+.hint img { width: 22px; }
+
+/* Sections */
+section { display: flex; flex-direction: column; gap: 20px; }
+.section-head { display: flex; flex-direction: column; gap: 6px; max-width: 60ch; }
+.grid { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.card {
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  border-radius: 22px;
+  box-shadow: -6px 6px 0 var(--ink);
+  padding: 18px;
+  display: flex; flex-direction: column; gap: 10px;
+  min-width: 0;
+}
+.art { display: grid; place-items: center; height: 170px; border-radius: 14px; }
+.art img { max-height: 150px; max-width: 90%; }
+.flip { transform: scaleX(-1); }
+.role { font-weight: 800; font-size: 14px; }
+.role.good { color: #2F8A33; }
+.role.bad { color: var(--lava); }
+.card p { color: var(--muted); font-weight: 500; }
+.bg-leaf { background: #E3F8DA; }
+.bg-lava { background: #FFE6D9; }
+.bg-purple { background: #EFE5FF; }
+
+.powers { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.power { align-items: center; text-align: center; }
+.power img { width: 76px; height: 76px; }
+.power h3 { font-size: 20px; }
+.power p { font-size: 15px; }
+
+.world { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.scene-card img { width: 100%; border-radius: 14px; border: 3px solid var(--ink); display: block; }
+.stack { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.tiles { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.tile-demo { width: 120px; height: 120px; border-radius: 14px; border: 3px solid var(--ink); background: url("assets/dirt-tile.svg") 0 0 / 40px 40px repeat; }
+.trail-demo { width: 120px; height: 120px; border-radius: 14px; border: 3px solid var(--ink); background: #A0673F; display: grid; place-items: center; }
+.trail-demo svg { width: 100%; height: 100%; }
+.swatches { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 10px; }
+.sw { border: 3px solid var(--ink); border-radius: 14px; overflow: hidden; background: var(--paper); }
+.sw i { display: block; height: 52px; border-bottom: 3px solid var(--ink); }
+.sw b { display: block; padding: 6px 8px 0; font-size: 14px; }
+.sw small { display: block; padding: 0 8px 8px; color: var(--muted); font-family: ui-monospace, Consolas, monospace; font-size: 12px; direction: ltr; text-align: right; }
+
+/* Roster */
+.roster { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+.roster .art { height: 140px; }
+.roster .art img { max-height: 124px; }
+.perk { align-self: flex-start; border: 3px solid var(--ink); border-radius: 999px; padding: 2px 12px; font-weight: 800; font-size: 14px; background: var(--sun); }
+.unlock { font-size: 14px; font-weight: 700; color: var(--muted); }
+.locked .art img { filter: brightness(0) opacity(0.25); }
+.bg-sun { background: #FFF4C9; }
+.bg-pink { background: #FFE3EA; }
+.bg-blue { background: #E1EAFF; }
+.bg-teal { background: #D9F5F2; }
+
+/* Levels */
+.rules { display: flex; flex-wrap: wrap; gap: 10px; }
+.rules .chip { background: #FFF4C9; }
+.worlds { display: flex; flex-direction: column; gap: 14px; }
+.world-row {
+  display: grid; grid-template-columns: 56px minmax(0, 1.2fr) repeat(3, minmax(0, 1fr)) 72px;
+  gap: 14px; align-items: center;
+  background: var(--paper); border: 3px solid var(--ink); border-radius: 18px;
+  box-shadow: -5px 5px 0 var(--ink); padding: 12px 16px;
+}
+.world-num {
+  width: 48px; height: 48px; border-radius: 50%; border: 3px solid var(--ink);
+  display: grid; place-items: center; font-family: var(--display); font-weight: 700; font-size: 24px; background: var(--leaf); color: var(--ink);
+}
+.world-row h3 { font-size: 20px; }
+.world-row .new { font-size: 14px; color: var(--muted); font-weight: 500; }
+.stat { display: flex; flex-direction: column; }
+.stat small { font-size: 12px; font-weight: 700; color: var(--muted); }
+.stat b { font-size: 15px; }
+.reward img { width: 64px; height: auto; display: block; margin-inline: auto; }
+.speed { display: inline-flex; gap: 3px; direction: ltr; }
+.speed i { width: 8px; height: 14px; border-radius: 3px; background: #E7E1EE; border: 2px solid var(--ink); }
+.speed i.on { background: var(--lava); }
+.helpers { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+
+@media (max-width: 760px) {
+  .world-row { grid-template-columns: 52px minmax(0, 1fr) 64px; }
+  .world-row .stat { grid-column: 2 / 4; flex-direction: row; gap: 8px; align-items: center; }
+  .world-row .reward { grid-column: 3; grid-row: 1; }
+}
+@media (max-width: 760px) {
+  .hero { grid-template-columns: 1fr; }
+  .world { grid-template-columns: 1fr; }
+  .logo { -webkit-text-stroke-width: 8px; text-shadow: -4px 5px 0 var(--ink); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .bob { animation: bob 1.6s ease-in-out infinite; }
+  .buzz { animation: buzz 0.9s ease-in-out infinite; }
+  @keyframes bob { 50% { transform: translate(-50%, calc(-50% - 4px)); } }
+  @keyframes buzz { 25% { transform: translate(calc(-50% + 3px), calc(-50% - 2px)); } 75% { transform: translate(calc(-50% - 3px), calc(-50% + 2px)); } }
+}
+</style>
+
+<div class="wrap" dir="rtl" lang="he">
+  <header class="hero">
+    <div class="hero-text">
+      <span class="eyebrow">מראה ותחושה · סבב ראשון</span>
+      <div class="logo">דינו <span>חופר!</span></div>
+      <p class="pitch">עזרו לפיפ לגדר את האדמה ולחשוף תמונת דינוזאורים נסתרת, בזמן שרקס הלוהט והכנופיה המזמזמת שלו מנסים לתפוס אותו.</p>
+      <div class="facts">
+        <span class="chip">טלפון אנדרואיד · לאורך</span>
+        <span class="chip">גוררים כדי לזוז</span>
+        <span class="chip">תופסים 80% ומנצחים</span>
+      </div>
+    </div>
+
+    <div class="phone" aria-label="הדמיה של שלב באמצע משחק בטלפון">
+      <div class="screen">
+        <div class="hud">
+          <div class="lives" aria-label="נשארו 2 מתוך 3 ביצים">
+            <img src="assets/egg.svg" alt="">
+            <img src="assets/egg.svg" alt="">
+            <img src="assets/egg.svg" alt="" class="lost">
+          </div>
+          <div class="level">עמק הר הגעש</div>
+          <div class="meter">
+            <div class="meter-bar"><div class="meter-fill"></div><div class="meter-goal"></div></div>
+            <div class="meter-num"><bdi>54%</bdi> מתוך <bdi>80%</bdi></div>
+          </div>
+        </div>
+        <div class="board">
+          <img class="scene" src="assets/scene-volcano-valley.svg" alt="">
+          <div class="dirt"></div>
+          <svg class="lines" viewBox="0 0 360 560" aria-hidden="true">
+            <g fill="none" stroke-linejoin="round" stroke-linecap="round">
+              <polyline points="110,0 110,420 250,420 250,300 360,300" stroke="#2B1B3D" stroke-width="9"/>
+              <polyline points="110,0 110,420 250,420 250,300 360,300" stroke="#FFFFFF" stroke-width="4"/>
+              <polyline points="110,330 180,330 180,250" stroke="#2B1B3D" stroke-width="9"/>
+              <polyline points="110,330 180,330 180,250" stroke="#FFD23F" stroke-width="4" stroke-dasharray="9 7"/>
+            </g>
+          </svg>
+          <img class="sprite" src="assets/power-bone.svg" alt="" style="left:88.9%; top:48.2%; width:8.5%">
+          <img class="sprite" src="assets/magma-rex.svg" alt="" style="left:72%; top:17%; width:36%">
+          <img class="sprite buzz" src="assets/buzzer.svg" alt="" style="left:83.3%; top:38%; width:11%">
+          <img class="sprite buzz" src="assets/buzzer.svg" alt="" style="left:44%; top:10%; width:11%">
+          <img class="sprite bob" src="assets/lava-blob.svg" alt="" style="left:58.3%; top:67.9%; width:9.5%">
+          <img class="sprite bob" src="assets/pip.svg" alt="" style="left:50%; top:43.5%; width:14%">
+        </div>
+        <div class="hint"><img src="assets/footprint.svg" alt="">גררו את פיפ לתוך האדמה!</div>
+      </div>
+    </div>
+  </header>
+
+  <section>
+    <div class="section-head">
+      <span class="eyebrow">הדמויות</span>
+      <h2>מי נמצא על הלוח</h2>
+    </div>
+    <div class="grid">
+      <article class="card">
+        <div class="art bg-leaf"><img src="assets/pip.svg" alt="פיפ, טריצרטופס תינוק ירוק עם כובע חוקרים צהוב"></div>
+        <span class="role good">הגיבור · זה אתה!</span>
+        <h3>פיפ</h3>
+        <p>טריצרטופס תינוק וחוקר אמיץ. כשהוא חופר הוא משאיר שביל של עקבות, וכשהשביל נסגר, השטח שלו.</p>
+      </article>
+      <article class="card">
+        <div class="art bg-lava"><img src="assets/magma-rex.svg" alt="רקס הלוהט, טירנוזאורוס אדום עם סדקי לבה זוהרים"></div>
+        <span class="role bad">הבוס</span>
+        <h3>רקס הלוהט</h3>
+        <p>רוקע ומסתובב באדמה הפתוחה. אם הוא נוגע בשביל של פיפ, פיפ מאבד ביצה. סוגרים אותו בפינה קטנה ומנצחים בגדול.</p>
+      </article>
+      <article class="card">
+        <div class="art bg-purple"><img src="assets/buzzer.svg" alt="יתוש סגול עם עיניים אדומות"></div>
+        <span class="role bad">מהכנופיה</span>
+        <h3>זמזום</h3>
+        <p>טס מהר בזיגזג. סוגרים עליו שטח, והוא נעלם עם נקודות בונוס.</p>
+      </article>
+      <article class="card">
+        <div class="art bg-lava"><img src="assets/lava-blob.svg" alt="טיפת לבה כתומה וכועסת"></div>
+        <span class="role bad">מהכנופיה</span>
+        <h3>טיפת לבה</h3>
+        <p>איטית וקופצנית, ומחליקה לאורך הקצוות שבהם פיפ הולך. כדאי לשים עליה עין.</p>
+      </article>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <span class="eyebrow">דמויות לבחירה</span>
+      <h2>החברים של פיפ</h2>
+      <p>כל עולם שמסיימים פותח דינוזאור חדש לשחק איתו. לכל אחד יש כוח מיוחד אחד, פשוט וברור.</p>
+    </div>
+    <div class="roster">
+      <article class="card">
+        <div class="art bg-leaf"><img src="assets/pip.svg" alt="פיפ"></div>
+        <h3>פיפ</h3>
+        <span class="perk">חוקר אמיץ</span>
+        <span class="unlock">זמין מההתחלה</span>
+      </article>
+      <article class="card">
+        <div class="art bg-sun"><img src="assets/stegi.svg" alt="סטגי, סטגוזאורוס כתום עם לוחות טורקיז וצעיף כחול"></div>
+        <h3>סטגי</h3>
+        <span class="perk">מתחיל כל שלב עם מגן</span>
+        <span class="unlock">נפתח אחרי עולם 1</span>
+      </article>
+      <article class="card">
+        <div class="art bg-pink"><img src="assets/petra.svg" alt="פטרה, פטרודקטיל ורוד עם משקפי טיסה"></div>
+        <h3>פטרה</h3>
+        <span class="perk">הכי מהירה</span>
+        <span class="unlock">נפתחת אחרי עולם 2</span>
+      </article>
+      <article class="card">
+        <div class="art bg-blue"><img src="assets/anki.svg" alt="אנקי, אנקילוזאורוס כחול עם קסדת בנאים"></div>
+        <h3>אנקי</h3>
+        <span class="perk">4 ביצים במקום 3</span>
+        <span class="unlock">נפתח אחרי עולם 3</span>
+      </article>
+      <article class="card">
+        <div class="art bg-teal"><img src="assets/rafi.svg" alt="רפי, ולוצירפטור טורקיז עם כובע הפוך"></div>
+        <h3>רפי</h3>
+        <span class="perk">הפתעות נמשכות כפול</span>
+        <span class="unlock">נפתח אחרי עולם 4</span>
+      </article>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <span class="eyebrow">הפתעות</span>
+      <h2>מסתתרים באדמה</h2>
+      <p>סוגרים את השטח מסביב כדי לאסוף. הביצים הן החיים של פיפ.</p>
+    </div>
+    <div class="powers">
+      <div class="card power"><img src="assets/power-bone.svg" alt=""><h3>עצם טורבו</h3><p>פיפ רץ מהר יותר</p></div>
+      <div class="card power"><img src="assets/power-shield.svg" alt=""><h3>מגן כוכב</h3><p>פגיעה אחת בחינם</p></div>
+      <div class="card power"><img src="assets/power-ice.svg" alt=""><h3>עידן הקרח</h3><p>מקפיא את האויבים</p></div>
+      <div class="card power"><img src="assets/power-amber.svg" alt=""><h3>אבן ענבר</h3><p>נקודות בונוס</p></div>
+      <div class="card power"><img src="assets/egg.svg" alt="" style="width:54px"><h3>הביצה של פיפ</h3><p>סופרת את החיים</p></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <span class="eyebrow">העולם</span>
+      <h2>התמונה שמתחת לאדמה</h2>
+      <p>בכל שלב מסתתרת תמונה כמו זו. האדמה מכסה אותה, וכל חתיכה שפיפ תופס חושפת עוד קצת.</p>
+    </div>
+    <div class="world">
+      <div class="card scene-card">
+        <img src="assets/scene-volcano-valley.svg" alt="עמק הר הגעש: ברכיוזאורוס אוכל מעץ דקל ליד הר געש, נהר וקן ביצים">
+        <h3>שלב 1 · עמק הר הגעש</h3>
+      </div>
+      <div class="stack">
+        <div class="card">
+          <h3>חלקי הלוח</h3>
+          <div class="tiles">
+            <div class="tile-demo" role="img" aria-label="אריח אדמה"></div>
+            <div class="trail-demo" aria-label="שביל וקצוות">
+              <svg viewBox="0 0 120 120" aria-hidden="true">
+                <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20,0 20,120" stroke="#2B1B3D" stroke-width="9"/>
+                  <polyline points="20,0 20,120" stroke="#FFFFFF" stroke-width="4"/>
+                  <polyline points="20,80 80,80 80,30" stroke="#2B1B3D" stroke-width="9"/>
+                  <polyline points="20,80 80,80 80,30" stroke="#FFD23F" stroke-width="4" stroke-dasharray="9 7"/>
+                </g>
+              </svg>
+            </div>
+            <img src="assets/footprint.svg" alt="עקבה" style="width:60px">
+          </div>
+          <p>אריח אדמה, קצוות בטוחים בלבן, שביל צהוב מקווקו והעקבות של פיפ.</p>
+        </div>
+        <div class="card">
+          <h3>צבעים</h3>
+          <div class="swatches">
+            <div class="sw"><i style="background:#5CCB5F"></i><b>ירוק פיפ</b><small>#5CCB5F</small></div>
+            <div class="sw"><i style="background:#E8553D"></i><b>לבה</b><small>#E8553D</small></div>
+            <div class="sw"><i style="background:#FFD23F"></i><b>שמש</b><small>#FFD23F</small></div>
+            <div class="sw"><i style="background:#4FC3F7"></i><b>נהר</b><small>#4FC3F7</small></div>
+            <div class="sw"><i style="background:#8E5BD9"></i><b>זמזום</b><small>#8E5BD9</small></div>
+            <div class="sw"><i style="background:#A0673F"></i><b>אדמה</b><small>#A0673F</small></div>
+            <div class="sw"><i style="background:#2B1B3D"></i><b>דיו</b><small>#2B1B3D</small></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <span class="eyebrow">שלבים וקושי</span>
+      <h2>איך המשחק נהיה קשה יותר</h2>
+      <p>5 עולמות, 5 שלבים בכל עולם, ותמונה חדשה בכל שלב. כל עולם מוסיף רעיון חדש אחד, והאויבים מאיצים קצת בכל שלב.</p>
+    </div>
+    <div class="rules">
+      <span class="chip">נגיעה בשביל = מאבדים ביצה, כבר מהשלב הראשון</span>
+      <span class="chip">בלי שעון</span>
+      <span class="chip">שלב ≈ 2 דקות · 4–5 שלבים בעשר דקות</span>
+    </div>
+    <div class="worlds">
+      <div class="world-row">
+        <div class="world-num">1</div>
+        <div><h3>עמק הר הגעש</h3><p class="new">לומדים לשחק. רקס לבד, זמזום מצטרף בשלב 3.</p></div>
+        <div class="stat"><small>צריך לתפוס</small><b>65%</b></div>
+        <div class="stat"><small>אויבים</small><b>1–2</b></div>
+        <div class="stat"><small>מהירות</small><span class="speed"><i class="on"></i><i></i><i></i><i></i><i></i></span></div>
+        <div class="reward"><img src="assets/stegi.svg" alt="פרס: סטגי"></div>
+      </div>
+      <div class="world-row">
+        <div class="world-num">2</div>
+        <div><h3>הג'ונגל</h3><p class="new">להקת זמזומים. הם מהירים, אבל שווים הרבה נקודות.</p></div>
+        <div class="stat"><small>צריך לתפוס</small><b>70%</b></div>
+        <div class="stat"><small>אויבים</small><b>2–3</b></div>
+        <div class="stat"><small>מהירות</small><span class="speed"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></div>
+        <div class="reward"><img src="assets/petra.svg" alt="פרס: פטרה"></div>
+      </div>
+      <div class="world-row">
+        <div class="world-num">3</div>
+        <div><h3>החוף</h3><p class="new">טיפות לבה מגיעות. מעכשיו גם הקצוות לא בטוחים.</p></div>
+        <div class="stat"><small>צריך לתפוס</small><b>75%</b></div>
+        <div class="stat"><small>אויבים</small><b>3</b></div>
+        <div class="stat"><small>מהירות</small><span class="speed"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></div>
+        <div class="reward"><img src="assets/anki.svg" alt="פרס: אנקי"></div>
+      </div>
+      <div class="world-row">
+        <div class="world-num">4</div>
+        <div><h3>ארץ הקרח</h3><p class="new">רקס מסתער לכיוון השביל. עידן הקרח הופך לחשוב.</p></div>
+        <div class="stat"><small>צריך לתפוס</small><b>80%</b></div>
+        <div class="stat"><small>אויבים</small><b>3–4</b></div>
+        <div class="stat"><small>מהירות</small><span class="speed"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></div>
+        <div class="reward"><img src="assets/rafi.svg" alt="פרס: רפי"></div>
+      </div>
+      <div class="world-row">
+        <div class="world-num">5</div>
+        <div><h3>הלילה</h3><p class="new">הכול ביחד. ההפתעות נעלמות אחרי כמה שניות.</p></div>
+        <div class="stat"><small>צריך לתפוס</small><b>85%</b></div>
+        <div class="stat"><small>אויבים</small><b>4–5</b></div>
+        <div class="stat"><small>מהירות</small><span class="speed"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></div>
+        <div class="reward"><img src="assets/magma-rex.svg" alt="פרס: לשחק בתור רקס"></div>
+      </div>
+    </div>
+    <div class="helpers">
+      <div class="card">
+        <h3>נגמרו הביצים?</h3>
+        <p>מתחילים שוב את אותו שלב, אף פעם לא חוזרים להתחלה.</p>
+      </div>
+      <div class="card">
+        <h3>עזרה שקטה</h3>
+        <p>אחרי 3 הפסדים ברצף באותו שלב, האויבים מאטים קצת. בלי להגיד כלום.</p>
+      </div>
+      <div class="card">
+        <h3>כוכבים</h3>
+        <p>1–3 כוכבים לפי כמה תפסת מעל היעד. סיבה טובה לחזור לשלבים ישנים.</p>
+      </div>
+    </div>
+  </section>
+</div>
