@@ -26,6 +26,23 @@
     </div>
   </div>
   <button id="muteBtn" class="icon-btn corner" aria-label="צליל">🔊</button>
+  <button id="settingsBtn" class="icon-btn corner end" aria-label="הגדרות">⚙️</button>
+
+  <div id="settings" class="overlay" hidden>
+    <div class="panel">
+      <h2>הגדרות</h2>
+      <div id="resetAsk" class="settings-step">
+        <button id="resetBtn" class="btn alt">איפוס התקדמות</button>
+        <button id="settingsClose" class="btn">סגירה</button>
+      </div>
+      <div id="resetConfirm" class="settings-step" hidden>
+        <p class="warn">בטוחים? כל הכוכבים, השלבים והדמויות שנפתחו יימחקו, ואי אפשר לבטל את זה.</p>
+        <button id="resetYes" class="btn danger">כן, לאפס הכול</button>
+        <button id="resetNo" class="btn alt">ביטול</button>
+      </div>
+      <p id="resetDone" class="done" hidden>ההתקדמות אופסה. מתחילים מההתחלה!</p>
+    </div>
+  </div>
 </section>
 
 <section id="map" class="screen" hidden>

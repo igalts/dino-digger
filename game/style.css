@@ -48,6 +48,11 @@ img { -webkit-user-drag: none; }
 .icon-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
 .icon-btn.small { width: 40px; height: 40px; font-size: 14px; border-width: 3px; box-shadow: 0 3px 0 #000; }
 .icon-btn.corner { position: absolute; top: calc(env(safe-area-inset-top, 0px) + 14px); left: calc(env(safe-area-inset-left, 0px) + 14px); }
+.icon-btn.corner.end { left: auto; right: calc(env(safe-area-inset-right, 0px) + 14px); }
+.settings-step { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.panel .warn { margin: 0; text-align: center; font-weight: 700; color: var(--muted); max-width: 26ch; }
+.panel .done { margin: 0; font-weight: 800; color: #2F8A33; text-align: center; }
+.btn.danger { background: var(--lava); color: var(--paper); }
 
 /* Title */
 .title-inner { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: space-evenly; padding: 16px; gap: 8px; }

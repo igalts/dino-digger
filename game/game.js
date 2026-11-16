@@ -1178,6 +1178,31 @@
 
   // Buttons
   $('#playBtn').addEventListener('click', () => { sfx.init(); sfx.tap(); goFullscreen(); show('map'); });
+  // Settings: reset progress (two steps, so a stray tap can't wipe everything).
+  function settingsStep(confirming) {
+    $('#resetAsk').hidden = confirming;
+    $('#resetConfirm').hidden = !confirming;
+  }
+  $('#settingsBtn').addEventListener('click', () => {
+    sfx.init(); sfx.tap();
+    settingsStep(false);
+    $('#resetDone').hidden = true;
+    $('#settings').hidden = false;
+  });
+  $('#settingsClose').addEventListener('click', () => { sfx.tap(); $('#settings').hidden = true; });
+  $('#resetBtn').addEventListener('click', () => { sfx.tap(); settingsStep(true); });
+  $('#resetNo').addEventListener('click', () => { sfx.tap(); settingsStep(false); });
+  $('#resetYes').addEventListener('click', () => {
+    const { muted, controlMode } = store.data;
+    store.data = { stars: {}, unlocked: ['pip'], selected: 'pip', streak: {}, muted, controlMode };
+    store.save();
+    G = null;
+    sfx.tap();
+    settingsStep(false);
+    $('#resetDone').hidden = false;
+    buildTitle();
+  });
+
   $('#mapBack').addEventListener('click', () => { sfx.tap(); show('title'); });
   $('#muteBtn').addEventListener('click', () => { store.data.muted = !store.data.muted; store.save(); sfx.init(); sfx.tap(); buildTitle(); });
   $('#pauseBtn').addEventListener('click', () => { sfx.tap(); togglePause(true); });
