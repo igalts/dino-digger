@@ -1266,6 +1266,9 @@
     sfx.init();
     input.id = e.pointerId; input.ax = e.clientX; input.ay = e.clientY; input.swiped = false;
     try { gameEl.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+    // Touching the screen stops him right where he is (a cut in progress still finishes);
+    // if the finger then slides, that's a new swipe.
+    if (G && G.state === 'play' && !paused) input.dir = null;
   });
   gameEl.addEventListener('pointermove', (e) => {
     if (e.pointerId !== input.id || !G || G.state !== 'play' || paused) return;
@@ -1277,7 +1280,6 @@
   const endPointer = (e) => {
     if (e.pointerId !== input.id) return;
     input.id = null;
-    if (!input.swiped && G && G.state === 'play') input.dir = null; // tap = stop (a cut in progress still finishes)
   };
   gameEl.addEventListener('pointerup', endPointer);
   gameEl.addEventListener('pointercancel', endPointer);
