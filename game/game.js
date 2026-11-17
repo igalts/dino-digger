@@ -340,9 +340,10 @@
     resize();
     buildLives();
     updateHud();
+    $('#timerNum').textContent = fmtTime(0);
     const b = $('#banner');
     const best = (store.data.best || {})[key];
-    const bestLine = best ? `<small class="wname">⏱ השיא: <bdi>${fmtTime(best)}</bdi></small>` : '';
+    const bestLine = best ? `<small class="best-line">⏱ השיא <bdi>${fmtTime(best)}</bdi></small>` : '';
     if (G.bossFight) {
       b.innerHTML = `בוס!<small>${G.bossInfo.name}</small>${bestLine}`;
       sfx.boss();
@@ -413,6 +414,7 @@
     if (G.state === 'won') { updateWin(dt); return; }
     if (G.state !== 'play') return;
     G.playT += dt; // only counts real play: not the intro banner, not while paused
+    if (Math.floor(G.playT) !== G.shownSec) { G.shownSec = Math.floor(G.playT); $('#timerNum').textContent = fmtTime(G.playT); }
 
     const p = G.player;
     if (p.invuln > 0) p.invuln -= dt;
@@ -896,7 +898,7 @@
       // First win of a level just sets the time; beating an old time gets the "new record" badge.
       $('#winTime').innerHTML = `<span>⏱ <bdi>${fmtTime(time)}</bdi></span>${
         record && prevBest ? '<span class="record">שיא חדש!</span>'
-          : !record ? `<span class="best">השיא: <bdi>${fmtTime(prevBest)}</bdi></span>` : ''}`;
+          : !record ? `<span class="best">השיא <bdi>${fmtTime(prevBest)}</bdi></span>` : ''}`;
       if (record && prevBest) setTimeout(() => sfx.power(), 1200);
       const u = $('#unlock');
       if (unlocked) {
