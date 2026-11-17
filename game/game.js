@@ -904,7 +904,18 @@
       if (unlocked) {
         const [joins, them] = JOINS[unlocked] || ['מצטרף', 'אותו'];
         $('#unlockImg').src = `assets/${CHARS[unlocked].img}.svg`;
-        $('#unlockText').textContent = `${CHARS[unlocked].name} ${joins}! אפשר לבחור ${them} במסך הפתיחה.`;
+        const name = CHARS[unlocked].name;
+        $('#unlockText').textContent = `${name} ${joins}!`;
+        // One tap switches to the new friend right away (or later from the title screen).
+        const pick = $('#pickBtn');
+        pick.textContent = `לשחק עם ${name}!`;
+        pick.classList.remove('done');
+        pick.onclick = () => {
+          store.data.selected = unlocked; store.save();
+          pick.textContent = `✓ ${name} ${JOINS[unlocked] ? 'נבחרה' : 'נבחר'}!`;
+          pick.classList.add('done');
+          sfx.power();
+        };
         u.hidden = false;
       } else u.hidden = true;
       const lastLevel = G.l >= world.levels.length - 1;

@@ -247,8 +247,11 @@ img { -webkit-user-drag: none; }
   padding: .3cqw 2cqw; font-family: var(--display); font-size: 4cqw; color: var(--ink); white-space: nowrap;
   -webkit-text-stroke: 0;
 }
-.unlock { display: flex; align-items: center; gap: 10px; background: #FFF4C9; border: 3px solid var(--ink); border-radius: 18px; padding: 8px 14px; font-weight: 800; }
+.unlock { display: flex; flex-direction: column; align-items: stretch; gap: 8px; background: #FFF4C9; border: 3px solid var(--ink); border-radius: 18px; padding: 8px 14px 10px; font-weight: 800; }
+.unlock-row { display: flex; align-items: center; gap: 10px; }
 .unlock img { width: 64px; }
+.unlock .pick { font-size: 20px; padding: 8px 14px; margin: 0; }
+.unlock .pick.done { background: #7BD389; pointer-events: none; }
 .sad { width: 110px; transform: rotate(-12deg); }
 
 @media (prefers-reduced-motion: no-preference) {
