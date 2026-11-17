@@ -564,17 +564,26 @@
       if (i < GW * (GH - 1) && bfsPrev[i + GW] === -1 && g[i + GW] === 1) { bfsPrev[i + GW] = i; bfsQueue[tl++] = i + GW; }
     }
     if (bfsPrev[t] === -1) return null;
-    let i = t;
-    while (bfsPrev[i] !== s) i = bfsPrev[i];
-    return { x: (i % GW) - sx, y: Math.floor(i / GW) - sy };
+    let i = t, len = 1;
+    while (bfsPrev[i] !== s) { i = bfsPrev[i]; len++; }
+    return { x: (i % GW) - sx, y: Math.floor(i / GW) - sy, len };
   }
 
   function followDir() {
     const p = G.player, t = input.target;
     if (!t || (p.x === t.x && p.y === t.y)) return null;
     if (!p.drawing && G.grid[t.y * GW + t.x] === 1) {
-      const s = safeStep(p.x, p.y, t.x, t.y);
-      if (s) return s;
+      // Walk over safe ground only when that's about as short as going straight there.
+      // If the safe way is a long detour around the board, cut straight across instead.
+      if (t.safe === undefined) {
+        const s = safeStep(p.x, p.y, t.x, t.y);
+        const direct = Math.abs(t.x - p.x) + Math.abs(t.y - p.y);
+        t.safe = !!s && s.len <= direct * 1.25 + 4;
+      }
+      if (t.safe) {
+        const s = safeStep(p.x, p.y, t.x, t.y);
+        if (s) return s;
+      }
     }
     // Otherwise an L-shaped path: keep going along the current axis until lined up, then turn.
     const dx = t.x - p.x, dy = t.y - p.y;
