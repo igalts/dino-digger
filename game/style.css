@@ -226,6 +226,19 @@ img { -webkit-user-drag: none; }
 .stars-big .on { color: #FF9F1C; -webkit-text-stroke: 3px var(--ink); }
 .stars-big .off { color: #E7E1EE; -webkit-text-stroke: 3px var(--ink); }
 .score { font-weight: 700; color: var(--muted); }
+.time-row { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; font-weight: 800; font-size: 20px; }
+.time-row bdi { font-family: var(--display); }
+.time-row .record {
+  background: var(--sun); border: 3px solid var(--ink); border-radius: 99px; padding: 2px 10px; font-size: 16px;
+  animation: starIn .5s cubic-bezier(.3, 1.6, .5, 1) 1.2s both;
+}
+.time-row .best { color: var(--muted); font-size: 16px; }
+.level .best-time {
+  position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 2.6cqw;
+  background: rgba(255,255,255,.92); border: .8cqw solid var(--ink); border-radius: 99px;
+  padding: .3cqw 2cqw; font-family: var(--display); font-size: 4cqw; color: var(--ink); white-space: nowrap;
+  -webkit-text-stroke: 0;
+}
 .unlock { display: flex; align-items: center; gap: 10px; background: #FFF4C9; border: 3px solid var(--ink); border-radius: 18px; padding: 8px 14px; font-weight: 800; }
 .unlock img { width: 64px; }
 .sad { width: 110px; transform: rotate(-12deg); }

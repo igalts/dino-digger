@@ -99,11 +99,13 @@
   const $ = (s) => document.querySelector(s);
   const rand = (a, b) => a + Math.random() * (b - a);
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  // Seconds -> "1:05". Times always read left to right, so wrap them in <bdi> when mixed with Hebrew.
+  const fmtTime = (s) => { const t = Math.max(0, Math.floor(s)); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
 
   // ---------- Saved progress ----------
   const store = {
     key: 'dinoDig.v1',
-    data: { stars: {}, unlocked: ['pip'], selected: 'pip', streak: {}, muted: false },
+    data: { stars: {}, best: {}, unlocked: ['pip'], selected: 'pip', streak: {}, muted: false },
     load() {
       try { const d = JSON.parse(localStorage.getItem(this.key)); if (d) Object.assign(this.data, d); } catch (e) { /* ignore */ }
     },
@@ -288,7 +290,7 @@
       player: { x: Math.floor(GW / 2), y: GH - 1, face: 1, drawing: false, trail: [], startX: 0, startY: 0,
         acc: 0, invuln: 0, shield: !!ch.shieldStart, boost: 0 },
       enemies: [], items: [], particles: [],
-      freeze: 0, state: 'ready', readyT: 1.8, t: 0, itemTimer: 12, shake: 0, winT: 0,
+      freeze: 0, state: 'ready', readyT: 1.8, t: 0, playT: 0, itemTimer: 12, shake: 0, winT: 0,
       bossFight: !!cfg.bossFight, bossInfo: cfg.bossFight ? BOSSES[w] : null, bossHp: BOSS_HP, shots: [],
     };
     if (G.bossFight) G.readyT = 2.6;
@@ -339,10 +341,12 @@
     buildLives();
     updateHud();
     const b = $('#banner');
+    const best = (store.data.best || {})[key];
+    const bestLine = best ? `<small class="wname">⏱ השיא: <bdi>${fmtTime(best)}</bdi></small>` : '';
     if (G.bossFight) {
-      b.innerHTML = `בוס!<small>${G.bossInfo.name}</small>`;
+      b.innerHTML = `בוס!<small>${G.bossInfo.name}</small>${bestLine}`;
       sfx.boss();
-    } else b.innerHTML = `<small class="wname">${WORLDS[w].name}</small>שלב ${l + 1}<small>תפסו ${cfg.goal}%</small>`;
+    } else b.innerHTML = `<small class="wname">${WORLDS[w].name}</small>שלב ${l + 1}<small>תפסו ${cfg.goal}%</small>${bestLine}`;
     b.hidden = false;
     input.dir = null; input.target = null;
     applyControlMode();
@@ -408,6 +412,7 @@
     }
     if (G.state === 'won') { updateWin(dt); return; }
     if (G.state !== 'play') return;
+    G.playT += dt; // only counts real play: not the intro banner, not while paused
 
     const p = G.player;
     if (p.invuln > 0) p.invuln -= dt;
@@ -872,6 +877,10 @@
     const d = store.data;
     d.stars[G.key] = Math.max(d.stars[G.key] || 0, stars);
     d.streak[G.key] = 0;
+    d.best = d.best || {};
+    const time = G.playT, prevBest = d.best[G.key];
+    const record = !prevBest || time < prevBest;
+    if (record) d.best[G.key] = time;
     let unlocked = null;
     const world = WORLDS[G.w];
     if (G.l === world.levels.length - 1 && world.unlock && !d.unlocked.includes(world.unlock)) {
@@ -884,6 +893,11 @@
       if (!G || G.state !== 'won') return;
       $('#winStars').innerHTML = [0, 1, 2].map((i) => `<span class="${i < stars ? 'on' : 'off'}">★</span>`).join('');
       $('#winScore').textContent = `ניקוד: ${G.score}`;
+      // First win of a level just sets the time; beating an old time gets the "new record" badge.
+      $('#winTime').innerHTML = `<span>⏱ <bdi>${fmtTime(time)}</bdi></span>${
+        record && prevBest ? '<span class="record">שיא חדש!</span>'
+          : !record ? `<span class="best">השיא: <bdi>${fmtTime(prevBest)}</bdi></span>` : ''}`;
+      if (record && prevBest) setTimeout(() => sfx.power(), 1200);
       const u = $('#unlock');
       if (unlocked) {
         const [joins, them] = JOINS[unlocked] || ['מצטרף', 'אותו'];
@@ -1327,7 +1341,9 @@
       const label = lvl.bossFight ? `בוס: ${BOSSES[w].name}` : `שלב ${i + 1}`;
       b.setAttribute('aria-label', open ? label : `${label}, נעול`);
       const face = lvl.bossFight ? `<img class="boss-face" src="assets/boss-${w + 1}.svg" alt="">` : '';
-      b.innerHTML = `${face}${lvl.bossFight ? 'בוס' : i + 1}<span class="st">${[0, 1, 2].map((k) => `<span class="${k < stars ? 'on' : 'off'}">★</span>`).join('')}</span>`;
+      const best = (store.data.best || {})[`${w + 1}-${i + 1}`];
+      const timeTag = best && open ? `<span class="best-time">⏱ ${fmtTime(best)}</span>` : '';
+      b.innerHTML = `${face}${lvl.bossFight ? 'בוס' : i + 1}<span class="st">${[0, 1, 2].map((k) => `<span class="${k < stars ? 'on' : 'off'}">★</span>`).join('')}</span>${timeTag}`;
       b.disabled = !open;
       b.addEventListener('click', () => { sfx.init(); sfx.tap(); startLevel(w, i); });
       box.appendChild(b);
@@ -1381,7 +1397,7 @@
   $('#resetNo').addEventListener('click', () => { sfx.tap(); settingsStep(false); });
   $('#resetYes').addEventListener('click', () => {
     const { muted, controlMode } = store.data;
-    store.data = { stars: {}, unlocked: ['pip'], selected: 'pip', streak: {}, muted, controlMode };
+    store.data = { stars: {}, best: {}, unlocked: ['pip'], selected: 'pip', streak: {}, muted, controlMode };
     store.save();
     G = null;
     sfx.tap();
