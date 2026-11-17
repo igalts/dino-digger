@@ -4,7 +4,7 @@ A Hebrew area-claiming game for young kids, made for Android phones (works in an
 Pip the baby triceratops fences off dirt to uncover a hidden dinosaur picture while Magma Rex and his gang try to stop him.
 
 - 5 worlds × 5 levels, each with its own hidden picture; level 5 of every world is a boss fight
-- Arrow pad controls (touch-to-go and joystick in the pause menu)
+- Arrow pad controls; tapping a level on the map opens a card with its goal, times and challenges
 - Unlockable dino friends, stars, offline play, installs as an app (PWA)
 - 3 challenges per level (big claim, one big bite, keep all eggs) earn 💎 gems
 - Wardrobe shop: 20 silly hats, faces and outfits any dino can wear (`game/outfits.js`)

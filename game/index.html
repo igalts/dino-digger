@@ -80,6 +80,20 @@
     <h1 id="worldName"></h1>
   </header>
   <div id="worldLocked" class="world-locked" hidden></div>
+  <div id="levelInfo" class="overlay" hidden>
+    <div class="panel level-info">
+      <button id="infoClose" class="icon-btn small info-close" aria-label="סגירה">✕</button>
+      <img id="infoFace" class="info-face" alt="" hidden>
+      <div id="infoWorld" class="info-world"></div>
+      <h2 id="infoTitle"></h2>
+      <div id="infoGoal" class="info-goal"></div>
+      <div id="infoStars" class="stars-big small"></div>
+      <div id="infoBest" class="info-best"></div>
+      <div id="infoTimes" class="info-times"></div>
+      <div id="infoChal"></div>
+      <button id="infoPlay" class="btn big">שחק!</button>
+    </div>
+  </div>
   <div class="world-nav">
     <button id="prevWorld" class="icon-btn" aria-label="עולם קודם">→</button>
     <span id="worldNum"></span>
@@ -119,7 +133,7 @@
       <button id="resumeBtn" class="btn">ממשיכים</button>
       <button id="restartBtn" class="btn alt">מתחילים מחדש</button>
       <button id="pauseMapBtn" class="btn alt">למפה</button>
-      <button id="controlBtn" class="btn alt"></button>
+      <button id="pauseHomeBtn" class="btn alt">🏠 למסך הראשי</button>
       <button id="pauseMuteBtn" class="btn alt"></button>
     </div>
   </div>

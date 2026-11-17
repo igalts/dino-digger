@@ -121,7 +121,7 @@
   const store = {
     key: 'dinoDig.v1',
     data: { stars: {}, best: {}, unlocked: ['pip'], selected: 'pip', streak: {}, muted: false,
-      gems: 0, owned: [], outfit: {}, chal: {} },
+      gems: 0, owned: [], outfit: {}, chal: {}, times: {} },
     load() {
       try { const d = JSON.parse(localStorage.getItem(this.key)); if (d) Object.assign(this.data, d); } catch (e) { /* ignore */ }
     },
@@ -932,6 +932,8 @@
     const time = G.playT, prevBest = d.best[G.key];
     const record = !prevBest || time < prevBest;
     if (record) d.best[G.key] = time;
+    d.times = d.times || {};
+    d.times[G.key] = [time, ...(d.times[G.key] || [])].slice(0, 3); // the last 3 wins, newest first
     // Challenges: new ones pay gems once; every win pays a little too.
     d.chal = d.chal || {};
     const doneNow = (G.percent >= claimTarget(G.cfg) ? 1 : 0) | (G.bite >= BITE_PCT ? 2 : 0) | (G.lives >= G.maxLives ? 4 : 0);
@@ -1245,10 +1247,9 @@
   const input = { dir: null, target: null, id: null, ax: 0, ay: 0, padId: null };
   const stick = $('#stick'), knob = $('#knob');
   const gameEl = $('#game');
-  const MODES = ['pad', 'touch', 'stick'];
-  const MODE_LABEL = { pad: 'שליטה: חיצים', touch: 'שליטה: נגיעה', stick: 'שליטה: ג׳ויסטיק' };
+  // The arrow pad is the only control now (touch-to-go and joystick are switched off).
   const MODE_HINT = { pad: '', touch: 'נוגעים איפה שרוצים שפיפ ילך', stick: 'גוררים את האצבע לכיוון שרוצים ללכת' };
-  const controlMode = () => (MODES.includes(store.data.controlMode) ? store.data.controlMode : 'pad');
+  const controlMode = () => 'pad';
   const useStick = () => controlMode() === 'stick';
 
   function applyControlMode() {
@@ -1256,7 +1257,6 @@
     $('#pad').hidden = m !== 'pad';
     $('#hint').hidden = m === 'pad';
     $('#hint').textContent = MODE_HINT[m];
-    $('#controlBtn').textContent = MODE_LABEL[m];
     if (screen === 'game') resize();
   }
 
@@ -1508,10 +1508,36 @@
       const timeTag = best && open ? `<span class="best-time">⏱ ${fmtTime(best)} ${marks}</span>` : '';
       b.innerHTML = `${face}${lvl.bossFight ? 'בוס' : i + 1}<span class="st">${[0, 1, 2].map((k) => `<span class="${k < stars ? 'on' : 'off'}">★</span>`).join('')}</span>${timeTag}`;
       b.disabled = !open;
-      b.addEventListener('click', () => { sfx.init(); sfx.tap(); startLevel(w, i); });
+      b.addEventListener('click', () => { sfx.init(); sfx.tap(); showLevelInfo(w, i); });
       box.appendChild(b);
     });
   }
+
+  // Level card: what the level is, your times and challenges, and a big play button.
+  let infoLevel = null;
+  function showLevelInfo(w, l) {
+    infoLevel = [w, l];
+    const d = store.data, cfg = WORLDS[w].levels[l], key = `${w + 1}-${l + 1}`;
+    const stars = d.stars[key] || 0, best = (d.best || {})[key];
+    $('#infoWorld').textContent = WORLDS[w].name;
+    $('#infoTitle').textContent = cfg.bossFight ? `בוס: ${BOSSES[w].name}` : `שלב ${l + 1}`;
+    $('#infoFace').hidden = !cfg.bossFight;
+    if (cfg.bossFight) $('#infoFace').src = `assets/boss-${w + 1}.svg`;
+    $('#infoGoal').textContent = `תפסו ${cfg.goal}%`;
+    $('#infoStars').innerHTML = [0, 1, 2].map((k) => `<span class="${k < stars ? 'on' : 'off'}">★</span>`).join('');
+    $('#infoBest').innerHTML = best ? `⏱ השיא <bdi>${fmtTime(best)}</bdi>` : 'עוד לא ניצחת כאן';
+    const recent = ((d.times || {})[key] || []);
+    $('#infoTimes').hidden = recent.length === 0;
+    $('#infoTimes').innerHTML = `פעמים אחרונות: ${recent.map((t) => `<bdi>${fmtTime(t)}</bdi>`).join(' · ')}`;
+    $('#infoChal').innerHTML = chalRow(cfg, (d.chal || {})[key] || 0);
+    $('#levelInfo').hidden = false;
+  }
+  $('#infoPlay').addEventListener('click', () => {
+    sfx.tap(); $('#levelInfo').hidden = true;
+    if (infoLevel) startLevel(infoLevel[0], infoLevel[1]);
+  });
+  $('#infoClose').addEventListener('click', () => { sfx.tap(); $('#levelInfo').hidden = true; });
+  $('#levelInfo').addEventListener('click', (e) => { if (e.target.id === 'levelInfo') $('#levelInfo').hidden = true; });
   function pageWorld(delta) {
     const w = clamp(currentMapWorld() + delta, 0, WORLDS.length - 1);
     store.data.mapWorld = w; store.save(); sfx.tap(); buildMap();
@@ -1522,7 +1548,6 @@
     paused = on;
     $('#pause').hidden = !on;
     $('#pauseMuteBtn').textContent = store.data.muted ? 'צליל: כבוי' : 'צליל: פועל';
-    $('#controlBtn').textContent = MODE_LABEL[controlMode()];
     input.dir = null; input.target = null; stick.hidden = true; padRelease();
   }
 
@@ -1559,9 +1584,9 @@
   $('#resetBtn').addEventListener('click', () => { sfx.tap(); settingsStep(true); });
   $('#resetNo').addEventListener('click', () => { sfx.tap(); settingsStep(false); });
   $('#resetYes').addEventListener('click', () => {
-    const { muted, controlMode } = store.data;
-    store.data = { stars: {}, best: {}, unlocked: ['pip'], selected: 'pip', streak: {}, muted, controlMode,
-      gems: 0, owned: [], outfit: {}, chal: {} };
+    const { muted } = store.data;
+    store.data = { stars: {}, best: {}, unlocked: ['pip'], selected: 'pip', streak: {}, muted,
+      gems: 0, owned: [], outfit: {}, chal: {}, times: {} };
     store.save();
     G = null;
     sfx.tap();
@@ -1580,11 +1605,7 @@
     store.data.muted = !store.data.muted; store.save(); sfx.tap();
     $('#pauseMuteBtn').textContent = store.data.muted ? 'צליל: כבוי' : 'צליל: פועל';
   });
-  $('#controlBtn').addEventListener('click', () => {
-    store.data.controlMode = MODES[(MODES.indexOf(controlMode()) + 1) % MODES.length];
-    store.save(); sfx.tap();
-    applyControlMode();
-  });
+  $('#pauseHomeBtn').addEventListener('click', () => { sfx.tap(); paused = false; hideOverlays(); show('title'); });
   $('#nextBtn').addEventListener('click', () => {
     sfx.tap();
     if (G.l + 1 < WORLDS[G.w].levels.length) startLevel(G.w, G.l + 1);

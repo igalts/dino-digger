@@ -283,6 +283,22 @@ img { -webkit-user-drag: none; }
 .level .best-time .cm { font-size: 3.2cqw; filter: grayscale(1) opacity(.3); }
 .level .best-time .cm.on { filter: none; }
 
+/* Level card on the map */
+#levelInfo { z-index: 5; }
+.level-info { position: relative; gap: 8px; padding-top: 18px; }
+.level-info h2 { font-size: 34px; text-align: center; line-height: 1.1; }
+.info-close { position: absolute; top: 10px; left: 10px; }
+.info-face { width: 120px; margin: -70px 0 -6px; filter: drop-shadow(0 4px 0 rgba(43,27,61,.3)); }
+.info-world { font-weight: 800; color: var(--muted); font-size: 16px; }
+.info-goal { font-family: var(--display); font-weight: 700; font-size: 22px; background: var(--sun); border: 3px solid var(--ink); border-radius: 99px; padding: 2px 16px; }
+.stars-big.small { font-size: 40px; }
+.stars-big.small span { animation: none; }
+.info-best { font-weight: 800; font-size: 20px; }
+.info-best bdi, .info-times bdi { font-family: var(--display); }
+.info-times { color: var(--muted); font-weight: 700; font-size: 15px; white-space: nowrap; }
+#infoChal .chal-row { margin-top: 2px; }
+.level-info .btn.big { margin-top: 6px; }
+
 /* Wardrobe shop */
 #shop { background: linear-gradient(#8E5BD9, #5B3AA0); color: var(--ink); }
 .shop-head { display: flex; align-items: center; gap: 12px; padding: 12px 16px 4px; }
