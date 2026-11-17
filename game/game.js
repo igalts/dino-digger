@@ -56,6 +56,7 @@
   // The last level of every world is a boss fight: a big crowned rex that throws things and has 5 hearts.
   // Each fence you close takes hearts away (hearts follow your progress toward the goal).
   const BOSS_HP = 5;
+  const DIFFICULTY = 0.85; // global: 15% slower enemies, lava and boss shots, boss throws 15% less often
   const BOSSES = [
     { name: 'רקס הלוהט',   shot: 'fire',    every: 4.2, buzzers: 0 },
     { name: 'מלך הג׳ונגל', shot: 'coconut', every: 3.9, buzzers: 1 },
@@ -299,7 +300,8 @@
     const cfg = WORLDS[w].levels[l];
     const ch = CHARS[store.data.selected] || CHARS.pip;
     const key = `${w + 1}-${l + 1}`;
-    const ease = (store.data.streak[key] || 0) >= 3 ? 0.85 : 1; // quiet help after 3 losses in a row
+    // DIFFICULTY scales every enemy/lava/boss-shot speed and boss throw rate; extra quiet help after 3 losses in a row.
+    const ease = DIFFICULTY * ((store.data.streak[key] || 0) >= 3 ? 0.85 : 1);
     const lives = ch.lives || 3;
     G = {
       w, l, cfg, key, ch, ease, scene, world: WORLDS[w],
