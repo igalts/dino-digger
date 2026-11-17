@@ -1,5 +1,5 @@
 // Offline support: serve from cache, refresh the cache in the background.
-const CACHE = 'dino-dig-v18';
+const CACHE = 'dino-dig-v19';
 const SCENES = [];
 for (let w = 1; w <= 5; w++) {
   SCENES.push(`assets/map-${w}.svg`, `assets/boss-${w}.svg`, `assets/rex-${w}.svg`);
@@ -7,7 +7,7 @@ for (let w = 1; w <= 5; w++) {
 }
 const SHELL = [
   './', 'index.html', 'style.css', 'outfits.js', 'game.js', 'manifest.webmanifest',
-  'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'assets/title-bg.svg',
+  'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'assets/title-bg.svg', 'assets/wardrobe-bg.svg',
   'assets/pip.svg', 'assets/stegi.svg', 'assets/petra.svg', 'assets/anki.svg', 'assets/rafi.svg',
   'assets/magma-rex.svg', 'assets/buzzer.svg', 'assets/lava-blob.svg', 'assets/egg.svg',
   'assets/dirt-1.svg', 'assets/dirt-2.svg', 'assets/dirt-3.svg', 'assets/dirt-4.svg', 'assets/dirt-5.svg',

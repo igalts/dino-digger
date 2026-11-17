@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 780" width="360" height="780" preserveAspectRatio="xMidYMin slice">
+  <!-- Laid out for the shop screen: the dino's feet land around y=255 on a phone. -->
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#A274E8"/>
+      <stop offset="1" stop-color="#7A50C4"/>
+    </linearGradient>
+    <pattern id="paper" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M20 6 L26 20 L20 34 L14 20 Z" fill="#FFFFFF" opacity=".08"/>
+      <circle cx="0" cy="0" r="3" fill="#FFD23F" opacity=".25"/>
+      <circle cx="40" cy="0" r="3" fill="#FFD23F" opacity=".25"/>
+      <circle cx="0" cy="40" r="3" fill="#FFD23F" opacity=".25"/>
+      <circle cx="40" cy="40" r="3" fill="#FFD23F" opacity=".25"/>
+    </pattern>
+    <linearGradient id="beam" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFF6C9" stop-opacity=".6"/>
+      <stop offset="1" stop-color="#FFF6C9" stop-opacity=".05"/>
+    </linearGradient>
+    <linearGradient id="wood" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#C98A55"/>
+      <stop offset=".5" stop-color="#A86D40"/>
+      <stop offset="1" stop-color="#8E5A32"/>
+    </linearGradient>
+  </defs>
+
+  <!-- wall -->
+  <rect width="360" height="780" fill="url(#wall)"/>
+  <rect width="360" height="780" fill="url(#paper)"/>
+
+  <!-- floor -->
+  <rect y="236" width="360" height="544" fill="url(#wood)"/>
+  <g stroke="#7B4A12" stroke-width="3" opacity=".4" stroke-linecap="round">
+    <path d="M0 290 H360 M0 350 H360 M0 410 H360 M0 470 H360 M0 530 H360 M0 590 H360 M0 650 H360 M0 710 H360"/>
+    <path d="M90 236 V290 M230 236 V290 M40 290 V350 M170 290 V350 M300 290 V350 M110 350 V410 M250 350 V410 M60 410 V470 M200 410 V470 M330 410 V470 M130 470 V530 M270 470 V530 M80 530 V590 M220 530 V590 M40 590 V650 M180 590 V650 M310 590 V650 M120 650 V710 M260 650 V710"/>
+  </g>
+  <path d="M-10 236 H370" stroke="#2B1B3D" stroke-width="6"/>
+
+  <!-- spotlight on the stage -->
+  <path d="M150 40 L210 40 L320 262 L40 262 Z" fill="url(#beam)"/>
+
+  <!-- round rug the dino stands on -->
+  <ellipse cx="180" cy="258" rx="128" ry="24" fill="#FF8FA3" stroke="#2B1B3D" stroke-width="5"/>
+  <ellipse cx="180" cy="258" rx="100" ry="15" fill="none" stroke="#FFD23F" stroke-width="4" stroke-dasharray="10 8"/>
+
+  <!-- left curtain -->
+  <g stroke="#2B1B3D" stroke-width="5" stroke-linejoin="round">
+    <path d="M-10 40 L80 40 Q70 110 50 150 Q40 172 54 190 Q26 214 22 280 L-10 280 Z" fill="#E8553D"/>
+    <path d="M22 44 Q30 140 18 270 M48 44 Q56 110 38 156" fill="none" stroke="#B83B2E" stroke-width="5"/>
+    <path d="M30 178 Q50 172 62 190 Q48 206 26 202 Z" fill="#FFD23F"/>
+    <circle cx="44" cy="190" r="5" fill="#FF9F1C"/>
+  </g>
+  <!-- right curtain -->
+  <g stroke="#2B1B3D" stroke-width="5" stroke-linejoin="round">
+    <path d="M370 40 L280 40 Q290 110 310 150 Q320 172 306 190 Q334 214 338 280 L370 280 Z" fill="#E8553D"/>
+    <path d="M338 44 Q330 140 342 270 M312 44 Q304 110 322 156" fill="none" stroke="#B83B2E" stroke-width="5"/>
+    <path d="M330 178 Q310 172 298 190 Q312 206 334 202 Z" fill="#FFD23F"/>
+    <circle cx="316" cy="190" r="5" fill="#FF9F1C"/>
+  </g>
+
+  <!-- valance with scallops and gold trim -->
+  <g stroke="#2B1B3D" stroke-width="5" stroke-linejoin="round">
+    <path d="M-10 -10 H370 V40 Q352 66 334 40 Q316 66 298 40 Q280 66 262 40 Q244 66 226 40 Q208 66 190 40 Q172 66 154 40 Q136 66 118 40 Q100 66 82 40 Q64 66 46 40 Q28 66 10 40 Q-2 58 -10 46 Z" fill="#C43A2B"/>
+    <path d="M-10 30 H370" fill="none" stroke="#FFD23F" stroke-width="5"/>
+  </g>
+  <g fill="#FFD23F" stroke="#2B1B3D" stroke-width="3">
+    <circle cx="28" cy="58" r="5"/><circle cx="100" cy="58" r="5"/><circle cx="172" cy="58" r="5"/>
+    <circle cx="244" cy="58" r="5"/><circle cx="316" cy="58" r="5"/>
+  </g>
+
+  <!-- sparkles -->
+  <g fill="#FFF6C9">
+    <path d="M104 96 l4 10 l10 4 l-10 4 l-4 10 l-4 -10 l-10 -4 l10 -4 Z"/>
+    <path d="M262 120 l3 7 l7 3 l-7 3 l-3 7 l-3 -7 l-7 -3 l7 -3 Z"/>
+    <path d="M90 200 l3 7 l7 3 l-7 3 l-3 7 l-3 -7 l-7 -3 l7 -3 Z"/>
+    <path d="M268 196 l4 9 l9 4 l-9 4 l-4 9 l-4 -9 l-9 -4 l9 -4 Z"/>
+  </g>
+</svg>

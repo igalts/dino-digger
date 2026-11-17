@@ -1569,6 +1569,8 @@
 
   // Buttons
   $('#playBtn').addEventListener('click', () => { sfx.init(); sfx.tap(); goFullscreen(); show('map'); });
+  // Browsers only allow full screen right after a tap, so the first tap anywhere outside a level does it.
+  document.addEventListener('pointerup', () => { if (screen !== 'game') goFullscreen(); }, true);
   // Settings: reset progress (two steps, so a stray tap can't wipe everything).
   function settingsStep(confirming) {
     $('#resetAsk').hidden = confirming;
