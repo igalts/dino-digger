@@ -1482,8 +1482,14 @@
     }
     return w;
   }
-  // Level spots on the 360x780 map pictures (bottom to top). Keep in sync with NODES in tools/make_maps.py.
-  const MAP_NODES = [[95, 625], [262, 530], [100, 420], [262, 305], [150, 195]];
+  // Level spots and prize spot on each world's 360x780 map picture. Keep in sync with LAYOUTS in tools/make_maps.py.
+  const MAP_LAYOUTS = [
+    { nodes: [[95, 625], [262, 530], [100, 420], [262, 305], [150, 195]], prize: [262, 120] },
+    { nodes: [[85, 640], [255, 615], [285, 410], [115, 365], [110, 215]], prize: [265, 125] },
+    { nodes: [[250, 650], [95, 560], [255, 455], [90, 335], [245, 225]], prize: [95, 120] },
+    { nodes: [[180, 640], [295, 480], [190, 325], [65, 455], [95, 220]], prize: [265, 120] },
+    { nodes: [[180, 655], [215, 545], [150, 435], [210, 325], [165, 215]], prize: [285, 125] },
+  ];
 
   function buildMap() {
     const w = currentMapWorld();
@@ -1494,7 +1500,12 @@
     const prizeImg = $('#mapPrize');
     prizeImg.src = `assets/${prize.img}.svg`;
     prizeImg.classList.toggle('locked', !store.data.unlocked.includes(world.unlock));
-    prizeImg.style.transform = `translate(-50%, -50%)${prize.faceLeft ? '' : ' scaleX(-1)'}`;
+    const layout = MAP_LAYOUTS[w];
+    prizeImg.style.left = `${layout.prize[0] / 360 * 100}%`;
+    prizeImg.style.top = `${layout.prize[1] / 780 * 100}%`;
+    // The prize looks toward the middle of the map.
+    const lookRight = layout.prize[0] < 180;
+    prizeImg.style.transform = `translate(-50%, -50%)${prize.faceLeft === lookRight ? ' scaleX(-1)' : ''}`;
     $('#worldName').textContent = world.name;
     $('#worldNum').textContent = `עולם ${w + 1} מתוך ${WORLDS.length}`;
     $('#prevWorld').disabled = w === 0;
@@ -1508,8 +1519,8 @@
       const open = levelOpen(w, i);
       const b = document.createElement('button');
       b.className = `level${open ? '' : ' locked'}${lvl.bossFight ? ' boss' : ''}`;
-      b.style.left = `${MAP_NODES[i][0] / 360 * 100}%`;
-      b.style.top = `${MAP_NODES[i][1] / 780 * 100}%`;
+      b.style.left = `${layout.nodes[i][0] / 360 * 100}%`;
+      b.style.top = `${layout.nodes[i][1] / 780 * 100}%`;
       const label = lvl.bossFight ? `בוס: ${BOSSES[w].name}` : `שלב ${i + 1}`;
       b.setAttribute('aria-label', open ? label : `${label}, נעול`);
       const face = lvl.bossFight ? `<img class="boss-face" src="assets/boss-${w + 1}.svg" alt="">` : '';

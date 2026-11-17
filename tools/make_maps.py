@@ -1,6 +1,6 @@
-"""Builds the five world-map backgrounds (360x780 SVGs) with a winding road through the level spots.
+"""Builds the five world-map backgrounds (360x780 SVGs), each with its own road shape through the level spots.
 
-The level buttons are placed by the game at NODES (same coordinates), and the world's prize dino at PRIZE.
+The game places the level buttons and the world's prize dino from MAP_LAYOUTS (same coordinates as LAYOUTS here).
 Run:  py -I tools/make_maps.py
 """
 import os
@@ -14,10 +14,24 @@ OUT = ms.OUT
 INK = ms.INK
 W, H = 360, 780
 
-# Level spots, bottom to top. Keep in sync with MAP_NODES in game/game.js.
-NODES = [(95, 625), (262, 530), (100, 420), (262, 305), (150, 195)]
-PRIZE = (262, 120)
-ROAD = [(40, 820), (62, 720)] + NODES + [PRIZE]
+# Every world has its own road shape. Level spots in order, then the prize, then where the road comes in from.
+# Keep NODES / PRIZE in sync with MAP_LAYOUTS in game/game.js.
+LAYOUTS = [
+    # volcano: zig-zag up the hill
+    dict(nodes=[(95, 625), (262, 530), (100, 420), (262, 305), (150, 195)], prize=(262, 120), entry=[(40, 820), (62, 720)]),
+    # jungle: along the bottom, up the right bank over the river, back left, up the left side
+    dict(nodes=[(85, 640), (255, 615), (285, 410), (115, 365), (110, 215)], prize=(265, 125), entry=[(-40, 700), (10, 680)]),
+    # beach: hopping between little islands
+    dict(nodes=[(250, 650), (95, 560), (255, 455), (90, 335), (245, 225)], prize=(95, 120), entry=[(330, 820), (300, 730)]),
+    # ice: around the frozen lake, then up to the peak
+    dict(nodes=[(180, 640), (295, 480), (190, 325), (65, 455), (95, 220)], prize=(265, 120), entry=[(190, 820), (185, 730)]),
+    # night: straight up the lantern avenue to the castle
+    dict(nodes=[(180, 655), (215, 545), (150, 435), (210, 325), (165, 215)], prize=(285, 125), entry=[(180, 830), (180, 740)]),
+]
+
+
+def road_pts(L):
+    return L["entry"] + L["nodes"] + [L["prize"]]
 
 
 def catmull(points):
@@ -32,16 +46,27 @@ def catmull(points):
     return d
 
 
-def road(color, edge, dash):
-    d = catmull(ROAD)
+def pads(L):
+    # shadow pads under each level spot and the prize
+    return "".join(f'<ellipse cx="{x}" cy="{y + 30}" rx="40" ry="11" fill="{INK}" opacity="0.25" stroke="none"/>'
+                   for x, y in L["nodes"] + [L["prize"]])
+
+
+def road(L, color, edge, dash):
+    d = catmull(road_pts(L))
     out = (f'<path d="{d}" fill="none" stroke="{INK}" stroke-width="38"/>'
            f'<path d="{d}" fill="none" stroke="{edge}" stroke-width="31"/>'
            f'<path d="{d}" fill="none" stroke="{color}" stroke-width="23"/>'
            f'<path d="{d}" fill="none" stroke="{dash}" stroke-width="4" stroke-dasharray="1 15"/>')
-    # stone pads under each level spot and the prize
-    for x, y in NODES + [PRIZE]:
-        out += f'<ellipse cx="{x}" cy="{y + 30}" rx="40" ry="11" fill="{INK}" opacity="0.25" stroke="none"/>'
-    return out
+    return out + pads(L)
+
+
+def boardwalk(L):
+    """A wooden pier: planks across the road, laid over the water between islands."""
+    d = catmull(road_pts(L))
+    return (f'<path d="{d}" fill="none" stroke="{INK}" stroke-width="34"/>'
+            f'<path d="{d}" fill="none" stroke="#D9A574" stroke-width="26"/>'
+            f'<path d="{d}" fill="none" stroke="#A86D40" stroke-width="26" stroke-dasharray="2 10"/>') + pads(L)
 
 
 def layer(y, color, seed, amp=36):
@@ -65,11 +90,12 @@ def lantern(x, y):
             f'<rect x="{x - 8}" y="{y - 64}" width="16" height="18" rx="4" fill="#FFE27A" stroke-width="4"/>')
 
 
-def bridge(x, y, w=70):
-    planks = "".join(f'<path d="M{x - w / 2 + i * 10 + 5} {y - 16} L{x - w / 2 + i * 10 + 5} {y + 16}" fill="none" stroke="#8A5634" stroke-width="3"/>'
+def bridge(x, y, w=70, angle=0):
+    planks = "".join(f'<path d="M{-w / 2 + i * 10 + 5} -16 L{-w / 2 + i * 10 + 5} 16" fill="none" stroke="#8A5634" stroke-width="3"/>'
                      for i in range(int(w / 10)))
-    return (f'<rect x="{x - w / 2}" y="{y - 18}" width="{w}" height="36" rx="6" fill="#C08A5E"/>{planks}'
-            f'<path d="M{x - w / 2} {y - 18} L{x + w / 2} {y - 18} M{x - w / 2} {y + 18} L{x + w / 2} {y + 18}" fill="none" stroke-width="5"/>')
+    return (f'<g transform="translate({x} {y}) rotate({angle})">'
+            f'<rect x="{-w / 2}" y="-18" width="{w}" height="36" rx="6" fill="#C08A5E"/>{planks}'
+            f'<path d="M{-w / 2} -18 L{w / 2} -18 M{-w / 2} 18 L{w / 2} 18" fill="none" stroke-width="5"/></g>')
 
 
 def ruins(x, y, s=1.0):
@@ -115,7 +141,7 @@ def map_volcano():
             ms.volcano(180, 300, 380, 250, erupt=True, color="#6E5486") +
             layer(300, "#B9DE8E", 1) + lava + layer(430, "#8ED16E", 2) + layer(570, "#6FC25A", 3) + layer(690, "#4CB85A", 4) +
             ms.fly("petra", 60, 250, 0.3, colors=ms.PETRA_ORANGE) + ms.fly("petra", 310, 190, 0.25, flip=True, colors=ms.PETRA_TEAL) +
-            road("#F2D49B", "#D9B270", "#FFFFFF") +
+            road(LAYOUTS[0], "#F2D49B", "#D9B270", "#FFFFFF") +
             ms.palm(30, 560, 0.75) + ms.palm(345, 760, 0.9, flip=True) + ms.palm(330, 430, 0.6, flip=True) +
             ms.rock(200, 400, 70, 40, "#9C8AA8") + ms.rock(330, 640, 60, 34, "#9C8AA8") + ms.rock(40, 470, 50, 28, "#9C8AA8") +
             ms.fern(190, 700, 0.9) + ms.fern(30, 360, 0.7) + ms.fern(200, 290, 0.6) +
@@ -124,7 +150,32 @@ def map_volcano():
     return wrap(body, ("#7FC8F0", "#FFE3B0"))
 
 
+def road_cross(L, y, after=0):
+    """Where the road (after level spot `after`) crosses height y: (x, angle in degrees)."""
+    pts = road_pts(L)
+    start = len(L["entry"]) + after
+    for i in range(start, len(pts) - 1):
+        p0 = pts[i - 1] if i > 0 else pts[i]
+        p1, p2 = pts[i], pts[i + 1]
+        p3 = pts[i + 2] if i + 2 < len(pts) else p2
+        c1 = (p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6)
+        c2 = (p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6)
+        prev = None
+        for k in range(201):
+            t = k / 200
+            q = [(1 - t) ** 3 * a + 3 * (1 - t) ** 2 * t * b + 3 * (1 - t) * t ** 2 * c + t ** 3 * d
+                 for a, b, c, d in zip(p1, c1, c2, p2)]
+            if prev and (prev[1] - y) * (q[1] - y) <= 0:
+                import math
+                return q[0], math.degrees(math.atan2(q[1] - prev[1], q[0] - prev[0]))
+            prev = q
+    raise ValueError("road never crosses that height")
+
+
 def map_jungle():
+    bx, ba = road_cross(LAYOUTS[1], 501)
+    global BRIDGE_J
+    BRIDGE_J = bridge(round(bx), 501, 84, round(ba))
     river = ('<path d="M-10 480 Q90 450 180 478 Q270 506 370 470 L370 520 Q270 552 180 524 Q90 498 -10 530 Z" fill="#4FC3F7"/>'
              '<path d="M40 490 L70 486 M230 510 L262 514 M300 496 L330 490" fill="none" stroke="#FFFFFF" stroke-width="4"/>')
     body = (layer(160, "#9FD98A", 11, 30) +
@@ -132,32 +183,38 @@ def map_jungle():
                     ((40, 170), (100, 150), (170, 165), (240, 145), (310, 160), (360, 150))) +
             layer(300, "#6FBF5C", 12) + ms.waterfall(18, 80, 170, 330) + layer(400, "#5FB04F", 13, 24) +
             river + layer(560, "#4FA347", 14) + layer(700, "#3F9A3C", 15) +
-            road("#C9B98A", "#A89664", "#FFF3D6") + bridge(181, 501, 76) +
-            ruins(330, 410, 0.7) + ms.mushroom(200, 640, 1.0) + ms.mushroom(320, 700, 0.8, "#8E5BD9", "#FFD23F") +
-            ms.mushroom(40, 380, 0.7, "#FF9F1C") +
-            ms.fern(20, 760, 1.4, "#2F8F3A") + ms.fern(345, 600, 1.0, "#2F8F3A") + ms.fern(200, 380, 0.8, "#2F8F3A") +
+            road(LAYOUTS[1], "#C9B98A", "#A89664", "#FFF3D6") + BRIDGE_J +
+            ruins(225, 300, 0.7) + ms.mushroom(175, 730, 1.0) + ms.mushroom(320, 710, 0.8, "#8E5BD9", "#FFD23F") +
+            ms.mushroom(30, 595, 0.6, "#FF9F1C") +
+            ms.fern(20, 770, 1.4, "#2F8F3A") + ms.fern(345, 590, 1.0, "#2F8F3A") + ms.fern(345, 300, 0.8, "#2F8F3A") +
             ms.trunk(8, 40) + ms.trunk(352, 36) + ms.vine(46, 260, 4) + ms.vine(316, 220, 5) + ms.canopy() +
             ms.fly("petra", 300, 250, 0.28, flip=True) +
-            ms.flowers([(70, 560), (300, 650), (180, 740), (210, 330), (60, 700)], ("#FF6B6B", "#FFD23F", "#FF8FA3")))
+            ms.flowers([(330, 660), (180, 680), (170, 290), (30, 720), (210, 560)], ("#FF6B6B", "#FFD23F", "#FF8FA3")))
     return wrap(body, ("#9ED67A", "#E2F7C8"))
 
 
+def islet(x, y, rx, ry):
+    return (f'<ellipse cx="{x}" cy="{y}" rx="{rx + 12}" ry="{ry + 10}" fill="#7FD8FF" stroke="none"/>'
+            f'<ellipse cx="{x}" cy="{y}" rx="{rx}" ry="{ry}" fill="#FFD98A"/>')
+
+
 def map_beach():
-    island = ('<path d="M20 780 Q-10 640 40 560 Q10 470 50 380 Q30 280 110 220 Q180 140 280 110 Q350 120 340 220 '
-              'Q360 320 320 400 Q350 500 320 600 Q350 700 330 790 Z" fill="#7FD8FF" stroke="none"/>'
-              '<path d="M44 780 Q14 640 64 566 Q36 474 72 388 Q56 290 128 236 Q190 160 280 134 Q332 142 322 224 '
-              'Q340 320 302 400 Q330 500 300 600 Q326 700 308 790 Z" fill="#FFD98A"/>')
-    body = (ms.sun(70, 70, 28) + ms.cloud(220, 60, 0.6) +
-            '<rect x="-10" y="150" width="380" height="640" fill="#2FA7E0" stroke="none"/>'
-            '<path d="M-10 150 Q30 142 70 150 Q110 158 150 150 Q190 142 230 150 Q270 158 310 150 Q350 142 370 148" fill="none" stroke="#FFFFFF" stroke-width="4"/>' +
-            waves(seed=3) + island + road("#E8C27A", "#C99550", "#FFF3D6") +
-            "".join(f'<circle cx="{x}" cy="{y}" r="2" fill="#E8B860" stroke="none"/>' for x, y in
-                    ((180, 600), (210, 700), (130, 500), (200, 380), (190, 260), (240, 210), (280, 660), (160, 300))) +
-            ms.palm(60, 500, 0.7) + ms.palm(300, 470, 0.7, flip=True) + ms.palm(90, 300, 0.6) + ms.palm(310, 700, 0.7, flip=True) +
-            ms.sandcastle(180, 280, 0.6) + ms.crab(200, 690, 0.7) + ms.starfish(150, 580, 11) + ms.starfish(290, 380, 10, "#FFB13B") +
-            ms.shell(170, 450) + ms.shell(240, 760, 0.9, "#FFF3D6") +
-            ms.plesio(0, 300, 0.45, "#39C1B5", "#2FA7E0") + boat(345, 330, 0.7) +
-            ms.fish(20, 720, "#FFB13B", flip=True, s=0.8) + ms.rock(350, 560, 40, 30, "#8C8C9C") + ms.rock(15, 230, 36, 26, "#8C8C9C"))
+    L = LAYOUTS[2]
+    isles = "".join(islet(x, y + 20, 70, 46) for x, y in L["nodes"]) + islet(L["prize"][0], L["prize"][1] + 30, 78, 40)
+    shore = ('<path d="M-10 790 L-10 750 Q60 728 130 744 Q200 760 260 738 Q320 718 370 736 L370 790 Z" fill="#7FD8FF" stroke="none"/>'
+             '<path d="M-10 790 L-10 762 Q60 742 130 756 Q200 772 260 752 Q320 734 370 750 L370 790 Z" fill="#FFD98A"/>')
+    body = (ms.sun(305, 62, 26) + ms.cloud(170, 50, 0.55) +
+            '<rect x="-10" y="100" width="380" height="690" fill="#2FA7E0" stroke="none"/>'
+            '<path d="M-10 100 Q30 92 70 100 Q110 108 150 100 Q190 92 230 100 Q270 108 310 100 Q350 92 370 98" fill="none" stroke="#FFFFFF" stroke-width="4"/>' +
+            waves(seed=3, n=18) + shore + isles +
+            ms.plesio(310, 330, 0.4, "#39C1B5", "#2FA7E0") + boat(320, 150, 0.6) +
+            ms.fish(170, 520, "#FFB13B", flip=True, s=0.7) + ms.fish(40, 450, "#FF8FA3", s=0.6) +
+            ms.rock(340, 590, 34, 24, "#8C8C9C") + ms.rock(20, 660, 30, 22, "#8C8C9C") +
+            boardwalk(L) +
+            ms.palm(318, 690, 0.5, flip=True) + ms.palm(30, 600, 0.45) + ms.palm(318, 495, 0.42, flip=True) +
+            ms.palm(28, 372, 0.42) + ms.palm(165, 158, 0.42, flip=True) +
+            ms.sandcastle(186, 704, 0.4) + ms.crab(80, 772, 0.6) + ms.starfish(150, 596, 9) + ms.starfish(312, 250, 9, "#FFB13B") +
+            ms.shell(150, 368) + ms.shell(230, 772, 0.9, "#FFF3D6"))
     return wrap(body, ("#6FCDF8", "#FFF0C8"))
 
 
@@ -165,27 +222,29 @@ def map_ice():
     mountains = ('<path d="M-10 300 L60 130 L110 200 L180 70 L250 210 L300 140 L370 260 L370 320 L-10 320 Z" fill="#D6D0EE"/>'
                  '<path d="M60 130 L80 170 L66 164 L52 178 L44 160 Z M180 70 L206 116 L190 110 L176 126 L162 104 Z '
                  'M300 140 L322 176 L306 170 L292 184 L286 164 Z" fill="#FFFFFF" stroke-width="4"/>')
-    lake = ('<ellipse cx="90" cy="520" rx="90" ry="40" fill="#BDEBFF"/>'
-            '<path d="M40 510 L70 504 M100 534 L140 528" fill="none" stroke="#FFFFFF" stroke-width="4"/>')
-    body = (ms.cloud(30, 100, 0.6) + mountains + layer(300, "#EEF4FF", 21, 20) + layer(430, "#F6FAFF", 22, 24) + lake +
-            layer(600, "#FFFFFF", 23, 20) + layer(720, "#EEF6FF", 24, 16) +
-            road("#CFE8FA", "#9CC7EA", "#FFFFFF") +
-            ms.pine(30, 380, 0.6) + ms.pine(330, 440, 0.7) + ms.pine(320, 650, 0.8) + ms.pine(40, 740, 0.9) +
-            ms.pine(200, 380, 0.5) + ms.pine(190, 720, 0.6) + ms.igloo(80, 230, 0.6) + ms.snowman(340, 260, 0.5) +
-            ms.mammoth(200, 640, 0.45) + ms.snowflakes(36, 7, 770))
+    lake = ('<ellipse cx="178" cy="482" rx="74" ry="56" fill="#BDEBFF"/>'
+            '<ellipse cx="178" cy="482" rx="56" ry="40" fill="none" stroke="#FFFFFF" stroke-width="3" opacity="0.8"/>'
+            '<path d="M140 470 L170 462 M180 500 L214 494 M150 448 L164 446" fill="none" stroke="#FFFFFF" stroke-width="4"/>')
+    body = (ms.cloud(30, 100, 0.6) + mountains + layer(300, "#EEF4FF", 21, 20) + layer(430, "#F6FAFF", 22, 24) +
+            layer(600, "#FFFFFF", 23, 20) + layer(720, "#EEF6FF", 24, 16) + lake +
+            road(LAYOUTS[3], "#CFE8FA", "#9CC7EA", "#FFFFFF") +
+            ms.pine(330, 650, 0.8) + ms.pine(40, 745, 0.9) + ms.pine(30, 610, 0.65) + ms.pine(330, 380, 0.55) +
+            ms.pine(265, 760, 0.55) + ms.igloo(300, 300, 0.55) + ms.snowman(30, 345, 0.45) +
+            ms.mammoth(100, 720, 0.4) + ms.snowflakes(36, 7, 770))
     return wrap(body, ("#A6DBFF", "#F2FAFF"))
 
 
 def map_night():
     body = (ms.stars(70, 61, 360) + ms.moon(70, 90, 26) + ms.shooting_star(330, 70, 80) +
-            layer(260, "#2E3A6E", 31, 30) + castle(262, 238, 0.9) + layer(380, "#2A4A5E", 32) +
+            layer(260, "#2E3A6E", 31, 30) + castle(70, 238, 0.8) + layer(380, "#2A4A5E", 32) +
             layer(520, "#244A3E", 33) + layer(660, "#1A3A30", 34) +
-            road("#5B4E8E", "#3E3470", "#FFF27A") +
-            lantern(170, 640) + lantern(190, 470) + lantern(170, 360) + lantern(320, 220) + lantern(60, 250) +
-            ms.mushroom(40, 520, 0.9, "#39C1B5", "#C9F2EE", glow="#5CF2E0") + ms.mushroom(330, 420, 0.8, "#A884E8", "#E3D6FF", glow="#C9A8FF") +
-            ms.mushroom(320, 740, 1.0, "#39C1B5", "#C9F2EE", glow="#5CF2E0") +
-            "".join(ms.firefly(x, y) for x, y in ((30, 330), (120, 300), (330, 330), (220, 580), (60, 700), (300, 610), (200, 260), (340, 520))) +
-            ms.pine(40, 460, 0.6, snow=False, color="#2F5A4C") + ms.pine(210, 760, 0.7, snow=False, color="#2F5A4C"))
+            road(LAYOUTS[4], "#5B4E8E", "#3E3470", "#FFF27A") +
+            lantern(100, 650) + lantern(270, 625) + lantern(90, 530) + lantern(285, 470) + lantern(75, 410) +
+            lantern(280, 345) + lantern(90, 300) + lantern(255, 230) +
+            ms.mushroom(35, 600, 0.8, "#39C1B5", "#C9F2EE", glow="#5CF2E0") + ms.mushroom(330, 545, 0.8, "#A884E8", "#E3D6FF", glow="#C9A8FF") +
+            ms.mushroom(320, 745, 1.0, "#39C1B5", "#C9F2EE", glow="#5CF2E0") +
+            "".join(ms.firefly(x, y) for x, y in ((30, 330), (330, 300), (300, 700), (60, 700), (40, 480), (335, 420), (120, 170), (230, 760))) +
+            ms.pine(30, 470, 0.6, snow=False, color="#2F5A4C") + ms.pine(60, 770, 0.7, snow=False, color="#2F5A4C"))
     return wrap(body, ("#140E36", "#3E3A8C"))
 
 
