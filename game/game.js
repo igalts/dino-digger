@@ -18,7 +18,7 @@
     stegi: { name: 'סטגי', img: 'stegi', perk: 'מתחיל כל שלב עם מגן', shieldStart: true },
     petra: { name: 'פטרה', img: 'petra', perk: 'הכי מהירה', speed: 1.3 },
     anki:  { name: 'אנקי', img: 'anki',  perk: '4 ביצים במקום 3', lives: 4 },
-    rafi:  { name: 'רפי',  img: 'rafi',  perk: 'הפתעות נמשכות כפול', powerDur: 2 },
+    rafi:  { name: 'רפטי', img: 'rafi',  perk: 'הפתעות נמשכות כפול', powerDur: 2 },
     rex:   { name: 'רקס',  img: 'magma-rex', perk: 'מגן וגם מהירות', shieldStart: true, speed: 1.15, faceLeft: true, w: 240, h: 220 },
   };
   const CHAR_ORDER = ['pip', 'stegi', 'petra', 'anki', 'rafi', 'rex'];
