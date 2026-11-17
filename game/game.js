@@ -905,16 +905,20 @@
         const [joins, them] = JOINS[unlocked] || ['מצטרף', 'אותו'];
         $('#unlockImg').src = `assets/${CHARS[unlocked].img}.svg`;
         const name = CHARS[unlocked].name;
-        $('#unlockText').textContent = `${name} ${joins}!`;
-        // One tap switches to the new friend right away (or later from the title screen).
-        const pick = $('#pickBtn');
-        pick.textContent = `לשחק עם ${name}!`;
-        pick.classList.remove('done');
+        $('#unlockText').innerHTML = `${name} ${joins}!<small class="perk-line">${CHARS[unlocked].perk}</small>`;
+        // One tap switches to the new friend right away; another tap goes back to the old one.
+        const pick = $('#pickBtn'), before = store.data.selected;
+        const show = () => {
+          const on = store.data.selected === unlocked;
+          pick.textContent = on ? `✓ ${name} ${JOINS[unlocked] ? 'נבחרה' : 'נבחר'} (לביטול לחצו)` : `לשחק עם ${name}!`;
+          pick.classList.toggle('done', on);
+        };
+        show();
         pick.onclick = () => {
-          store.data.selected = unlocked; store.save();
-          pick.textContent = `✓ ${name} ${JOINS[unlocked] ? 'נבחרה' : 'נבחר'}!`;
-          pick.classList.add('done');
-          sfx.power();
+          const on = store.data.selected === unlocked;
+          store.data.selected = on ? before : unlocked; store.save();
+          if (!on) sfx.power(); else sfx.pop();
+          show();
         };
         u.hidden = false;
       } else u.hidden = true;

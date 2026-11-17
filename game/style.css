@@ -251,7 +251,8 @@ img { -webkit-user-drag: none; }
 .unlock-row { display: flex; align-items: center; gap: 10px; }
 .unlock img { width: 64px; }
 .unlock .pick { font-size: 20px; padding: 8px 14px; margin: 0; }
-.unlock .pick.done { background: #7BD389; pointer-events: none; }
+.unlock .pick.done { background: #7BD389; font-size: 17px; }
+.unlock .perk-line { display: block; font-size: 14px; font-weight: 600; opacity: .8; margin-top: 2px; }
 .sad { width: 110px; transform: rotate(-12deg); }
 
 @media (prefers-reduced-motion: no-preference) {
