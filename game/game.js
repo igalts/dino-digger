@@ -156,6 +156,8 @@
     win()   { [523, 659, 784, 1047, 784, 1047].forEach((f, i) => this.tone(f, 0.2, 'triangle', 0.1, i * 0.13)); },
     lose()  { [392, 330, 262].forEach((f, i) => this.tone(f, 0.28, 'triangle', 0.09, i * 0.22)); },
     tap()   { this.tone(660, 0.06, 'triangle', 0.06); },
+    ready() { [392, 523].forEach((f, i) => this.tone(f, 0.12, 'triangle', 0.06, i * 0.12)); },
+    go()    { [659, 988].forEach((f, i) => this.tone(f, 0.16, 'square', 0.06, i * 0.09)); },
     boss()  { [110, 110, 147, 110].forEach((f, i) => this.tone(f, 0.22, 'sawtooth', 0.08, i * 0.2)); },
     ouch()  { this.tone(520, 0.3, 'square', 0.07, 0, 140); },
     throwIt() { this.tone(300, 0.18, 'triangle', 0.07, 0, 700); },
@@ -306,7 +308,7 @@
       player: { x: Math.floor(GW / 2), y: GH - 1, face: 1, drawing: false, trail: [], startX: 0, startY: 0,
         acc: 0, invuln: 0, shield: !!ch.shieldStart, boost: 0 },
       enemies: [], items: [], particles: [],
-      freeze: 0, state: 'ready', readyT: 1.8, t: 0, playT: 0, itemTimer: 12, shake: 0, winT: 0,
+      freeze: 0, state: 'ready', readyT: 2.0, t: 0, playT: 0, itemTimer: 12, shake: 0, winT: 0,
       bossFight: !!cfg.bossFight, bossInfo: cfg.bossFight ? BOSSES[w] : null, bossHp: BOSS_HP, shots: [],
       bite: 0, outfit: { ...store.data.outfit },
     };
@@ -362,10 +364,14 @@
     const best = (store.data.best || {})[key];
     const bestLine = best ? `<small class="best-line">⏱ השיא <bdi>${fmtTime(best)}</bdi></small>` : '';
     const chals = chalRow(cfg, (store.data.chal || {})[key] || 0);
-    if (G.bossFight) {
-      b.innerHTML = `בוס!<small>${G.bossInfo.name}</small>${bestLine}${chals}`;
-      sfx.boss();
-    } else b.innerHTML = `<small class="wname">${WORLDS[w].name}</small>שלב ${l + 1}<small>תפסו ${cfg.goal}%</small>${bestLine}${chals}`;
+    // Intro card on a dimmed board, then a big "קדימה!" the moment the game starts.
+    const goal = `<div class="ready-goal">🗺️ תפסו <bdi>${cfg.goal}%</bdi></div>`;
+    const head = G.bossFight
+      ? `<div class="ready-world">${WORLDS[w].name}</div><div class="ready-title boss">בוס: ${G.bossInfo.name}</div>`
+      : `<div class="ready-world">${WORLDS[w].name}</div><div class="ready-title">שלב ${l + 1}</div>`;
+    b.innerHTML = `<div class="ready-card">${head}${goal}${bestLine}${chals}<div class="ready-bar"><i style="animation-duration:${G.readyT}s"></i></div></div>`;
+    b.className = G.bossFight ? 'banner boss' : 'banner'; // boss: card sits low so his entrance shows above it
+    if (G.bossFight) sfx.boss(); else sfx.ready();
     b.hidden = false;
     input.dir = null; input.target = null;
     applyControlMode();
@@ -443,6 +449,15 @@
     }
   }
 
+  function startPlay() {
+    G.state = 'play';
+    const b = $('#banner'), g = G;
+    b.className = 'banner go';
+    b.innerHTML = '<div class="go-word">קדימה!</div>';
+    sfx.go();
+    setTimeout(() => { if (G === g && b.classList.contains('go')) b.hidden = true; }, 750);
+  }
+
   // ---------- Update ----------
   function update(dt) {
     G.t += dt;
@@ -451,7 +466,7 @@
 
     if (G.state === 'ready') {
       G.readyT -= dt;
-      if (G.readyT <= 0) { G.state = 'play'; $('#banner').hidden = true; }
+      if (G.readyT <= 0) startPlay();
       return;
     }
     if (G.state === 'won') { updateWin(dt); return; }
