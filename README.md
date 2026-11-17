@@ -6,6 +6,8 @@ Pip the baby triceratops fences off dirt to uncover a hidden dinosaur picture wh
 - 5 worlds × 5 levels, each with its own hidden picture; level 5 of every world is a boss fight
 - Arrow pad controls (touch-to-go and joystick in the pause menu)
 - Unlockable dino friends, stars, offline play, installs as an app (PWA)
+- 3 challenges per level (big claim, one big bite, keep all eggs) earn 💎 gems
+- Wardrobe shop: 20 silly hats, faces and outfits any dino can wear (`game/outfits.js`)
 
 ## Play
 

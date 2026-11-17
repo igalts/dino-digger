@@ -18,11 +18,12 @@
 <section id="title" class="screen title-bg">
   <div class="title-inner">
     <div class="logo">דינו<br><span>סוגר שטחים!</span></div>
-    <img id="titleHero" class="hero bob" src="assets/pip.svg" alt="">
+    <canvas id="titleHero" class="hero bob" aria-hidden="true"></canvas>
     <button id="playBtn" class="btn big">שחק!</button>
     <div class="chars-box">
       <div id="chars" class="chars"></div>
       <div id="charPerk" class="perk"></div>
+      <button id="shopBtn" class="btn alt shop-btn">👕 המלתחה <span id="titleGems" class="gem-pill"></span></button>
     </div>
   </div>
   <button id="muteBtn" class="icon-btn corner" aria-label="צליל">🔊</button>
@@ -43,6 +44,29 @@
       <p id="resetDone" class="done" hidden>ההתקדמות אופסה. מתחילים מההתחלה!</p>
     </div>
   </div>
+</section>
+
+<section id="shop" class="screen" hidden>
+  <header class="shop-head">
+    <button id="shopBack" class="icon-btn" aria-label="חזרה">→</button>
+    <h1>המלתחה</h1>
+    <span id="shopGems" class="gem-pill big"></span>
+  </header>
+  <div class="shop-stage">
+    <button id="shopPrev" class="icon-btn small" aria-label="הדינו הקודם">→</button>
+    <canvas id="shopHero" class="shop-hero" aria-hidden="true"></canvas>
+    <button id="shopNext" class="icon-btn small" aria-label="הדינו הבא">←</button>
+  </div>
+  <div class="shop-action">
+    <div id="shopItemName" class="shop-item-name"></div>
+    <button id="shopBuy" class="btn" hidden></button>
+  </div>
+  <div class="shop-tabs" role="tablist">
+    <button class="tab" data-slot="head">🎩 כובעים</button>
+    <button class="tab" data-slot="face">😎 פנים</button>
+    <button class="tab" data-slot="body">🎀 גוף</button>
+  </div>
+  <div id="shopGrid" class="shop-grid"></div>
 </section>
 
 <section id="map" class="screen" hidden>
@@ -105,6 +129,7 @@
       <h2 id="winTitle">כל הכבוד!</h2>
       <div id="winStars" class="stars-big"></div>
       <div id="winTime" class="time-row"></div>
+      <div id="winChal"></div>
       <div id="winScore" class="score"></div>
       <div id="unlock" class="unlock" hidden>
         <div class="unlock-row">
@@ -129,6 +154,7 @@
   </div>
 </section>
 
+<script src="outfits.js"></script>
 <script src="game.js"></script>
 </body>
 </html>

@@ -22,6 +22,21 @@
     rex:   { name: 'רקס',  img: 'magma-rex', perk: 'מגן וגם מהירות', shieldStart: true, speed: 1.15, faceLeft: true, w: 240, h: 220 },
   };
   const CHAR_ORDER = ['pip', 'stegi', 'petra', 'anki', 'rafi', 'rex'];
+  CHAR_ORDER.forEach((id) => { CHARS[id].id = id; });
+  const OUT = window.DinoOutfits;
+
+  // Level challenges: each pays gems once (bit flags in store.data.chal[key]).
+  //   claim: finish with goal + 10% (max 90%)   bite: grab 25% in one cut   eggs: don't lose an egg
+  const GEMS_PER_CHAL = 3, GEMS_PER_WIN = 1, BITE_PCT = 25;
+  const claimTarget = (cfg) => Math.min(90, cfg.goal + 10);
+  const CHALS = [
+    { bit: 1, icon: '🗺️', label: (cfg) => `${claimTarget(cfg)}%` },
+    { bit: 2, icon: '🍰', label: () => `ביס ${BITE_PCT}%` },
+    { bit: 4, icon: '🥚', label: () => 'כל הביצים' },
+  ];
+  const chalRow = (cfg, done, fresh = 0) => `<span class="chal-row">${CHALS.map((ch) =>
+    `<span class="chal${done & ch.bit ? ' done' : ''}${fresh & ch.bit ? ' fresh' : ''}">${ch.icon} <bdi>${ch.label(cfg)}</bdi>${
+      fresh & ch.bit ? `<b class="plus">+${GEMS_PER_CHAL}💎</b>` : ''}</span>`).join('')}</span>`;
   const JOINS = { petra: ['מצטרפת', 'אותה'] }; // everyone else: מצטרף / אותו
 
   // goal %, boss speed, buzzers, buzzer speed, lava drops, lava speed (cells/s)
@@ -105,7 +120,8 @@
   // ---------- Saved progress ----------
   const store = {
     key: 'dinoDig.v1',
-    data: { stars: {}, best: {}, unlocked: ['pip'], selected: 'pip', streak: {}, muted: false },
+    data: { stars: {}, best: {}, unlocked: ['pip'], selected: 'pip', streak: {}, muted: false,
+      gems: 0, owned: [], outfit: {}, chal: {} },
     load() {
       try { const d = JSON.parse(localStorage.getItem(this.key)); if (d) Object.assign(this.data, d); } catch (e) { /* ignore */ }
     },
@@ -292,6 +308,7 @@
       enemies: [], items: [], particles: [],
       freeze: 0, state: 'ready', readyT: 1.8, t: 0, playT: 0, itemTimer: 12, shake: 0, winT: 0,
       bossFight: !!cfg.bossFight, bossInfo: cfg.bossFight ? BOSSES[w] : null, bossHp: BOSS_HP, shots: [],
+      bite: 0, outfit: { ...store.data.outfit },
     };
     if (G.bossFight) G.readyT = 2.6;
     const g = G.grid;
@@ -344,14 +361,40 @@
     const b = $('#banner');
     const best = (store.data.best || {})[key];
     const bestLine = best ? `<small class="best-line">⏱ השיא <bdi>${fmtTime(best)}</bdi></small>` : '';
+    const chals = chalRow(cfg, (store.data.chal || {})[key] || 0);
     if (G.bossFight) {
-      b.innerHTML = `בוס!<small>${G.bossInfo.name}</small>${bestLine}`;
+      b.innerHTML = `בוס!<small>${G.bossInfo.name}</small>${bestLine}${chals}`;
       sfx.boss();
-    } else b.innerHTML = `<small class="wname">${WORLDS[w].name}</small>שלב ${l + 1}<small>תפסו ${cfg.goal}%</small>${bestLine}`;
+    } else b.innerHTML = `<small class="wname">${WORLDS[w].name}</small>שלב ${l + 1}<small>תפסו ${cfg.goal}%</small>${bestLine}${chals}`;
     b.hidden = false;
     input.dir = null; input.target = null;
     applyControlMode();
     keepAwake();
+  }
+
+  // A dino with its outfit, top-left at (0,0), pw x ph. src: the dino picture (image or cached sprite).
+  function drawDino(c, ch, outfit, pw, ph, t, src) {
+    const u = pw / (ch.w || 200);
+    c.save(); c.scale(u, u); OUT.drawOn(c, ch.id, outfit, 'back', t); c.restore();
+    if (src) c.drawImage(src, 0, 0, pw, ph);
+    c.save(); c.scale(u, u); OUT.drawOn(c, ch.id, outfit, 'front', t); c.restore();
+  }
+  // Draw a dressed dino centred in a canvas, leaving room above for hats and balloons.
+  function paintDino(cv, chId, outfit, t) {
+    const ch = CHARS[chId] || CHARS.pip;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    const cw = cv.clientWidth || 200, chh = cv.clientHeight || 200;
+    if (cv.width !== Math.round(cw * dpr)) { cv.width = Math.round(cw * dpr); cv.height = Math.round(chh * dpr); }
+    const c = cv.getContext('2d');
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.clearRect(0, 0, cv.width, cv.height);
+    // the dino takes 70% of the width and sits at the bottom
+    const W = ch.w || 200, H = ch.h || 200;
+    const pw = Math.min(cw * 0.7, chh * 0.66 * W / H), ph = pw * H / W;
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.translate((cw - pw) / 2, chh - ph - chh * 0.02);
+    if (ch.faceLeft) { c.translate(pw, 0); c.scale(-1, 1); }
+    drawDino(c, ch, outfit, pw, ph, t, images[ch.img]);
   }
 
   function makeEnemy(kind, x, y, speed) {
@@ -752,6 +795,12 @@
     let gained = trail.length;
     for (let i = 0; i < g.length; i++) if (g[i] === 0 && !mark[i]) { g[i] = 1; gained++; }
     G.score += gained;
+    const bite = gained * 100 / INTERIOR;
+    if (bite >= BITE_PCT && G.bite < BITE_PCT) {
+      const [bx, by] = trail[Math.floor(trail.length / 2)] || [p.x, p.y];
+      floatText(bx * CELL, by * CELL, 'ביס ענק! 🍰', '#FFD23F');
+    }
+    G.bite = Math.max(G.bite, bite);
 
     for (const e of G.enemies) {
       if (e.kind === 'buzzer' && cellAt(e.x, e.y) === 1) {
@@ -883,6 +932,14 @@
     const time = G.playT, prevBest = d.best[G.key];
     const record = !prevBest || time < prevBest;
     if (record) d.best[G.key] = time;
+    // Challenges: new ones pay gems once; every win pays a little too.
+    d.chal = d.chal || {};
+    const doneNow = (G.percent >= claimTarget(G.cfg) ? 1 : 0) | (G.bite >= BITE_PCT ? 2 : 0) | (G.lives >= G.maxLives ? 4 : 0);
+    const before = d.chal[G.key] || 0, fresh = doneNow & ~before;
+    d.chal[G.key] = before | doneNow;
+    const freshCount = [1, 2, 4].filter((b) => fresh & b).length;
+    const gemsWon = GEMS_PER_WIN + freshCount * GEMS_PER_CHAL;
+    d.gems = (d.gems || 0) + gemsWon;
     let unlocked = null;
     const world = WORLDS[G.w];
     if (G.l === world.levels.length - 1 && world.unlock && !d.unlocked.includes(world.unlock)) {
@@ -894,7 +951,9 @@
     setTimeout(() => {
       if (!G || G.state !== 'won') return;
       $('#winStars').innerHTML = [0, 1, 2].map((i) => `<span class="${i < stars ? 'on' : 'off'}">★</span>`).join('');
-      $('#winScore').textContent = `ניקוד: ${G.score}`;
+      $('#winChal').innerHTML = chalRow(G.cfg, d.chal[G.key], fresh);
+      $('#winScore').innerHTML = `<span class="gem-win">💎 +${gemsWon}</span><span>ניקוד: ${G.score}</span>`;
+      if (freshCount) setTimeout(() => sfx.power(), 900);
       // First win of a level just sets the time; beating an old time gets the "new record" badge.
       $('#winTime').innerHTML = `<span>⏱ <bdi>${fmtTime(time)}</bdi></span>${
         record && prevBest ? '<span class="record">שיא חדש!</span>'
@@ -1083,7 +1142,8 @@
       c.save();
       c.translate(px, py);
       if (G.ch.faceLeft ? p.face > 0 : p.face < 0) c.scale(-1, 1);
-      c.drawImage(spr(G.ch.img, pw, ph), -pw / 2, -ph / 2 - 6, pw, ph);
+      c.translate(-pw / 2, -ph / 2 - 6);
+      drawDino(c, G.ch, G.outfit, pw, ph, G.t, spr(G.ch.img, pw, ph));
       c.restore();
     }
     if (p.shield && !won) {
@@ -1288,9 +1348,10 @@
   // ---------- Screens ----------
   function show(name) {
     screen = name;
-    for (const id of ['title', 'map', 'game']) $(`#${id}`).hidden = id !== name;
+    for (const id of ['title', 'map', 'game', 'shop']) $(`#${id}`).hidden = id !== name;
     if (name === 'title') buildTitle();
     if (name === 'map') buildMap();
+    if (name === 'shop') buildShop();
     if (name !== 'game') stick.hidden = true;
   }
   function hideOverlays() { for (const id of ['pause', 'win', 'lose']) $(`#${id}`).hidden = true; }
@@ -1315,9 +1376,92 @@
     });
     const sel = CHARS[d.selected];
     $('#charPerk').textContent = `${sel.name}: ${sel.perk}`;
-    $('#titleHero').src = `assets/${sel.img}.svg`;
+    $('#titleGems').textContent = `💎 ${d.gems || 0}`;
     $('#muteBtn').textContent = d.muted ? '🔇' : '🔊';
   }
+
+  // ---------- Wardrobe shop ----------
+  // Tap an item: if you own it, put it on / take it off. If not, try it on and a buy button shows up.
+  const shop = { slot: 'head', char: 'pip', trying: null };
+  const shopOutfit = () => {
+    const o = { ...store.data.outfit };
+    if (shop.trying) o[OUT.BY_ID[shop.trying].slot] = shop.trying;
+    return o;
+  };
+  function openShop() {
+    shop.char = store.data.selected; shop.trying = null;
+    show('shop');
+  }
+  function buildShop() {
+    const d = store.data;
+    d.owned = d.owned || []; d.outfit = d.outfit || {};
+    $('#shopGems').textContent = `💎 ${d.gems || 0}`;
+    for (const t of document.querySelectorAll('.shop-tabs .tab')) t.classList.toggle('on', t.dataset.slot === shop.slot);
+    const grid = $('#shopGrid');
+    grid.innerHTML = '';
+    for (const it of OUT.ITEMS.filter((i) => i.slot === shop.slot)) {
+      const owned = d.owned.includes(it.id), worn = d.outfit[it.slot] === it.id;
+      const b = document.createElement('button');
+      b.className = `item${owned ? ' owned' : ''}${worn ? ' worn' : ''}${shop.trying === it.id ? ' trying' : ''}${
+        !owned && (d.gems || 0) < it.price ? ' pricey' : ''}`;
+      b.setAttribute('aria-label', it.name);
+      b.innerHTML = `<canvas></canvas><span class="tag">${worn ? '✓ לבוש' : owned ? 'שלי' : `💎 ${it.price}`}</span>`;
+      b.addEventListener('click', () => {
+        sfx.init(); sfx.tap();
+        if (owned) {
+          d.outfit[it.slot] = worn ? null : it.id;
+          shop.trying = null; store.save();
+        } else shop.trying = shop.trying === it.id ? null : it.id;
+        buildShop();
+      });
+      grid.appendChild(b);
+      const cv2 = b.querySelector('canvas'), dpr = Math.min(window.devicePixelRatio || 1, 2.5), size = 64;
+      cv2.width = cv2.height = Math.round(size * dpr);
+      const c2 = cv2.getContext('2d'); c2.scale(dpr, dpr);
+      OUT.drawIcon(c2, it.id, size, 0.35);
+    }
+    const tr = shop.trying && OUT.BY_ID[shop.trying];
+    const buy = $('#shopBuy');
+    if (tr) {
+      const short = tr.price - (d.gems || 0);
+      $('#shopItemName').textContent = tr.name;
+      buy.hidden = false;
+      buy.disabled = short > 0;
+      buy.innerHTML = short > 0 ? `חסרים עוד 💎 ${short}` : `לקנות ב-💎 ${tr.price}`;
+    } else {
+      const worn = OUT.SLOTS.map((s) => d.outfit[s]).filter(Boolean).length;
+      $('#shopItemName').textContent = worn ? '' : 'לחצו על בגד כדי לנסות אותו';
+      buy.hidden = true;
+    }
+    const open = CHAR_ORDER.filter((id) => d.unlocked.includes(id));
+    $('#shopPrev').hidden = $('#shopNext').hidden = open.length < 2;
+  }
+  function shopCycle(step) {
+    const open = CHAR_ORDER.filter((id) => store.data.unlocked.includes(id));
+    shop.char = open[(open.indexOf(shop.char) + step + open.length) % open.length];
+    sfx.tap();
+  }
+  $('#shopBtn').addEventListener('click', () => { sfx.init(); sfx.tap(); openShop(); });
+  $('#shopBack').addEventListener('click', () => { sfx.tap(); shop.trying = null; show('title'); });
+  $('#shopPrev').addEventListener('click', () => shopCycle(-1));
+  $('#shopNext').addEventListener('click', () => shopCycle(1));
+  $('#shopHero').addEventListener('click', () => shopCycle(1));
+  for (const t of document.querySelectorAll('.shop-tabs .tab')) {
+    t.addEventListener('click', () => { sfx.tap(); shop.slot = t.dataset.slot; shop.trying = null; buildShop(); });
+  }
+  $('#shopBuy').addEventListener('click', () => {
+    const d = store.data, it = OUT.BY_ID[shop.trying];
+    if (!it || (d.gems || 0) < it.price) return;
+    d.gems -= it.price;
+    d.owned.push(it.id);
+    d.outfit[it.slot] = it.id;
+    shop.trying = null;
+    store.save();
+    sfx.win();
+    const hero = $('#shopHero');
+    hero.classList.remove('cheer'); void hero.offsetWidth; hero.classList.add('cheer');
+    buildShop();
+  });
 
   function currentMapWorld() {
     let w = store.data.mapWorld;
@@ -1359,7 +1503,9 @@
       b.setAttribute('aria-label', open ? label : `${label}, נעול`);
       const face = lvl.bossFight ? `<img class="boss-face" src="assets/boss-${w + 1}.svg" alt="">` : '';
       const best = (store.data.best || {})[`${w + 1}-${i + 1}`];
-      const timeTag = best && open ? `<span class="best-time">⏱ ${fmtTime(best)}</span>` : '';
+      const done = (store.data.chal || {})[`${w + 1}-${i + 1}`] || 0;
+      const marks = CHALS.map((ch) => `<span class="cm${done & ch.bit ? ' on' : ''}">${ch.icon}</span>`).join('');
+      const timeTag = best && open ? `<span class="best-time">⏱ ${fmtTime(best)} ${marks}</span>` : '';
       b.innerHTML = `${face}${lvl.bossFight ? 'בוס' : i + 1}<span class="st">${[0, 1, 2].map((k) => `<span class="${k < stars ? 'on' : 'off'}">★</span>`).join('')}</span>${timeTag}`;
       b.disabled = !open;
       b.addEventListener('click', () => { sfx.init(); sfx.tap(); startLevel(w, i); });
@@ -1414,7 +1560,8 @@
   $('#resetNo').addEventListener('click', () => { sfx.tap(); settingsStep(false); });
   $('#resetYes').addEventListener('click', () => {
     const { muted, controlMode } = store.data;
-    store.data = { stars: {}, best: {}, unlocked: ['pip'], selected: 'pip', streak: {}, muted, controlMode };
+    store.data = { stars: {}, best: {}, unlocked: ['pip'], selected: 'pip', streak: {}, muted, controlMode,
+      gems: 0, owned: [], outfit: {}, chal: {} };
     store.save();
     G = null;
     sfx.tap();
@@ -1465,6 +1612,8 @@
       if (!paused) update(dt);
       render();
     }
+    if (screen === 'title') paintDino($('#titleHero'), store.data.selected, store.data.outfit, t / 1000);
+    if (screen === 'shop') paintDino($('#shopHero'), shop.char, shopOutfit(), t / 1000);
     requestAnimationFrame(frame);
   }
 
