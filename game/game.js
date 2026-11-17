@@ -1274,9 +1274,10 @@
   const input = { dir: null, target: null, id: null, ax: 0, ay: 0, padId: null };
   const stick = $('#stick'), knob = $('#knob');
   const gameEl = $('#game');
-  // The arrow pad is the only control now (touch-to-go and joystick are switched off).
+  const MODES = ['pad', 'touch', 'stick'];
+  const MODE_LABEL = { pad: '🎮 שליטה: חיצים', touch: '👆 שליטה: נגיעה', stick: '🕹️ שליטה: ג׳ויסטיק' };
   const MODE_HINT = { pad: '', touch: 'נוגעים איפה שרוצים שפיפ ילך', stick: 'גוררים את האצבע לכיוון שרוצים ללכת' };
-  const controlMode = () => 'pad';
+  const controlMode = () => (MODES.includes(store.data.controlMode) ? store.data.controlMode : 'pad');
   const useStick = () => controlMode() === 'stick';
 
   function applyControlMode() {
@@ -1284,6 +1285,7 @@
     $('#pad').hidden = m !== 'pad';
     $('#hint').hidden = m === 'pad';
     $('#hint').textContent = MODE_HINT[m];
+    $('#controlBtn').textContent = MODE_LABEL[m];
     if (screen === 'game') resize();
   }
 
@@ -1638,8 +1640,8 @@
   $('#resetBtn').addEventListener('click', () => { sfx.tap(); settingsStep(true); });
   $('#resetNo').addEventListener('click', () => { sfx.tap(); settingsStep(false); });
   $('#resetYes').addEventListener('click', () => {
-    const { muted } = store.data;
-    store.data = { stars: {}, best: {}, unlocked: ['pip'], selected: 'pip', streak: {}, muted,
+    const { muted, controlMode } = store.data;
+    store.data = { stars: {}, best: {}, unlocked: ['pip'], selected: 'pip', streak: {}, muted, controlMode,
       gems: 0, owned: [], outfit: {}, chal: {}, times: {} };
     store.save();
     G = null;
@@ -1658,6 +1660,11 @@
   $('#pauseMuteBtn').addEventListener('click', () => {
     store.data.muted = !store.data.muted; store.save(); sfx.tap();
     $('#pauseMuteBtn').textContent = store.data.muted ? '🔇 צליל: כבוי' : '🔊 צליל: פועל';
+  });
+  $('#controlBtn').addEventListener('click', () => {
+    store.data.controlMode = MODES[(MODES.indexOf(controlMode()) + 1) % MODES.length];
+    store.save(); sfx.tap();
+    applyControlMode();
   });
   $('#pauseHomeBtn').addEventListener('click', () => { sfx.tap(); paused = false; hideOverlays(); show('title'); });
   $('#nextBtn').addEventListener('click', () => {
