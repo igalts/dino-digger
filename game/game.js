@@ -313,6 +313,7 @@
       bite: 0, outfit: { ...store.data.outfit },
     };
     if (G.bossFight) G.readyT = 2.6;
+    G.readyMax = G.readyT;
     const g = G.grid;
     for (let x = 0; x < GW; x++) { g[x] = 1; g[(GH - 1) * GW + x] = 1; }
     for (let y = 0; y < GH; y++) { g[y * GW] = 1; g[y * GW + GW - 1] = 1; }
@@ -1305,6 +1306,7 @@
   }
   pad.addEventListener('pointerdown', (e) => {
     e.stopPropagation();
+    skipIntro(); // pressing an arrow during the intro starts right away and moves
     if (!G || G.state !== 'play' || paused) return;
     sfx.init();
     input.padId = e.pointerId;
@@ -1325,6 +1327,14 @@
     input.dir = null;
     input.target = snapTarget(cx, cy);
   }
+
+  // Tapping the intro card (or anywhere on the board) skips the wait.
+  function skipIntro() {
+    if (!G || G.state !== 'ready' || paused || G.readyT > G.readyMax - 0.3) return; // ignore a tap left over from the Play button
+    G.readyT = 0;
+    startPlay();
+  }
+  $('#boardWrap').addEventListener('pointerdown', skipIntro);
 
   gameEl.addEventListener('pointerdown', (e) => {
     if (e.target.closest('button, .overlay, .hud, .pad')) return;
