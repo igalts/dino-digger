@@ -1547,7 +1547,7 @@
     if (screen !== 'game' || !G || G.state === 'won' || G.state === 'lost') return;
     paused = on;
     $('#pause').hidden = !on;
-    $('#pauseMuteBtn').textContent = store.data.muted ? 'צליל: כבוי' : 'צליל: פועל';
+    $('#pauseMuteBtn').textContent = store.data.muted ? '🔇 צליל: כבוי' : '🔊 צליל: פועל';
     input.dir = null; input.target = null; stick.hidden = true; padRelease();
   }
 
@@ -1603,7 +1603,7 @@
   $('#pauseMapBtn').addEventListener('click', () => { sfx.tap(); paused = false; hideOverlays(); show('map'); });
   $('#pauseMuteBtn').addEventListener('click', () => {
     store.data.muted = !store.data.muted; store.save(); sfx.tap();
-    $('#pauseMuteBtn').textContent = store.data.muted ? 'צליל: כבוי' : 'צליל: פועל';
+    $('#pauseMuteBtn').textContent = store.data.muted ? '🔇 צליל: כבוי' : '🔊 צליל: פועל';
   });
   $('#pauseHomeBtn').addEventListener('click', () => { sfx.tap(); paused = false; hideOverlays(); show('title'); });
   $('#nextBtn').addEventListener('click', () => {
