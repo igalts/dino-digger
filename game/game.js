@@ -374,7 +374,7 @@
     b.className = G.bossFight ? 'banner boss' : 'banner'; // boss: card sits low so his entrance shows above it
     if (G.bossFight) sfx.boss(); else sfx.ready();
     b.hidden = false;
-    input.dir = null; input.target = null;
+    input.dir = null;
     applyControlMode();
     keepAwake();
   }
@@ -481,14 +481,19 @@
     if (G.freeze > 0) G.freeze -= dt;
 
     // Auto-finish: in the dirt with no finger down, Pip keeps walking until he reaches the edge.
-    const auto = p.drawing && controlMode() !== 'touch' ? p.lastDir : null;
-    if (input.dir || input.target || auto) {
+    const auto = p.drawing ? p.lastDir : null;
+    if (input.dir || auto) {
       const speed = PLAYER_SPEED * (G.ch.speed || 1) * (p.boost > 0 ? 1.5 : 1);
       p.acc += dt * speed;
       while (p.acc >= 1) {
         p.acc -= 1;
-        const d = input.dir || (input.target ? followDir() : null) || (p.drawing && controlMode() !== 'touch' ? p.lastDir : null);
-        if (!d || !stepPlayer(d.x, d.y)) { p.acc = 0; break; }
+        const d = input.dir || (p.drawing ? p.lastDir : null);
+        if (!d || !stepPlayer(d.x, d.y)) {
+          p.acc = 0;
+          // Swipe: one swipe = one straight line. Stop when it's blocked or the cut closes.
+          if (controlMode() === 'swipe') input.dir = null;
+          break;
+        }
       }
     } else p.acc = 0;
     if (G.state !== 'play') return;
@@ -541,80 +546,6 @@
     p.trail.push([nx, ny]); p.x = nx; p.y = ny;
     closeTrail();
     return false;
-  }
-
-  // ---------- Touch-to-go: work out Pip's next step toward the touched spot ----------
-  const bfsPrev = new Int32Array(GW * GH);
-  const bfsQueue = new Int32Array(GW * GH);
-
-  // Shortest walk over claimed (safe) ground; returns the first step or null.
-  function safeStep(sx, sy, tx, ty) {
-    const g = G.grid, s = sy * GW + sx, t = ty * GW + tx;
-    bfsPrev.fill(-1);
-    bfsPrev[s] = s;
-    let h = 0, tl = 0;
-    bfsQueue[tl++] = s;
-    while (h < tl) {
-      const i = bfsQueue[h++];
-      if (i === t) break;
-      const x = i % GW;
-      if (x > 0 && bfsPrev[i - 1] === -1 && g[i - 1] === 1) { bfsPrev[i - 1] = i; bfsQueue[tl++] = i - 1; }
-      if (x < GW - 1 && bfsPrev[i + 1] === -1 && g[i + 1] === 1) { bfsPrev[i + 1] = i; bfsQueue[tl++] = i + 1; }
-      if (i >= GW && bfsPrev[i - GW] === -1 && g[i - GW] === 1) { bfsPrev[i - GW] = i; bfsQueue[tl++] = i - GW; }
-      if (i < GW * (GH - 1) && bfsPrev[i + GW] === -1 && g[i + GW] === 1) { bfsPrev[i + GW] = i; bfsQueue[tl++] = i + GW; }
-    }
-    if (bfsPrev[t] === -1) return null;
-    let i = t, len = 1;
-    while (bfsPrev[i] !== s) { i = bfsPrev[i]; len++; }
-    return { x: (i % GW) - sx, y: Math.floor(i / GW) - sy, len };
-  }
-
-  function followDir() {
-    const p = G.player, t = input.target;
-    if (!t || (p.x === t.x && p.y === t.y)) return null;
-    if (!p.drawing && G.grid[t.y * GW + t.x] === 1) {
-      // Walk over safe ground only when that's about as short as going straight there.
-      // If the safe way is a long detour around the board, cut straight across instead.
-      if (t.safe === undefined) {
-        const s = safeStep(p.x, p.y, t.x, t.y);
-        const direct = Math.abs(t.x - p.x) + Math.abs(t.y - p.y);
-        t.safe = !!s && s.len <= direct * 1.25 + 4;
-      }
-      if (t.safe) {
-        const s = safeStep(p.x, p.y, t.x, t.y);
-        if (s) return s;
-      }
-    }
-    // Otherwise an L-shaped path: keep going along the current axis until lined up, then turn.
-    const dx = t.x - p.x, dy = t.y - p.y;
-    let axis = p.axis || (Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y');
-    if (axis === 'x' && dx === 0) axis = 'y';
-    if (axis === 'y' && dy === 0) axis = 'x';
-    const options = axis === 'x' ? [{ x: Math.sign(dx), y: 0 }, { x: 0, y: Math.sign(dy) }] : [{ x: 0, y: Math.sign(dy) }, { x: Math.sign(dx), y: 0 }];
-    for (const o of options) {
-      if (!o.x && !o.y) continue;
-      const nx = p.x + o.x, ny = p.y + o.y;
-      if (nx < 0 || ny < 0 || nx >= GW || ny >= GH) continue;
-      if (G.grid[ny * GW + nx] === 2) continue; // own trail in the way
-      return o;
-    }
-    return null;
-  }
-
-  // A touch close to the safe edge counts as the edge, so Pip doesn't stop just short in the dirt.
-  function snapTarget(cx, cy) {
-    if (G.grid[cy * GW + cx] === 1) return { x: cx, y: cy };
-    const R = 5;
-    let best = null, bd = Infinity;
-    for (let dy = -R; dy <= R; dy++) {
-      for (let dx = -R; dx <= R; dx++) {
-        const x = cx + dx, y = cy + dy;
-        if (x < 0 || y < 0 || x >= GW || y >= GH || G.grid[y * GW + x] !== 1) continue;
-        const d = dx * dx + dy * dy;
-        if (d < bd) { bd = d; best = { x, y }; }
-      }
-    }
-    return best || { x: cx, y: cy };
   }
 
   function trailNear(x, y, r) {
@@ -897,7 +828,7 @@
     }
     p.trail = []; p.drawing = false;
     p.invuln = 2; p.acc = 0; p.axis = null; p.lastDir = null;
-    input.dir = null; input.target = null; padRelease();
+    input.dir = null; padRelease();
     buildLives();
     if (G.lives <= 0) lose();
   }
@@ -952,7 +883,7 @@
     }
     for (const it of G.items) burst(it.x, it.y, ['#FFFFFF', '#FFD23F'], 6);
     G.enemies = []; G.items = []; G.player.trail = [];
-    input.dir = null; input.target = null; padRelease();
+    input.dir = null; padRelease();
     sfx.win();
     const stars = clamp(G.lives, 1, 3);
     const d = store.data;
@@ -1187,15 +1118,7 @@
       c.strokeStyle = 'rgba(189,235,255,0.9)'; c.lineWidth = 3;
       c.beginPath(); c.arc(px, py - 4, 30 + Math.sin(G.t * 5) * 2, 0, Math.PI * 2); c.stroke();
     }
-    const t = input.target;
-    if (t && G.state === 'play' && (t.x !== p.x || t.y !== p.y)) {
-      const tx = t.x * CELL + CELL / 2, ty = t.y * CELL + CELL / 2, r = 9 + Math.sin(G.t * 8) * 2;
-      c.lineWidth = 5; c.strokeStyle = INK;
-      c.beginPath(); c.arc(tx, ty, r, 0, Math.PI * 2); c.stroke();
-      c.lineWidth = 2.5; c.strokeStyle = '#FFD23F';
-      c.beginPath(); c.arc(tx, ty, r, 0, Math.PI * 2); c.stroke();
-    }
-    if (p.boost > 0 && p.lastDir && (input.dir || input.target)) {
+    if (p.boost > 0 && p.lastDir && input.dir) {
       c.strokeStyle = 'rgba(255,255,255,0.8)'; c.lineWidth = 2.5; c.lineCap = 'round';
       const d = p.lastDir;
       for (let k = -1; k <= 1; k++) {
@@ -1279,15 +1202,13 @@
     $('#meterNum').innerHTML = `<bdi>${G.percent}%</bdi> מתוך <bdi>${G.cfg.goal}%</bdi>`;
   }
 
-  // ---------- Input: drag anywhere = joystick, arrows on a keyboard ----------
-  const input = { dir: null, target: null, id: null, ax: 0, ay: 0, padId: null };
-  const stick = $('#stick'), knob = $('#knob');
+  // ---------- Input: arrow pad or swipes, arrows on a keyboard ----------
+  const input = { dir: null, id: null, ax: 0, ay: 0, padId: null };
   const gameEl = $('#game');
-  const MODES = ['pad', 'touch', 'stick'];
-  const MODE_LABEL = { pad: '🎮 שליטה: חיצים', touch: '👆 שליטה: נגיעה', stick: '🕹️ שליטה: ג׳ויסטיק' };
-  const MODE_HINT = { pad: '', touch: 'נוגעים איפה שרוצים שפיפ ילך', stick: 'גוררים את האצבע לכיוון שרוצים ללכת' };
+  const MODES = ['pad', 'swipe'];
+  const MODE_LABEL = { pad: '🎮 שליטה: חיצים', swipe: '👆 שליטה: החלקה' };
+  const MODE_HINT = { pad: '', swipe: 'מחליקים את האצבע לכיוון שרוצים ללכת · נגיעה עוצרת' };
   const controlMode = () => (MODES.includes(store.data.controlMode) ? store.data.controlMode : 'pad');
-  const useStick = () => controlMode() === 'stick';
 
   function applyControlMode() {
     const m = controlMode();
@@ -1312,7 +1233,6 @@
     let name = null;
     if (Math.hypot(dx, dy) > 14) name = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
     for (const [k, a] of Object.entries(arrows)) a.classList.toggle('on', k === name);
-    input.target = null;
     input.dir = name ? { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } }[name] : null;
   }
   pad.addEventListener('pointerdown', (e) => {
@@ -1329,16 +1249,6 @@
   pad.addEventListener('pointerup', padEnd);
   pad.addEventListener('pointercancel', padEnd);
 
-  function setTarget(e) {
-    if (!G || G.state !== 'play') return;
-    const r = cv.getBoundingClientRect();
-    const lx = (e.clientX - r.left) / r.width * VW - PAD;
-    const ly = (e.clientY - r.top) / r.height * VH - PAD;
-    const cx = clamp(Math.floor(lx / CELL), 0, GW - 1), cy = clamp(Math.floor(ly / CELL), 0, GH - 1);
-    input.dir = null;
-    input.target = snapTarget(cx, cy);
-  }
-
   // Tapping the intro card (or anywhere on the board) skips the wait.
   function skipIntro() {
     if (!G || G.state !== 'ready' || paused || G.readyT > G.readyMax - 0.3) return; // ignore a tap left over from the Play button
@@ -1347,35 +1257,27 @@
   }
   $('#boardWrap').addEventListener('pointerdown', skipIntro);
 
+  // Swipe mode: a swipe sets a direction and the dino keeps going that way until it's blocked
+  // or the cut closes. Swiping again (even without lifting the finger) turns; a plain tap stops.
+  const SWIPE_MIN = 22; // px of finger travel that counts as a swipe
   gameEl.addEventListener('pointerdown', (e) => {
     if (e.target.closest('button, .overlay, .hud, .pad')) return;
-    if (controlMode() === 'pad') return;
+    if (controlMode() !== 'swipe') return;
     sfx.init();
-    input.id = e.pointerId; input.ax = e.clientX; input.ay = e.clientY;
+    input.id = e.pointerId; input.ax = e.clientX; input.ay = e.clientY; input.swiped = false;
     try { gameEl.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
-    if (!useStick()) { setTarget(e); return; }
-    stick.style.left = `${e.clientX - 48}px`; stick.style.top = `${e.clientY - 48}px`;
-    knob.style.transform = 'translate(0,0)';
-    stick.hidden = false;
   });
   gameEl.addEventListener('pointermove', (e) => {
-    if (e.pointerId !== input.id) return;
-    if (!useStick()) { setTarget(e); return; }
-    let dx = e.clientX - input.ax, dy = e.clientY - input.ay;
-    const len = Math.hypot(dx, dy), R = 36;
-    if (len > R) {
-      input.ax = e.clientX - dx / len * R; input.ay = e.clientY - dy / len * R;
-      dx = dx / len * R; dy = dy / len * R;
-      stick.style.left = `${input.ax - 48}px`; stick.style.top = `${input.ay - 48}px`;
-    }
-    knob.style.transform = `translate(${dx}px,${dy}px)`;
-    if (len < 10) { input.dir = null; return; }
+    if (e.pointerId !== input.id || !G || G.state !== 'play' || paused) return;
+    const dx = e.clientX - input.ax, dy = e.clientY - input.ay;
+    if (Math.hypot(dx, dy) < SWIPE_MIN) return;
     input.dir = Math.abs(dx) > Math.abs(dy) ? { x: Math.sign(dx), y: 0 } : { x: 0, y: Math.sign(dy) };
+    input.ax = e.clientX; input.ay = e.clientY; input.swiped = true; // next swipe measured from here
   });
   const endPointer = (e) => {
     if (e.pointerId !== input.id) return;
-    input.id = null; stick.hidden = true;
-    if (useStick()) input.dir = null; // in touch-to-go mode Pip keeps walking to the marker
+    input.id = null;
+    if (!input.swiped && G && G.state === 'play') input.dir = null; // tap = stop (a cut in progress still finishes)
   };
   gameEl.addEventListener('pointerup', endPointer);
   gameEl.addEventListener('pointercancel', endPointer);
@@ -1384,7 +1286,7 @@
   window.addEventListener('keydown', (e) => {
     if (screen !== 'game') return;
     const k = KEYS[e.key];
-    if (k) { e.preventDefault(); sfx.init(); input.target = null; input.dir = { x: k[0], y: k[1] }; }
+    if (k) { e.preventDefault(); sfx.init(); input.dir = { x: k[0], y: k[1] }; }
     if (e.key === 'Escape' || e.key === 'p') togglePause(true);
   });
   window.addEventListener('keyup', (e) => {
@@ -1399,7 +1301,6 @@
     if (name === 'title') buildTitle();
     if (name === 'map') buildMap();
     if (name === 'shop') buildShop();
-    if (name !== 'game') stick.hidden = true;
   }
   function hideOverlays() { for (const id of ['pause', 'win', 'lose']) $(`#${id}`).hidden = true; }
 
@@ -1606,7 +1507,7 @@
     paused = on;
     $('#pause').hidden = !on;
     $('#pauseMuteBtn').textContent = store.data.muted ? '🔇 צליל: כבוי' : '🔊 צליל: פועל';
-    input.dir = null; input.target = null; stick.hidden = true; padRelease();
+    input.dir = null; padRelease();
   }
 
   // Full screen is asked for once. If the player leaves it (for example to open the browser menu
