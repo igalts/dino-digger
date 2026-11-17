@@ -164,8 +164,6 @@ img { -webkit-user-drag: none; }
 .meter.boss .meter-num { font-size: 17px; line-height: 1; letter-spacing: 1px; }
 .meter.boss .meter-num .on { color: #FF6B8A; }
 .meter.boss .meter-num .off { color: rgba(255,255,255,.22); }
-.banner .boss-pic { display: block; width: 150px; height: auto; margin: 0 auto 4px; animation: bossBob2 .5s ease-in-out infinite alternate; }
-@keyframes bossBob2 { to { transform: scale(1.08) rotate(-4deg); } }
 .board-wrap { flex: 1; position: relative; display: grid; place-items: center; min-height: 0; padding: 0 6px; }
 #cv { display: block; }
 .hint { text-align: center; color: rgba(255,255,255,.75); font-weight: 700; font-size: 14px; padding: 6px 12px 10px; }

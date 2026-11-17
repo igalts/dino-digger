@@ -340,7 +340,7 @@
     updateHud();
     const b = $('#banner');
     if (G.bossFight) {
-      b.innerHTML = `<img class="boss-pic" src="assets/boss-${w + 1}.svg" alt="">בוס!<small>${G.bossInfo.name}</small>`;
+      b.innerHTML = `בוס!<small>${G.bossInfo.name}</small>`;
       sfx.boss();
     } else b.innerHTML = `<small class="wname">${WORLDS[w].name}</small>שלב ${l + 1}<small>תפסו ${cfg.goal}%</small>`;
     b.hidden = false;
@@ -1003,6 +1003,11 @@
         let ox = 0, k = 1;
         if (big && e.hurt > 0) ox = Math.sin(e.hurt * 60) * 5;
         if (big && e.windup > 0) k = 1 + 0.08 * Math.sin((0.7 - e.windup) * 30);
+        if (big && G.state === 'ready') {
+          // Entrance: the boss pops in and wiggles while the "בוס!" banner is up.
+          const t = Math.min(1, (2.6 - G.readyT) / 0.6);
+          k = (1 - (1 - t) ** 3) * (1 + 0.06 * Math.sin(G.t * 14));
+        }
         c.translate(e.x + ox, e.y + Math.sin(e.anim * (e.kind === 'boss' ? 6 : 14)) * (e.kind === 'boss' ? 2 : 3));
         c.scale(k, k);
         const goingRight = e.vx > 0;
