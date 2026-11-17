@@ -75,7 +75,7 @@
   };
   const ASSETS = ['pip', 'stegi', 'petra', 'anki', 'rafi', 'magma-rex', 'buzzer', 'lava-blob', 'power-bone', 'power-shield',
     'power-ice', 'power-amber', 'egg', 'dirt-1', 'dirt-2', 'dirt-3', 'dirt-4', 'dirt-5',
-    'boss-1', 'boss-2', 'boss-3', 'boss-4', 'boss-5'];
+    'boss-1', 'boss-2', 'boss-3', 'boss-4', 'boss-5', 'rex-1', 'rex-2', 'rex-3', 'rex-4', 'rex-5'];
 
   // Starting shapes (in cells, board is 90x140): pre-claimed bits so each level opens differently.
   // ['r', x, y, w, h] rectangle, ['c', cx, cy, r] circle.
@@ -312,7 +312,7 @@
     if (G.bossFight) {
       Object.assign(boss, BIG_BOSS, { img: `boss-${w + 1}`, throwT: 2.5, windup: 0, hurt: 0, angry: false });
       setHeading(boss, rand(0, Math.PI * 2));
-    }
+    } else boss.img = `rex-${w + 1}`; // same colours as this world's boss, minus the crown
     G.enemies.push(boss);
     const buzzers = G.bossFight ? G.bossInfo.buzzers : cfg.buzzers;
     for (let i = 0; i < buzzers; i++) {

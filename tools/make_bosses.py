@@ -45,7 +45,11 @@ def main():
         )
         with open(os.path.join(OUT, f"boss-{w}.svg"), "w", encoding="utf8") as f:
             f.write(svg)
-    print("wrote boss-1..5")
+        # Same rex without the crown: the chaser in that world's regular levels.
+        plain = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 220" width="240" height="220">{body}</svg>\n'
+        with open(os.path.join(OUT, f"rex-{w}.svg"), "w", encoding="utf8") as f:
+            f.write(plain)
+    print("wrote boss-1..5 and rex-1..5")
 
 
 if __name__ == "__main__":
