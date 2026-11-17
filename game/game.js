@@ -38,6 +38,25 @@
     { name: 'הלילה', unlock: 'rex', charge: true, itemsExpire: true,
       levels: [lv(80, 64, 2, 88, 1, 13), lv(80, 67, 2, 90, 2, 13), lv(80, 70, 2, 92, 2, 14), lv(80, 73, 3, 92, 2, 15), lv(80, 76, 3, 94, 2, 16)] },
   ];
+  // The last level of every world is a boss fight: a big crowned rex that throws things and has 5 hearts.
+  // Each fence you close takes hearts away (hearts follow your progress toward the goal).
+  const BOSS_HP = 5;
+  const BOSSES = [
+    { name: 'רקס הלוהט',   shot: 'fire',    every: 4.2, buzzers: 0 },
+    { name: 'מלך הג׳ונגל', shot: 'coconut', every: 3.9, buzzers: 1 },
+    { name: 'רקס הגלים',   shot: 'bubble',  every: 3.6, buzzers: 1 },
+    { name: 'רקס הקפוא',   shot: 'snow',    every: 3.4, buzzers: 1 },
+    { name: 'מלך הלילה',   shot: 'star',    every: 3.1, buzzers: 1 },
+  ];
+  const SHOTS = {
+    fire:    { fill: '#FF9F1C', core: '#FFD23F', sparks: ['#E8553D', '#FFD23F'] },
+    coconut: { fill: '#7B4A12', core: '#B98A4E', sparks: ['#7B4A12', '#C5E86C'] },
+    bubble:  { fill: '#4FC3F7', core: '#E6F7FF', sparks: ['#4FC3F7', '#FFFFFF'] },
+    snow:    { fill: '#FFFFFF', core: '#BDEBFF', sparks: ['#FFFFFF', '#BDEBFF'] },
+    star:    { fill: '#FFD23F', core: '#FFF6B8', sparks: ['#FFD23F', '#C9A8FF'] },
+  };
+  const SHOT_R = 8;
+  WORLDS.forEach((wd) => { wd.levels[wd.levels.length - 1].bossFight = true; });
   const sceneName = (w, l) => `s${w + 1}-${l + 1}`;
   const worldOpen = (w) => w === 0 || (store.data.stars[`${w}-5`] || 0) > 0;
   const levelOpen = (w, l) => (l === 0 ? worldOpen(w) : (store.data.stars[`${w + 1}-${l}`] || 0) > 0);
@@ -47,6 +66,7 @@
     buzzer: { img: 'buzzer',    w: 42,  h: 42, faceLeft: true, r: 12, hitR: 15 },
     lava:   { img: 'lava-blob', w: 36,  h: 36, faceLeft: false, r: 0, hitR: 16 },
   };
+  const BIG_BOSS = { w: 140, h: 146, r: 30, hitR: 38 }; // boss-N.svg is 240x250
   const ITEMS = {
     bone:   { img: 'power-bone',   label: 'מהר!' },
     shield: { img: 'power-shield', label: 'מגן!' },
@@ -54,7 +74,8 @@
     amber:  { img: 'power-amber',  label: '+500' },
   };
   const ASSETS = ['pip', 'stegi', 'petra', 'anki', 'rafi', 'magma-rex', 'buzzer', 'lava-blob', 'power-bone', 'power-shield',
-    'power-ice', 'power-amber', 'egg', 'dirt-1', 'dirt-2', 'dirt-3', 'dirt-4', 'dirt-5'];
+    'power-ice', 'power-amber', 'egg', 'dirt-1', 'dirt-2', 'dirt-3', 'dirt-4', 'dirt-5',
+    'boss-1', 'boss-2', 'boss-3', 'boss-4', 'boss-5'];
 
   // Starting shapes (in cells, board is 90x140): pre-claimed bits so each level opens differently.
   // ['r', x, y, w, h] rectangle, ['c', cx, cy, r] circle.
@@ -117,6 +138,10 @@
     win()   { [523, 659, 784, 1047, 784, 1047].forEach((f, i) => this.tone(f, 0.2, 'triangle', 0.1, i * 0.13)); },
     lose()  { [392, 330, 262].forEach((f, i) => this.tone(f, 0.28, 'triangle', 0.09, i * 0.22)); },
     tap()   { this.tone(660, 0.06, 'triangle', 0.06); },
+    boss()  { [110, 110, 147, 110].forEach((f, i) => this.tone(f, 0.22, 'sawtooth', 0.08, i * 0.2)); },
+    ouch()  { this.tone(520, 0.3, 'square', 0.07, 0, 140); },
+    throwIt() { this.tone(300, 0.18, 'triangle', 0.07, 0, 700); },
+    defeat() { [392, 330, 262, 196].forEach((f, i) => this.tone(f, 0.2, 'sawtooth', 0.06, i * 0.12)); },
   };
 
   // ---------- Images & rasterized sprites ----------
@@ -264,7 +289,9 @@
         acc: 0, invuln: 0, shield: !!ch.shieldStart, boost: 0 },
       enemies: [], items: [], particles: [],
       freeze: 0, state: 'ready', readyT: 1.8, t: 0, itemTimer: 12, shake: 0, winT: 0,
+      bossFight: !!cfg.bossFight, bossInfo: cfg.bossFight ? BOSSES[w] : null, bossHp: BOSS_HP, shots: [],
     };
+    if (G.bossFight) G.readyT = 2.6;
     const g = G.grid;
     for (let x = 0; x < GW; x++) { g[x] = 1; g[(GH - 1) * GW + x] = 1; }
     for (let y = 0; y < GH; y++) { g[y * GW] = 1; g[y * GW + GW - 1] = 1; }
@@ -279,9 +306,16 @@
       }
     }
     computePercent();
+    G.startPct = G.percent;
 
-    G.enemies.push(makeEnemy('boss', LW / 2, LH * 0.35, cfg.boss * ease));
-    for (let i = 0; i < cfg.buzzers; i++) {
+    const boss = makeEnemy('boss', LW / 2, LH * 0.35, cfg.boss * ease * (G.bossFight ? 0.85 : 1));
+    if (G.bossFight) {
+      Object.assign(boss, BIG_BOSS, { img: `boss-${w + 1}`, throwT: 2.5, windup: 0, hurt: 0, angry: false });
+      setHeading(boss, rand(0, Math.PI * 2));
+    }
+    G.enemies.push(boss);
+    const buzzers = G.bossFight ? G.bossInfo.buzzers : cfg.buzzers;
+    for (let i = 0; i < buzzers; i++) {
       let x = 0, y = 0;
       for (let k = 0; k < 50; k++) {
         x = rand(60, LW - 60); y = rand(60, LH * 0.5);
@@ -305,7 +339,10 @@
     buildLives();
     updateHud();
     const b = $('#banner');
-    b.innerHTML = `<small class="wname">${WORLDS[w].name}</small>שלב ${l + 1}<small>תפסו ${cfg.goal}%</small>`;
+    if (G.bossFight) {
+      b.innerHTML = `<img class="boss-pic" src="assets/boss-${w + 1}.svg" alt="">בוס!<small>${G.bossInfo.name}</small>`;
+      sfx.boss();
+    } else b.innerHTML = `<small class="wname">${WORLDS[w].name}</small>שלב ${l + 1}<small>תפסו ${cfg.goal}%</small>`;
     b.hidden = false;
     input.dir = null; input.target = null;
     applyControlMode();
@@ -391,14 +428,22 @@
     if (G.state !== 'play') return;
 
     for (const e of G.enemies) { if (e.kind === 'lava') updateCrawler(e, dt); else updateEnemy(e, dt); }
+    if (G.bossFight) updateBossFight(dt);
 
     if (p.invuln <= 0 && G.freeze <= 0) {
       const px = p.x * CELL + CELL / 2, py = p.y * CELL + CELL / 2;
+      let hit = null;
       for (const e of G.enemies) {
         // Lava drops walk the safe edges, so they can bump Pip even when he isn't digging.
-        if (e.kind === 'lava') { if (Math.hypot(e.x - px, e.y - py) < e.hitR) { onHit(); break; } continue; }
-        if (p.drawing && (Math.hypot(e.x - px, e.y - py) < e.hitR + 10 || trailHit(e))) { onHit(); break; }
+        if (e.kind === 'lava') { if (Math.hypot(e.x - px, e.y - py) < e.hitR) { hit = e; break; } continue; }
+        if (p.drawing && (Math.hypot(e.x - px, e.y - py) < e.hitR + 10 || trailNear(e.x, e.y, e.hitR))) { hit = e; break; }
       }
+      // Boss shots only hurt while digging, like everything else in the dirt.
+      if (!hit && p.drawing) {
+        hit = G.shots.find((s) => Math.hypot(s.x - px, s.y - py) < SHOT_R + 12 || trailNear(s.x, s.y, SHOT_R + 2));
+        if (hit) { hit.dead = true; burst(hit.x, hit.y, SHOTS[G.bossInfo.shot].sparks, 8); }
+      }
+      if (hit) onHit();
     }
 
     for (const it of G.items) it.life -= dt;
@@ -497,13 +542,72 @@
     return best || { x: cx, y: cy };
   }
 
-  function trailHit(e) {
-    const t = G.player.trail, r2 = e.hitR * e.hitR;
+  function trailNear(x, y, r) {
+    const t = G.player.trail, r2 = r * r;
     for (let k = 1; k < t.length; k++) {
-      const dx = t[k][0] * CELL + CELL / 2 - e.x, dy = t[k][1] * CELL + CELL / 2 - e.y;
+      const dx = t[k][0] * CELL + CELL / 2 - x, dy = t[k][1] * CELL + CELL / 2 - y;
       if (dx * dx + dy * dy < r2) return true;
     }
     return false;
+  }
+
+  // ---------- Boss fight ----------
+  const bossOf = () => G.enemies.find((e) => e.kind === 'boss');
+  // Where the boss's mouth is (the art faces left; it flips when walking right).
+  const bossMouth = (b) => ({ x: b.x + (b.vx > 0 ? 1 : -1) * b.w * 0.3, y: b.y - b.h * 0.12 });
+
+  function updateBossFight(dt) {
+    const b = bossOf();
+    if (!b) return;
+    if (b.hurt > 0) b.hurt -= dt;
+    if (G.freeze > 0) return;
+    if (b.windup > 0) {
+      b.windup -= dt;
+      if (b.windup <= 0) throwShots(b);
+    } else {
+      b.throwT -= dt;
+      if (b.throwT <= 0) {
+        b.windup = 0.7;
+        b.throwT = G.bossInfo.every * (b.angry ? 0.75 : 1) / G.ease;
+      }
+    }
+    for (const s of G.shots) {
+      s.x += s.vx * dt; s.y += s.vy * dt; s.spin += dt * 7;
+      // Shots pop when they reach safe ground, so standing on the edge is always safe.
+      if (cellAt(s.x, s.y) === 1) { s.dead = true; burst(s.x, s.y, SHOTS[G.bossInfo.shot].sparks, 5); }
+    }
+    G.shots = G.shots.filter((s) => !s.dead);
+  }
+
+  function throwShots(b) {
+    const p = G.player, m = bossMouth(b);
+    const base = Math.atan2(p.y * CELL + 2 - m.y, p.x * CELL + 2 - m.x);
+    const n = b.angry ? (G.w === 0 ? 2 : 3) : 1;
+    const speed = (95 + G.w * 8) * G.ease;
+    for (let k = 0; k < n; k++) {
+      const a = base + (k - (n - 1) / 2) * 0.32;
+      G.shots.push({ x: m.x, y: m.y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, spin: 0 });
+    }
+    sfx.throwIt();
+  }
+
+  function hurtBoss() {
+    const b = bossOf();
+    const hp = G.percent >= G.cfg.goal ? 0
+      : Math.max(1, Math.ceil(BOSS_HP * (G.cfg.goal - G.percent) / Math.max(1, G.cfg.goal - G.startPct)));
+    if (!b || hp === 0) { G.bossHp = 0; return; } // the win animation takes over
+    b.hurt = hp < G.bossHp ? 0.7 : 0.35; // every fence makes him flinch; losing a heart is a big one
+    if (hp >= G.bossHp) return;
+    G.bossHp = hp;
+    G.shake = Math.max(G.shake, 0.3);
+    floatText(b.x, b.y - b.h / 2 - 6, 'אאוץ׳!', '#FF8FA3');
+    burst(b.x, b.y - 20, ['#FFD23F', '#FFFFFF', '#FF8FA3'], 12);
+    sfx.ouch();
+    if (hp <= 2 && !b.angry) {
+      b.angry = true;
+      b.speed *= 1.2; b.vx *= 1.2; b.vy *= 1.2;
+      setTimeout(() => { if (G && G.state === 'play' && bossOf() === b) floatText(b.x, b.y - b.h / 2 - 6, 'הבוס כועס!', '#FF6B2C'); }, 600);
+    }
   }
 
   // ---------- Lava drops: crawl along the claimed/unclaimed border ----------
@@ -665,6 +769,7 @@
     computePercent();
     rebuildDirt();
     sfx.claim();
+    if (G.bossFight) hurtBoss();
     updateHud();
     if (G.percent >= G.cfg.goal) win();
   }
@@ -746,6 +851,16 @@
     G.winX = G.player.x * CELL + CELL / 2;
     G.winY = G.player.y * CELL + CELL / 2;
     G.winMaxR = Math.max(...[[0, 0], [LW, 0], [0, LH], [LW, LH]].map(([x, y]) => Math.hypot(x - G.winX, y - G.winY)));
+    const boss = G.bossFight && bossOf();
+    if (boss) {
+      // The boss spins away into the sky instead of just vanishing.
+      G.defeat = { x: boss.x, y: boss.y, img: boss.img, w: boss.w, h: boss.h };
+      floatText(boss.x, boss.y - boss.h / 2, 'ניצחת את הבוס!', '#FFD23F');
+      G.enemies = G.enemies.filter((e) => e !== boss);
+      sfx.defeat();
+    }
+    for (const s of G.shots) burst(s.x, s.y, ['#FFFFFF', '#FFD23F'], 4);
+    G.shots = [];
     for (const e of G.enemies) {
       burst(e.x, e.y, ['#FFFFFF', '#FFD23F', '#D8D2E3'], e.kind === 'boss' ? 18 : 8);
     }
@@ -778,7 +893,7 @@
       } else u.hidden = true;
       const lastLevel = G.l >= world.levels.length - 1;
       const lastWorld = G.w >= WORLDS.length - 1;
-      $('#winTitle').textContent = lastLevel && lastWorld ? 'ניצחת את כל המשחק!' : lastLevel ? 'סיימת עולם!' : 'כל הכבוד!';
+      $('#winTitle').textContent = lastLevel && lastWorld ? 'ניצחת את כל המשחק!' : G.bossFight ? 'ניצחת את הבוס!' : 'כל הכבוד!';
       $('#nextBtn').textContent = lastLevel ? 'לעולם הבא' : 'לשלב הבא';
       $('#nextBtn').hidden = lastLevel && lastWorld;
       $('#win').hidden = false;
@@ -879,17 +994,47 @@
         c.drawImage(spr(ITEMS[it.type].img, ITEM_SIZE, ITEM_SIZE), it.x - ITEM_SIZE / 2, it.y - ITEM_SIZE / 2 + bob, ITEM_SIZE, ITEM_SIZE);
       }
       for (const e of G.enemies) {
+        const big = G.bossFight && e.kind === 'boss';
+        if (big && e.angry) {
+          c.fillStyle = `rgba(232,85,61,${0.25 + 0.12 * Math.sin(G.t * 8)})`;
+          c.beginPath(); c.ellipse(e.x, e.y + 8, e.w * 0.55, e.h * 0.45, 0, 0, Math.PI * 2); c.fill();
+        }
         c.save();
-        c.translate(e.x, e.y + Math.sin(e.anim * (e.kind === 'boss' ? 6 : 14)) * (e.kind === 'boss' ? 2 : 3));
+        let ox = 0, k = 1;
+        if (big && e.hurt > 0) ox = Math.sin(e.hurt * 60) * 5;
+        if (big && e.windup > 0) k = 1 + 0.08 * Math.sin((0.7 - e.windup) * 30);
+        c.translate(e.x + ox, e.y + Math.sin(e.anim * (e.kind === 'boss' ? 6 : 14)) * (e.kind === 'boss' ? 2 : 3));
+        c.scale(k, k);
         const goingRight = e.vx > 0;
         if (e.faceLeft ? goingRight : !goingRight) c.scale(-1, 1);
+        if (big && e.hurt > 0 && Math.floor(e.hurt * 14) % 2 === 0) c.globalAlpha = 0.45;
         c.drawImage(spr(e.img, e.w, e.h), -e.w / 2, -e.h / 2, e.w, e.h);
         c.restore();
+        c.globalAlpha = 1;
+        if (big && e.windup > 0) {
+          // The shot grows at the boss's mouth so there's time to see it coming.
+          const m = bossMouth(e);
+          drawShot(c, m.x, m.y, SHOT_R * (1 - e.windup / 0.7) + 2, G.t * 7);
+        }
         if (G.freeze > 0) {
           c.fillStyle = 'rgba(189,235,255,0.45)';
           c.strokeStyle = '#FFFFFF'; c.lineWidth = 2;
           c.beginPath(); c.arc(e.x, e.y, e.w * 0.45, 0, Math.PI * 2); c.fill(); c.stroke();
         }
+      }
+      for (const s of G.shots) drawShot(c, s.x, s.y, SHOT_R, s.spin);
+    }
+    if (won && G.defeat) {
+      const d = G.defeat, t = Math.min(1, G.winT / 1.2);
+      if (t < 1) {
+        c.save();
+        c.globalAlpha = 1 - t * t;
+        c.translate(d.x, d.y - t * 140 - Math.sin(t * Math.PI) * 30);
+        c.rotate(t * 9);
+        c.scale(1 - t * 0.7, 1 - t * 0.7);
+        c.drawImage(spr(d.img, d.w, d.h), -d.w / 2, -d.h / 2, d.w, d.h);
+        c.restore();
+        c.globalAlpha = 1;
       }
     }
 
@@ -947,6 +1092,32 @@
     c.globalAlpha = 1;
   }
 
+  function drawShot(c, x, y, r, spin) {
+    const kind = G.bossInfo.shot, s = SHOTS[kind];
+    c.save();
+    c.translate(x, y); c.rotate(spin);
+    c.lineWidth = 3; c.strokeStyle = INK; c.lineJoin = 'round';
+    c.beginPath();
+    if (kind === 'star' || kind === 'snow') {
+      const pts = kind === 'star' ? 5 : 6, inner = kind === 'star' ? 0.5 : 0.62;
+      for (let i = 0; i < pts * 2; i++) {
+        const a = i * Math.PI / pts - Math.PI / 2, rr = i % 2 ? r * inner : r * 1.25;
+        if (i === 0) c.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); else c.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+      }
+      c.closePath();
+    } else c.arc(0, 0, r, 0, Math.PI * 2);
+    c.fillStyle = s.fill; c.fill(); c.stroke();
+    if (kind === 'fire') {
+      c.fillStyle = s.core; c.beginPath(); c.arc(0, 0, r * 0.5, 0, Math.PI * 2); c.fill();
+    } else if (kind === 'coconut') {
+      c.fillStyle = s.core;
+      for (const a of [0, 2.1, 4.2]) { c.beginPath(); c.arc(Math.cos(a) * r * 0.45, Math.sin(a) * r * 0.45, r * 0.18, 0, Math.PI * 2); c.fill(); }
+    } else {
+      c.fillStyle = s.core; c.beginPath(); c.arc(-r * 0.3, -r * 0.3, r * 0.3, 0, Math.PI * 2); c.fill();
+    }
+    c.restore();
+  }
+
   // ---------- HUD ----------
   function buildLives() {
     const el = $('#lives');
@@ -959,6 +1130,15 @@
     }
   }
   function updateHud() {
+    $('.meter').classList.toggle('boss', G.bossFight);
+    if (G.bossFight) {
+      // Boss levels show the boss's hearts draining instead of a percentage.
+      $('#levelName').textContent = 'בוס!';
+      const left = clamp((G.cfg.goal - G.percent) / Math.max(1, G.cfg.goal - G.startPct), 0, 1);
+      $('#meterFill').style.width = `${left * 100}%`;
+      $('#meterNum').innerHTML = [...Array(BOSS_HP)].map((_, i) => `<span class="${i < G.bossHp ? 'on' : 'off'}">♥</span>`).join('');
+      return;
+    }
     $('#levelName').textContent = `שלב ${G.l + 1}`;
     $('#meterFill').style.width = `${Math.min(100, G.percent / G.cfg.goal * 100)}%`;
     $('#meterGoal').style.insetInlineStart = 'calc(100% - 3px)';
@@ -1136,11 +1316,13 @@
       const stars = store.data.stars[`${w + 1}-${i + 1}`] || 0;
       const open = levelOpen(w, i);
       const b = document.createElement('button');
-      b.className = `level${open ? '' : ' locked'}`;
+      b.className = `level${open ? '' : ' locked'}${lvl.bossFight ? ' boss' : ''}`;
       b.style.left = `${MAP_NODES[i][0] / 360 * 100}%`;
       b.style.top = `${MAP_NODES[i][1] / 780 * 100}%`;
-      b.setAttribute('aria-label', open ? `שלב ${i + 1}` : `שלב ${i + 1} נעול`);
-      b.innerHTML = `${i + 1}<span class="st">${[0, 1, 2].map((k) => `<span class="${k < stars ? 'on' : 'off'}">★</span>`).join('')}</span>`;
+      const label = lvl.bossFight ? `בוס: ${BOSSES[w].name}` : `שלב ${i + 1}`;
+      b.setAttribute('aria-label', open ? label : `${label}, נעול`);
+      const face = lvl.bossFight ? `<img class="boss-face" src="assets/boss-${w + 1}.svg" alt="">` : '';
+      b.innerHTML = `${face}${lvl.bossFight ? 'בוס' : i + 1}<span class="st">${[0, 1, 2].map((k) => `<span class="${k < stars ? 'on' : 'off'}">★</span>`).join('')}</span>`;
       b.disabled = !open;
       b.addEventListener('click', () => { sfx.init(); sfx.tap(); startLevel(w, i); });
       box.appendChild(b);

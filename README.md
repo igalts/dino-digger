@@ -3,7 +3,7 @@
 A Hebrew area-claiming game for young kids, made for Android phones (works in any modern browser).
 Pip the baby triceratops fences off dirt to uncover a hidden dinosaur picture while Magma Rex and his gang try to stop him.
 
-- 5 worlds × 5 levels, each with its own hidden picture
+- 5 worlds × 5 levels, each with its own hidden picture; level 5 of every world is a boss fight
 - Arrow pad controls (touch-to-go and joystick in the pause menu)
 - Unlockable dino friends, stars, offline play, installs as an app (PWA)
 
@@ -31,5 +31,6 @@ Then open `http://localhost:8080`, or `http://<computer-ip>:8080` from a phone o
 | `assets/` | Source character art |
 | `tools/make_scenes.py` | Builds the 25 hidden pictures from the character art — `py -I tools/make_scenes.py` |
 | `tools/make_maps.py` | Builds the 5 world maps (road + level spots) — `py -I tools/make_maps.py` |
+| `tools/make_bosses.py` | Builds the 5 crowned world bosses — `py -I tools/make_bosses.py` |
 | `moodboard.html` | First look-and-feel board |
 | `serve.py` | Local no-cache server for phone testing |

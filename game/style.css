@@ -122,6 +122,15 @@ img { -webkit-user-drag: none; }
 .level .st .off { color: rgba(43,27,61,.25); }
 .level.locked { background: #CFC6D9; color: rgba(43,27,61,.4); }
 .level.locked .st { display: none; }
+.level.boss { background: var(--lava); color: var(--paper); -webkit-text-stroke: 1.2cqw var(--ink); paint-order: stroke fill; font-size: 7cqw; }
+.level.boss .st { -webkit-text-stroke: 0; }
+.level.boss.locked { background: #CFC6D9; color: rgba(43,27,61,.4); -webkit-text-stroke: 0; }
+.level .boss-face {
+  position: absolute; left: 50%; bottom: 72%; width: 21cqw; height: auto; transform: translateX(-50%);
+  pointer-events: none; animation: bossBob 1.6s ease-in-out infinite;
+}
+.level.locked .boss-face { filter: grayscale(1) brightness(.75); opacity: .8; animation: none; }
+@keyframes bossBob { 50% { transform: translateX(-50%) translateY(-1.2cqw) rotate(-3deg); } }
 .world-nav {
   position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); transform: translateX(-50%); z-index: 2;
   display: flex; align-items: center; gap: 12px;
@@ -150,6 +159,13 @@ img { -webkit-user-drag: none; }
 .meter-fill { position: absolute; top: 0; bottom: 0; inset-inline-start: 0; width: 0; background: var(--leaf); transition: width .3s; }
 .meter-goal { position: absolute; top: -2px; bottom: -2px; width: 3px; background: var(--sun); }
 .meter-num { font-family: var(--display); font-weight: 700; font-size: 13px; }
+.meter.boss .meter-fill { background: var(--lava); }
+.meter.boss .meter-goal { display: none; }
+.meter.boss .meter-num { font-size: 17px; line-height: 1; letter-spacing: 1px; }
+.meter.boss .meter-num .on { color: #FF6B8A; }
+.meter.boss .meter-num .off { color: rgba(255,255,255,.22); }
+.banner .boss-pic { display: block; width: 150px; height: auto; margin: 0 auto 4px; animation: bossBob2 .5s ease-in-out infinite alternate; }
+@keyframes bossBob2 { to { transform: scale(1.08) rotate(-4deg); } }
 .board-wrap { flex: 1; position: relative; display: grid; place-items: center; min-height: 0; padding: 0 6px; }
 #cv { display: block; }
 .hint { text-align: center; color: rgba(255,255,255,.75); font-weight: 700; font-size: 14px; padding: 6px 12px 10px; }
