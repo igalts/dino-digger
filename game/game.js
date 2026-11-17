@@ -711,8 +711,13 @@
     if (G.freeze > 0) return;
     if (!isEdge(e.cy * GW + e.cx)) relocateCrawler(e);
     e.acc += dt * e.speed;
-    while (e.acc >= 1) { e.acc -= 1; crawlStep(e); }
-    e.x = e.cx * CELL + CELL / 2; e.y = e.cy * CELL + CELL / 2;
+    while (e.acc >= 1) { e.acc -= 1; e.fx = e.cx; e.fy = e.cy; crawlStep(e); }
+    // Glide between cells instead of jumping 4px at a time (that read as flicker).
+    let gx = e.cx, gy = e.cy;
+    if (e.fx !== undefined && Math.abs(e.fx - e.cx) + Math.abs(e.fy - e.cy) === 1) {
+      gx = e.fx + (e.cx - e.fx) * e.acc; gy = e.fy + (e.cy - e.fy) * e.acc;
+    }
+    e.x = gx * CELL + CELL / 2; e.y = gy * CELL + CELL / 2;
   }
 
   // Ice and night worlds: every few seconds Rex charges at Pip's trail.
@@ -1100,7 +1105,12 @@
           const t = Math.min(1, (2.6 - G.readyT) / 0.6);
           k = (1 - (1 - t) ** 3) * (1 + 0.06 * Math.sin(G.t * 14));
         }
-        c.translate(e.x + ox, e.y + Math.sin(e.anim * (e.kind === 'boss' ? 6 : 14)) * (e.kind === 'boss' ? 2 : 3));
+        if (e.kind === 'lava') {
+          // A slow, soft squish instead of a fast up-down shake.
+          const s = Math.sin(e.anim * 4);
+          c.translate(e.x, e.y + s * 1.2);
+          c.scale(1 + s * 0.05, 1 - s * 0.05);
+        } else c.translate(e.x + ox, e.y + Math.sin(e.anim * (e.kind === 'boss' ? 6 : 14)) * (e.kind === 'boss' ? 2 : 3));
         c.scale(k, k);
         const goingRight = e.vx > 0;
         if (e.faceLeft ? goingRight : !goingRight) c.scale(-1, 1);
