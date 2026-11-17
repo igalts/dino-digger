@@ -1244,7 +1244,8 @@
       $('#levelName').textContent = 'בוס!';
       const left = clamp((G.cfg.goal - G.percent) / Math.max(1, G.cfg.goal - G.startPct), 0, 1);
       $('#meterFill').style.width = `${left * 100}%`;
-      $('#meterNum').innerHTML = [...Array(BOSS_HP)].map((_, i) => `<span class="${i < G.bossHp ? 'on' : 'off'}">♥</span>`).join('');
+      $('#meterNum').innerHTML = [...Array(BOSS_HP)].map((_, i) => `<span class="${i < G.bossHp ? 'on' : 'off'}">♥</span>`).join('')
+        + `<div class="boss-pct"><bdi>${G.percent}%</bdi> מתוך <bdi>${G.cfg.goal}%</bdi></div>`;
       return;
     }
     $('#levelName').textContent = `שלב ${G.l + 1}`;
