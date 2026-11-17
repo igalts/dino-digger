@@ -1561,9 +1561,14 @@
     input.dir = null; input.target = null; stick.hidden = true; padRelease();
   }
 
+  // Full screen is asked for once. If the player leaves it (for example to open the browser menu
+  // and install the app), we don't pull them back in. The installed app is full screen already.
+  let fsDone = false;
+  const installed = () => ['fullscreen', 'standalone'].some((m) => window.matchMedia && matchMedia(`(display-mode: ${m})`).matches);
+  document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) fsDone = true; });
   function goFullscreen() {
     const el = document.documentElement;
-    if (document.fullscreenElement || !el.requestFullscreen) return;
+    if (fsDone || installed() || document.fullscreenElement || !el.requestFullscreen) return;
     el.requestFullscreen({ navigationUI: 'hide' })
       .then(() => window.screen.orientation && window.screen.orientation.lock && window.screen.orientation.lock('portrait').catch(() => {}))
       .catch(() => {});
