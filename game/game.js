@@ -374,7 +374,7 @@
     b.className = G.bossFight ? 'banner boss' : 'banner'; // boss: card sits low so his entrance shows above it
     if (G.bossFight) sfx.boss(); else sfx.ready();
     b.hidden = false;
-    input.dir = null;
+    input.dir = null; input.hold = false;
     applyControlMode();
     keepAwake();
   }
@@ -481,13 +481,15 @@
     if (G.freeze > 0) G.freeze -= dt;
 
     // Auto-finish: in the dirt with no finger down, Pip keeps walking until he reaches the edge.
-    const auto = p.drawing ? p.lastDir : null;
+    // (In swipe mode a touch holds him still, even in the dirt.)
+    const held = controlMode() === 'swipe' && input.hold;
+    const auto = p.drawing && !held ? p.lastDir : null;
     if (input.dir || auto) {
       const speed = PLAYER_SPEED * (G.ch.speed || 1) * (p.boost > 0 ? 1.5 : 1);
       p.acc += dt * speed;
       while (p.acc >= 1) {
         p.acc -= 1;
-        const d = input.dir || (p.drawing ? p.lastDir : null);
+        const d = input.dir || auto;
         if (!d || !stepPlayer(d.x, d.y)) {
           p.acc = 0;
           // Swipe: one swipe = one straight line. Stop when it's blocked or the cut closes.
@@ -828,7 +830,7 @@
     }
     p.trail = []; p.drawing = false;
     p.invuln = 2; p.acc = 0; p.axis = null; p.lastDir = null;
-    input.dir = null; padRelease();
+    input.dir = null; input.hold = false; padRelease();
     buildLives();
     if (G.lives <= 0) lose();
   }
@@ -1260,22 +1262,23 @@
   // Swipe mode: a swipe sets a direction and the dino keeps going that way until it's blocked
   // or the cut closes. Swiping again (even without lifting the finger) turns; a plain tap stops.
   const SWIPE_MIN = 22; // px of finger travel that counts as a swipe
+  input.hold = false;
   gameEl.addEventListener('pointerdown', (e) => {
     if (e.target.closest('button, .overlay, .hud, .pad')) return;
     if (controlMode() !== 'swipe') return;
     sfx.init();
     input.id = e.pointerId; input.ax = e.clientX; input.ay = e.clientY; input.swiped = false;
     try { gameEl.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
-    // Touching the screen stops him right where he is (a cut in progress still finishes);
+    // Touching the screen stops him right where he is, in the dirt too;
     // if the finger then slides, that's a new swipe.
-    if (G && G.state === 'play' && !paused) input.dir = null;
+    if (G && G.state === 'play' && !paused) { input.dir = null; input.hold = true; }
   });
   gameEl.addEventListener('pointermove', (e) => {
     if (e.pointerId !== input.id || !G || G.state !== 'play' || paused) return;
     const dx = e.clientX - input.ax, dy = e.clientY - input.ay;
     if (Math.hypot(dx, dy) < SWIPE_MIN) return;
     input.dir = Math.abs(dx) > Math.abs(dy) ? { x: Math.sign(dx), y: 0 } : { x: 0, y: Math.sign(dy) };
-    input.ax = e.clientX; input.ay = e.clientY; input.swiped = true; // next swipe measured from here
+    input.ax = e.clientX; input.ay = e.clientY; input.swiped = true; input.hold = false; // next swipe measured from here
   });
   const endPointer = (e) => {
     if (e.pointerId !== input.id) return;
