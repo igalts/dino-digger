@@ -1298,14 +1298,12 @@
   const gameEl = $('#game');
   const MODES = ['swipe', 'pad'];
   const MODE_LABEL = { pad: '🎮 שליטה: חיצים', swipe: '👆 שליטה: החלקה' };
-  const MODE_HINT = { pad: '', swipe: 'מחליקים או נוגעים כדי ללכת · נגיעה בדינו עוצרת' };
   const controlMode = () => (MODES.includes(store.data.controlMode) ? store.data.controlMode : 'swipe');
 
   function applyControlMode() {
     const m = controlMode();
     $('#pad').hidden = m !== 'pad';
-    $('#hint').hidden = m === 'pad';
-    $('#hint').textContent = MODE_HINT[m];
+    $('#hint').hidden = true;
     $('#controlBtn').textContent = MODE_LABEL[m];
     if (screen === 'game') resize();
   }
@@ -1394,6 +1392,8 @@
     input.ax = e.clientX; input.ay = e.clientY; input.swiped = true; input.hold = false; input.target = null; // next swipe measured from here
   });
   const endPointer = (e) => {
+    // Phones may reuse the same pointer id for every touch, so the intro-skip mark ends with its touch.
+    if (e.pointerId === input.skipId) input.skipId = null;
     if (e.pointerId !== input.id) return;
     input.id = null;
   };
