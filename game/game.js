@@ -1374,6 +1374,7 @@
       b.setAttribute('aria-label', it.name);
       b.innerHTML = `<canvas></canvas><span class="tag">${worn ? '✓ לבוש' : owned ? 'שלי' : `💎 ${it.price}`}</span>`;
       b.addEventListener('click', () => {
+        if (performance.now() - (shop.slidAt || 0) < 500) return; // the finger lift after a slide
         sfx.init(); sfx.tap();
         if (owned) {
           d.outfit[it.slot] = worn ? null : it.id;
@@ -1414,7 +1415,32 @@
   $('#shopNext').addEventListener('click', () => shopCycle(1));
   $('#shopHero').addEventListener('click', () => shopCycle(1));
   for (const t of document.querySelectorAll('.shop-tabs .tab')) {
-    t.addEventListener('click', () => { sfx.tap(); shop.slot = t.dataset.slot; shop.trying = null; buildShop(); });
+    t.addEventListener('click', () => { if (performance.now() - (shop.slidAt || 0) < 500) return; sfx.tap(); shop.slot = t.dataset.slot; shop.trying = null; buildShop(); });
+  }
+  // Slide sideways on the items (or the tabs) to switch tab. RTL: the next tab is to the left,
+  // so a finger moving right brings it in.
+  {
+    const grid = $('#shopGrid');
+    let sw = null;
+    const switchTab = (step) => {
+      const i = OUT.SLOTS.indexOf(shop.slot) + step;
+      if (i < 0 || i >= OUT.SLOTS.length) return;
+      shop.slidAt = performance.now();
+      sfx.tap(); shop.slot = OUT.SLOTS[i]; shop.trying = null; buildShop();
+      grid.classList.remove('in-l', 'in-r'); void grid.offsetWidth;
+      grid.classList.add(step > 0 ? 'in-l' : 'in-r');
+    };
+    for (const el of [grid, $('.shop-tabs')]) {
+      el.addEventListener('pointerdown', (e) => { sw = { id: e.pointerId, x: e.clientX, y: e.clientY, done: false }; });
+      el.addEventListener('pointermove', (e) => {
+        if (!sw || sw.done || e.pointerId !== sw.id) return;
+        const dx = e.clientX - sw.x, dy = e.clientY - sw.y;
+        if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) { sw.done = true; switchTab(dx > 0 ? 1 : -1); }
+      });
+      // a slide must not also count as tapping an item or a tab
+      el.addEventListener('click', (e) => { if (sw && sw.done) { e.stopPropagation(); e.preventDefault(); } sw = null; }, true);
+    }
+    grid.addEventListener('animationend', () => grid.classList.remove('in-l', 'in-r'));
   }
   $('#shopBuy').addEventListener('click', () => {
     const d = store.data, it = OUT.BY_ID[shop.trying];

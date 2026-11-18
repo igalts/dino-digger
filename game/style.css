@@ -414,6 +414,10 @@ img { -webkit-user-drag: none; }
 .shop-item-name { color: var(--paper); font-weight: 800; font-size: 18px; min-height: 22px; text-align: center; }
 #shopBuy { padding: 6px 22px; font-size: 22px; }
 #shopBuy:disabled { background: #D8D2E3; color: rgba(43,27,61,.6); box-shadow: 0 3px 0 var(--ink); }
+.shop-grid.in-l { animation: gridInL .25s ease-out; }
+.shop-grid.in-r { animation: gridInR .25s ease-out; }
+@keyframes gridInL { from { transform: translateX(-48px); opacity: 0; } }
+@keyframes gridInR { from { transform: translateX(48px); opacity: 0; } }
 .shop-tabs { display: flex; gap: 6px; justify-content: center; padding: 10px 10px 8px; }
 .shop-tabs .tab {
   flex: 1; max-width: 130px; border: 3px solid var(--ink); border-radius: 16px 16px 6px 6px;
