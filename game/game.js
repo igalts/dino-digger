@@ -1512,7 +1512,10 @@
       const timeTag = best && open ? `<span class="best-time">⏱ ${fmtTime(best)} ${marks}</span>` : '';
       b.innerHTML = `${face}${lvl.bossFight ? 'בוס' : i + 1}<span class="st">${[0, 1, 2].map((k) => `<span class="${k < stars ? 'on' : 'off'}">★</span>`).join('')}</span>${timeTag}`;
       b.disabled = !open;
-      b.addEventListener('click', () => { sfx.init(); sfx.tap(); showLevelInfo(w, i); });
+      b.addEventListener('click', () => {
+        if (performance.now() - mapSlidAt < 500) return; // the finger lift after a slide
+        sfx.init(); sfx.tap(); showLevelInfo(w, i);
+      });
       box.appendChild(b);
     });
   }
@@ -1544,7 +1547,32 @@
   $('#levelInfo').addEventListener('click', (e) => { if (e.target.id === 'levelInfo') $('#levelInfo').hidden = true; });
   function pageWorld(delta) {
     const w = clamp(currentMapWorld() + delta, 0, WORLDS.length - 1);
+    if (w === currentMapWorld()) return;
     store.data.mapWorld = w; store.save(); sfx.tap(); buildMap();
+    const st = $('#mapStage');
+    st.classList.remove('in-l', 'in-r'); void st.offsetWidth;
+    st.classList.add(delta > 0 ? 'in-l' : 'in-r');
+  }
+  $('#mapStage').addEventListener('animationend', (e) => { if (e.target.id === 'mapStage') e.target.classList.remove('in-l', 'in-r'); });
+  // Slide sideways on the map to change world. RTL: the next world is to the left,
+  // so a finger moving right brings it in.
+  let mapSlidAt = 0;
+  {
+    let sw = null;
+    const map = $('#map');
+    map.addEventListener('pointerdown', (e) => {
+      sw = $('#levelInfo').hidden && !e.target.closest('.overlay, .world-nav, .map-head')
+        ? { id: e.pointerId, x: e.clientX, y: e.clientY, done: false } : null;
+    });
+    map.addEventListener('pointermove', (e) => {
+      if (!sw || sw.done || e.pointerId !== sw.id) return;
+      const dx = e.clientX - sw.x, dy = e.clientY - sw.y;
+      if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+        sw.done = true; mapSlidAt = performance.now(); pageWorld(dx > 0 ? 1 : -1);
+      }
+    });
+    map.addEventListener('pointerup', () => { sw = null; });
+    map.addEventListener('pointercancel', () => { sw = null; });
   }
 
   function togglePause(on) {
