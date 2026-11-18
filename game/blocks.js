@@ -127,7 +127,8 @@ window.DinoBlocks = (core) => {
     const G = core.G();
     if (G && G.mode === 'blocks') buildScene(G);
   }
-  // The world's picture behind the board, dimmed a little so the stones stand out.
+  // The world's picture behind the board: softened (a bit blurred, less colourful) and darkened,
+  // so it sets the mood without being mistaken for stones.
   function buildScene(G) {
     sceneCv = document.createElement('canvas');
     sceneCv.width = Math.round(BW * RES); sceneCv.height = Math.round(BH * RES);
@@ -135,9 +136,11 @@ window.DinoBlocks = (core) => {
     c.scale(RES, RES);
     if (img) {
       const k = Math.max(BW / 360, BH / 640), w = 360 * k, h = 640 * k;
-      c.drawImage(img, (BW - w) / 2, (BH - h) / 2, w, h);
+      c.filter = `blur(${(1.6 * RES).toFixed(1)}px) saturate(0.55)`;
+      c.drawImage(img, (BW - w) / 2 - 4, (BH - h) / 2 - 4, w + 8, h + 8); // a little bigger so the blur has no soft edge
+      c.filter = 'none';
     }
-    c.fillStyle = 'rgba(30,20,48,.42)';
+    c.fillStyle = 'rgba(24,16,40,.62)';
     c.fillRect(0, 0, BW, BH);
   }
   const loadPics = (w) => Promise.all([`bbg-${w + 1}`, `bboss-${w + 1}`].map((n) => core.loadScene(n)));
@@ -164,7 +167,7 @@ window.DinoBlocks = (core) => {
       speed: cfg.speed * help, soft: false,
       throwEvery: boss ? BOSSES[w].every / help : cfg.meteors / help,
       throwT: boss ? 5 : cfg.meteors * 0.7, windup: 0, target: null,
-      riseT: cfg.rise, freeze: 0, extraRows: null, qAnim: 0,
+      riseT: cfg.rise, freeze: 0, extraRows: null, qAnim: 0, bounces: [],
       cheer: 0, sad: 0, shake: 0, hurt: 0, bump: 0, winT: 0, outfit: { ...store.data.outfit },
     };
     G.readyMax = G.readyT;
@@ -480,21 +483,38 @@ window.DinoBlocks = (core) => {
     G.shots.push({ col, sx: from.x, sy: from.y, t: 0, dur: G.bossFight ? 1.0 : 1.2, x: from.x, y: from.y, spin: 0, arc: G.bossFight ? 70 : 0 });
     if (G.bossFight) sfx.throwIt(); else sfx.tone(300, 0.5, 'sawtooth', 0.04, 0, 80);
   }
+  // Where the falling stone covers a column: the top of the stone there (in rows, as drawn), or null.
+  function pieceTopIn(col) {
+    const p = G.piece;
+    if (!p || G.state !== 'play') return null;
+    const ys = p.cells.filter(([cx]) => p.x + cx === col).map(([, cy]) => p.ry + cy);
+    return ys.length ? Math.min(...ys) : null;
+  }
   function landRock(s) {
     const y = columnTop(s.col) - 1;
-    const p = G.piece;
     const px = BX + (s.col + 0.5) * CS;
     const sparks = SHOTS[G.bossInfo.shot].sparks;
-    // The falling stone works like an umbrella: the rock breaks on it.
-    const onPiece = p && p.cells.some(([cx, cy]) => p.x + cx === s.col && p.y + cy <= y + 1);
-    if (y < 0 || onPiece) { burst(px, BY + Math.max(0, y) * CS, sparks, 10); sfx.pop(); return; }
+    // The falling stone works like an umbrella: the rock hits the top of it and bounces away. The stone is fine.
+    const onTop = pieceTopIn(s.col);
+    if (onTop !== null || y < 0) {
+      const hy = BY + (onTop !== null ? onTop : 0) * CS;
+      burst(px, hy, ['#FFFFFF', ...sparks], 8);
+      G.bounces.push({ x: px, y: hy - 8, vx: (s.col < COLS / 2 ? -1 : 1) * rand(150, 210), vy: -260, spin: s.spin, t: 1 });
+      if (onTop !== null) floatText(px, hy - 24, 'חסמת!', '#FFFFFF');
+      sfx.tone(900, 0.08, 'triangle', 0.06, 0, 500);
+      return;
+    }
     G.grid[y * COLS + s.col] = { c: ROWKIND.rock.c, k: 'rock' };
     burst(px, BY + (y + 0.5) * CS, sparks, 10);
     G.shake = Math.max(G.shake, 0.15);
     sfx.tone(120, 0.15, 'square', 0.06);
     if (!G.piece && !G.clearRows) checkRows(); // otherwise the row is checked when the falling stone locks
   }
-  const shotTarget = (s) => ({ x: BX + (s.col + 0.5) * CS, y: BY + (columnTop(s.col) - 0.5) * CS });
+  // Rocks aim at the top of the stack, or at the falling stone if it's in the way.
+  const shotTarget = (s) => {
+    const top = pieceTopIn(s.col);
+    return { x: BX + (s.col + 0.5) * CS, y: BY + (top !== null ? top - 0.3 : columnTop(s.col) - 0.5) * CS };
+  };
 
   // ---------- Update ----------
   const held = { left: false, right: false, down: false, rep: 0, downRep: 0 };
@@ -503,6 +523,8 @@ window.DinoBlocks = (core) => {
     updateParticles(dt);
     for (const k of ['shake', 'cheer', 'sad', 'hurt', 'bump', 'bumpGoal', 'qAnim']) if (G[k] > 0) G[k] -= dt;
     for (const tr of G.trails) tr.t -= dt;
+    for (const b of G.bounces) { b.x += b.vx * dt; b.y += b.vy * dt; b.vy += 900 * dt; b.spin += dt * 12; b.t -= dt; }
+    G.bounces = G.bounces.filter((b) => b.t > 0 && b.y < VH + 40);
     G.trails = G.trails.filter((tr) => tr.t > 0);
     if (G.flashes) { for (const f of G.flashes) { f.t -= dt; f.r += dt * 260; } G.flashes = G.flashes.filter((f) => f.t > 0); }
     if (G.boltRow) { G.boltRow.t -= dt; if (G.boltRow.t <= 0) G.boltRow = null; }
@@ -875,6 +897,7 @@ window.DinoBlocks = (core) => {
     c.restore();
 
     for (const s of G.shots) core.drawShot(c, s.x, s.y, G.bossFight ? 10 : 12, s.spin);
+    for (const b of G.bounces) { c.globalAlpha = Math.min(1, b.t * 2); core.drawShot(c, b.x, b.y, G.bossFight ? 9 : 11, b.spin); c.globalAlpha = 1; }
     for (const o of G.orbs) {
       if (o.t < 0) continue;
       c.save(); c.translate(o.x, o.y); c.rotate(G.t * 6);
