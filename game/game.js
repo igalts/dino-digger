@@ -1350,9 +1350,7 @@
   // ---------- Screens ----------
   function show(name) {
     screen = name;
-    for (const id of ['hub', 'title', 'map', 'game', 'shop']) $(`#${id}`).hidden = id !== name;
-    if (name !== 'game') blocks.hideTip(); // (show() only runs after boot, when blocks exists)
-    if (name === 'hub') buildHub();
+    for (const id of ['hub', 'title', 'map', 'game', 'shop']) $(`#${id}`).hidden = id !== name;    if (name === 'hub') buildHub();
     if (name === 'title') buildTitle();
     if (name === 'map') buildMap();
     if (name === 'shop') buildShop();

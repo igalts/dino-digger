@@ -38,10 +38,10 @@ window.DinoBlocks = (core) => {
 
   // Magic stones: one cell of the stone glows. The magic happens the moment the stone lands.
   const MAGIC = {
-    bomb:   { label: 'בום!',  tip: '💣 פצצה! מפוצצת את האבנים מסביב' },
-    bolt:   { label: 'ברק!',  tip: '⚡ ברק! מוחק את כל השורה שלו' },
-    freeze: { label: 'קפוא!', tip: '❄️ קרח! הכול נופל לאט וזורקים פחות' },
-    shield: { label: 'מגן!',  tip: '🛡️ מגן! אם המגדל מגיע למעלה, המגן מציל' },
+    bomb:   { label: 'בום!' },   // blows up the stones around it
+    bolt:   { label: 'ברק!' },   // clears its whole row
+    freeze: { label: 'קפוא!' },  // everything slows down for a while
+    shield: { label: 'מגן!' },   // saves you once when the stack reaches the top
   };
   const MAGIC_EVERY = 7; // every 7th stone is a magic stone
 
@@ -173,7 +173,6 @@ window.DinoBlocks = (core) => {
     core.setG(G);
     core.setPaused(false);
     core.hideOverlays();
-    hideTip();
     const game = $('#game');
     game.dataset.world = `b${w + 1}`;
     game.classList.add('blocks');
@@ -225,23 +224,6 @@ window.DinoBlocks = (core) => {
       magic, magicAt: magic ? Math.floor(Math.random() * s.cells.length) : -1 };
   }
 
-  // ---------- Tips: short explanations the first couple of times something new shows up ----------
-  const tipEl = $('#btoast');
-  let tipTimer = 0;
-  function tip(id, text) {
-    const r = rec('blocks');
-    r.tips = r.tips || {};
-    if ((r.tips[id] || 0) >= 2) return;
-    r.tips[id] = (r.tips[id] || 0) + 1;
-    store.save();
-    tipEl.textContent = text;
-    tipEl.hidden = false;
-    tipEl.classList.remove('show'); void tipEl.offsetWidth; tipEl.classList.add('show');
-    clearTimeout(tipTimer);
-    tipTimer = setTimeout(hideTip, 3200);
-  }
-  function hideTip() { tipEl.hidden = true; clearTimeout(tipTimer); }
-
   // ---------- Board rules ----------
   const cellAt = (x, y) => (x < 0 || x >= COLS || y >= ROWS ? 'wall' : y < 0 ? null : G.grid[y * COLS + x]);
   const fits = (p, x, y, cells = p.cells) => cells.every(([cx, cy]) => !cellAt(x + cx, y + cy));
@@ -254,11 +236,10 @@ window.DinoBlocks = (core) => {
     G.fall = 0; G.lockT = 0; G.lockMoves = 0;
     if (!fits(p, p.x, p.y)) { G.piece = null; topOut(); return; }
     G.piece = p;
-    if (p.magic) tip('magic', '✨ אבן קסם! תנחיתו אותה ויקרה קסם');
   }
   function move(dx) {
     const p = G.piece;
-    if (!p || !fits(p, p.x + dx, p.y)) return false;
+    if (!p || G.slam || !fits(p, p.x + dx, p.y)) return false;
     p.x += dx;
     touched();
     sfx.tone(440, 0.03, 'triangle', 0.03);
@@ -266,13 +247,13 @@ window.DinoBlocks = (core) => {
   }
   function moveDown() {
     const p = G.piece;
-    if (!p || !fits(p, p.x, p.y + 1)) return false;
+    if (!p || G.slam || !fits(p, p.x, p.y + 1)) return false;
     p.y++; G.score += 1;
     return true;
   }
   function rotate() {
     const p = G.piece;
-    if (!p || p.t === 'O') return;
+    if (!p || G.slam || p.t === 'O') return;
     const cells = p.cells.map(([x, y]) => [p.n - 1 - y, x]);
     for (const [kx, ky] of [[0, 0], [-1, 0], [1, 0], [0, -1], [-2, 0], [2, 0], [0, 1]]) {
       if (fits(p, p.x + kx, p.y + ky, cells)) {
@@ -287,19 +268,27 @@ window.DinoBlocks = (core) => {
   // Moving or turning a stone that is sitting on something gives a little more time before it locks.
   function touched() { if (G.lockMoves < 15) { G.lockT = 0; G.lockMoves++; } }
   const dropY = (p) => { let y = p.y; while (fits(p, p.x, y + 1)) y++; return y; };
-  // Slam: the stone shoots straight down with a streak behind it and the board shakes.
+  // Slam: the stone shoots down (speeding up as it goes, so you can see it fall), then hits with a bump.
   function slam() {
     const p = G.piece;
-    if (!p) return;
+    if (!p || G.slam) return;
     const y = dropY(p);
     const dist = y - p.y;
     G.score += 2 * dist;
-    if (dist > 0) {
-      const cols = [...new Set(p.cells.map(([cx]) => p.x + cx))];
-      const top = Math.min(...p.cells.map(([, cy]) => p.ry + cy));
-      G.trails.push({ cols, from: top, to: y + Math.min(...p.cells.map(([, cy]) => cy)), color: p.color, t: 0.22 });
+    p.rx = p.x;
+    G.slam = { from: p.ry, to: y, t: 0, dur: dist > 0 ? Math.min(0.2, 0.09 + dist * 0.008) : 0 };
+    p.y = y;
+    if (dist > 0) sfx.tone(520, 0.14, 'triangle', 0.035, 0, 160);
+    else slamImpact();
+  }
+  function slamImpact() {
+    const p = G.piece, s = G.slam;
+    G.slam = null;
+    p.ry = p.y;
+    const minY = Math.min(...p.cells.map(([, cy]) => cy));
+    if (p.y - s.from > 0.5) {
+      G.trails.push({ cols: [...new Set(p.cells.map(([cx]) => p.x + cx))], from: s.from + minY, to: p.y + minY, t: 0.3 });
     }
-    p.y = y; p.ry = y; p.rx = p.x;
     for (const [cx, cy] of p.cells) dust(BX + (p.x + cx + 0.5) * CS, BY + (p.y + cy + 1) * CS);
     G.shake = Math.max(G.shake, 0.12); G.bump = 0.15;
     sfx.tone(110, 0.12, 'square', 0.07, 0, 55);
@@ -363,9 +352,7 @@ window.DinoBlocks = (core) => {
     rows.forEach((y, i) => {
       G.orbs.push({ x: BX + BW / 2 + (i - (n - 1) / 2) * 30, y: BY + (y + 0.5) * CS, sx: BX + BW / 2 + (i - (n - 1) / 2) * 30,
         sy: BY + (y + 0.5) * CS, tx: to.x, ty: to.y, t: -i * 0.08, dur: 0.55 });
-    });
-    if (G.bossFight && G.lines === n) tip('bosshit', '💥 כל שורה פוגעת בבוס! עוד קצת!');
-  }
+    });  }
   // A star reached the counter / the boss.
   function orbHit() {
     G.flown++;
@@ -395,9 +382,7 @@ window.DinoBlocks = (core) => {
       G.sad = 1.2; G.shake = 0.4;
       try { if (navigator.vibrate) navigator.vibrate(180); } catch (e) { /* ignore */ }
       if (G.lives <= 0) { core.lose(); return; }
-      floatText(BX + BW / 2, BY + 80, 'אוי! ביצה נשברה', '#FF8FA3');
-      tip('topout', '🥚 המגדל הגיע למעלה! נשברה ביצה. נקו שורות כדי שלא יגיע');
-    }
+      floatText(BX + BW / 2, BY + 80, 'אוי! ביצה נשברה', '#FF8FA3');    }
     for (let y = ROWS - 7; y < ROWS; y++) {
       for (let x = 0; x < COLS; x++) {
         const cell = G.grid[y * COLS + x];
@@ -433,9 +418,7 @@ window.DinoBlocks = (core) => {
     if (type === 'freeze') { G.freeze = 8 * dur; sfx.tone(1200, 0.4, 'sine', 0.06, 0, 600); }
     if (type === 'shield') { G.shield = true; sfx.power(); }
     floatText(px, py - 22, MAGIC[type].label, '#FFFFFF');
-    burst(px, py, ['#FFD23F', '#4FC3F7', '#FFFFFF'], 10);
-    tip(`m-${type}`, MAGIC[type].tip);
-  }
+    burst(px, py, ['#FFD23F', '#4FC3F7', '#FFFFFF'], 10);  }
 
   // A new row pushes the whole stack up from the bottom.
   function rise() {
@@ -521,8 +504,6 @@ window.DinoBlocks = (core) => {
         G.throwT -= dt * slowK;
         if (G.throwT <= 0) {
           G.throwT = G.throwEvery * rand(0.85, 1.15); G.windup = 1.0; G.target = pickTarget();
-          if (!G.bossFight) tip('meteor', '☄️ מטאור! הסימן האדום מראה איפה הוא ינחת');
-          else tip('bossrock', '🪨 הבוס זורק סלע! הסימן האדום מראה איפה');
         }
       }
     }
@@ -534,6 +515,14 @@ window.DinoBlocks = (core) => {
       return;
     }
     if (!G.piece) { spawn(); if (G.state !== 'play' || !G.piece) return; }
+    if (G.slam) {
+      const s = G.slam;
+      s.t += dt;
+      const k = Math.min(1, s.t / s.dur);
+      G.piece.ry = s.from + (s.to - s.from) * k * k;
+      if (k >= 1) slamImpact();
+      return;
+    }
 
     // Holding left/right keeps sliding after a short pause; holding down keeps speeding it down.
     if (held.left || held.right) {
@@ -562,7 +551,7 @@ window.DinoBlocks = (core) => {
   // The stone glides between cells instead of jumping, so moving and falling look smooth.
   function smooth(dt) {
     const p = G.piece;
-    if (!p) return;
+    if (!p || G.slam) return;
     const k = Math.min(1, dt * 28);
     p.rx += (p.x - p.rx) * k;
     const ty = p.y + (fits(p, p.x, p.y + 1) ? Math.min(G.fall, 0.95) : 0);
@@ -589,7 +578,6 @@ window.DinoBlocks = (core) => {
     G.state = 'won';
     G.winT = 0; G.piece = null; G.shots = []; G.windup = 0;
     held.left = held.right = held.down = false;
-    hideTip();
     if (G.bossFight) {
       const at = throwerPos();
       floatText(at.x - 50, at.y + 30, 'ניצחת את הבוס!', '#FFD23F');
@@ -797,8 +785,10 @@ window.DinoBlocks = (core) => {
     }
 
     // Slam streaks
-    for (const tr of G.trails) {
-      const a = tr.t / 0.22;
+    const sp = G.piece, spTop = sp ? Math.min(...sp.cells.map(([, cy]) => cy)) : 0;
+    const live = G.slam && sp ? [{ cols: [...new Set(sp.cells.map(([cx]) => sp.x + cx))], from: G.slam.from + spTop, to: sp.ry + spTop, t: 0.3 }] : [];
+    for (const tr of [...G.trails, ...live]) {
+      const a = tr.t / 0.3;
       for (const col of tr.cols) {
         const g = c.createLinearGradient(0, BY + tr.from * CS, 0, BY + (tr.to + 1) * CS);
         g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(1, `rgba(255,255,255,${0.55 * a})`);
@@ -997,7 +987,7 @@ window.DinoBlocks = (core) => {
   const cellPx = () => cv.getBoundingClientRect().width / VW * CS;
   wrap.addEventListener('pointerdown', (e) => {
     if (!G || G.mode !== 'blocks' || e.target.closest('button, .overlay')) return;
-    Object.assign(sw, { id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp, moved: false, done: false,
+    Object.assign(sw, { id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp, moved: false, done: false, axis: null,
       col: G.piece ? G.piece.x : 0, row: G.piece ? G.piece.y : 0, samples: [[e.timeStamp, e.clientX, e.clientY]] });
     try { wrap.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
   });
@@ -1009,20 +999,29 @@ window.DinoBlocks = (core) => {
     const [t0, , y0] = sw.samples[0];
     const vy = (e.clientY - y0) / Math.max(1, e.timeStamp - t0);
     const dx = e.clientX - sw.x, dy = e.clientY - sw.y, cp = cellPx();
-    if (Math.hypot(dx, dy) > 10) sw.moved = true;
+    if (Math.hypot(dx, dy) > 14) sw.moved = true;
     if (!swipe) return;
-    // Fast flick down: slam right away, no need to lift the finger.
-    if (vy > 0.75 && dy > cp * 0.6 && dy > Math.abs(dx)) { slam(); sw.done = true; return; }
-    // Sideways: the stone follows the finger column by column.
-    const p = G.piece;
-    if (p.x !== sw.col + Math.round(dx / cp)) {
-      const want = sw.col + Math.round(dx / cp);
+    // Each touch is either sideways or down, decided once the finger has really moved,
+    // so sliding sideways never slams by accident (and a slam never nudges the stone sideways).
+    if (!sw.axis) {
+      if (Math.abs(dx) > cp * 0.6 && Math.abs(dx) > Math.abs(dy)) sw.axis = 'x';
+      else if (dy > cp * 0.6 && dy > Math.abs(dx) * 1.2) sw.axis = 'y';
+      else return;
+      sw.col = G.piece.x; sw.row = G.piece.y; // (the stone may be a new one since the finger went down)
+    }
+    const p = G.piece, step = cp * 1.3; // a bit more finger travel than one cell per move
+    if (sw.axis === 'x') {
+      // Sideways: the stone follows the finger column by column.
+      const want = sw.col + Math.round(dx / step);
       while (p.x < want && move(1));
       while (p.x > want && move(-1));
+      return;
     }
+    // Fast flick down: slam right away, no need to lift the finger.
+    if (vy > 1.1 && dy > cp * 1.2) { slam(); sw.done = true; return; }
     // Slow drag down: the stone comes down with the finger.
-    const wantRow = sw.row + Math.floor(Math.max(0, dy) / cp);
-    if (dy > cp * 0.8 && Math.abs(dy) > Math.abs(dx)) { while (p.y < wantRow && moveDown()); G.lockT = Math.min(G.lockT, 0.25); }
+    const wantRow = sw.row + Math.floor(Math.max(0, dy - cp * 0.6) / step);
+    if (wantRow > p.y) { while (p.y < wantRow && moveDown()); G.lockT = Math.min(G.lockT, 0.25); }
   });
   const swEnd = (e) => {
     if (e.pointerId !== sw.id) return;
@@ -1031,7 +1030,7 @@ window.DinoBlocks = (core) => {
     const dy = e.clientY - sw.y, dx = e.clientX - sw.x, quick = e.timeStamp - sw.t < 300;
     const swipe = core.controlMode() === 'swipe';
     if (!sw.moved && quick) { rotate(); return; }
-    if (swipe && quick && dy < -cellPx() && Math.abs(dy) > Math.abs(dx)) rotate(); // flick up turns
+    if (swipe && quick && dy < -cellPx() * 1.5 && Math.abs(dy) > Math.abs(dx) * 1.5) rotate(); // flick up turns
   };
   wrap.addEventListener('pointerup', swEnd);
   wrap.addEventListener('pointercancel', swEnd);
@@ -1051,6 +1050,6 @@ window.DinoBlocks = (core) => {
     game: { logo: ['דינו', 'בלוקים!'], worlds: WORLDS, chals: CHALS, perk: 'bperk', goal: goalText, start, bosses: BOSSES, map: MAP },
     update: (dt) => { G = core.G(); update(dt); },
     render: () => { G = core.G(); render(); },
-    resize, key, hideTip,
+    resize, key,
   };
 };
