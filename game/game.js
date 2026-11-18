@@ -1613,7 +1613,7 @@
   const mapSlide = attachSlide({
     areas: [$('#map')],
     el: $('#mapStage'),
-    ignore: (e) => !$('#levelInfo').hidden || !!e.target.closest('.overlay, .world-nav, .map-head'),
+    ignore: (e) => !$('#levelInfo').hidden || !!e.target.closest('.overlay, .world-nav, .map-head, .home-btn'),
     canGo: (step) => { const w = currentMapWorld() + step; return w >= 0 && w < WORLDS.length; },
     apply: async (step) => {
       store.data.mapWorld = currentMapWorld() + step; store.save(); sfx.tap(); buildMap();
