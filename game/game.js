@@ -125,8 +125,11 @@
       gems: 0, owned: [], outfit: {}, chal: {}, times: {} },
     load() {
       try { const d = JSON.parse(localStorage.getItem(this.key)); if (d) Object.assign(this.data, d); } catch (e) { /* ignore */ }
+      this.loaded = true;
     },
     save() {
+      // Never write before the saved game has been read, or the defaults would replace real progress.
+      if (!this.loaded) return;
       try { localStorage.setItem(this.key, JSON.stringify(this.data)); } catch (e) { /* ignore */ }
     },
   };
@@ -1296,8 +1299,6 @@
   const MODES = ['swipe', 'pad'];
   const MODE_LABEL = { pad: '🎮 שליטה: חיצים', swipe: '👆 שליטה: החלקה' };
   const MODE_HINT = { pad: '', swipe: 'מחליקים או נוגעים כדי ללכת · נגיעה בדינו עוצרת' };
-  // Swipe is the default. Players saved before it became the default (ctrl2 not set) are moved to it once.
-  if (!store.data.ctrl2) { store.data.controlMode = 'swipe'; store.data.ctrl2 = 1; store.save(); }
   const controlMode = () => (MODES.includes(store.data.controlMode) ? store.data.controlMode : 'swipe');
 
   function applyControlMode() {
@@ -1732,6 +1733,8 @@
 
   // ---------- Boot ----------
   store.load();
+  // Swipe is the default. Players saved before it became the default (ctrl2 not set) are moved to it once.
+  if (!store.data.ctrl2) { store.data.controlMode = 'swipe'; store.data.ctrl2 = 1; store.save(); }
   loadImages().then(() => {
     show('title');
     requestAnimationFrame(frame);
