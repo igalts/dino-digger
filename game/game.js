@@ -1211,9 +1211,9 @@
   // ---------- Input: arrow pad or swipes, arrows on a keyboard ----------
   const input = { dir: null, id: null, ax: 0, ay: 0, padId: null };
   const gameEl = $('#game');
-  const MODES = ['swipe', 'pad'];
+  const MODES = ['pad', 'swipe'];
   const MODE_LABEL = { pad: '🎮 שליטה: חיצים', swipe: '👆 שליטה: החלקה' };
-  const controlMode = () => (MODES.includes(store.data.controlMode) ? store.data.controlMode : 'swipe');
+  const controlMode = () => (MODES.includes(store.data.controlMode) ? store.data.controlMode : 'pad');
 
   function applyControlMode() {
     const m = controlMode();
@@ -1567,7 +1567,7 @@
   $('#resetNo').addEventListener('click', () => { sfx.tap(); settingsStep(false); });
   $('#resetYes').addEventListener('click', () => {
     const { muted, controlMode } = store.data;
-    store.data = { stars: {}, best: {}, unlocked: ['pip'], selected: 'pip', streak: {}, muted, controlMode, ctrl2: 1,
+    store.data = { stars: {}, best: {}, unlocked: ['pip'], selected: 'pip', streak: {}, muted, controlMode, ctrl3: 1,
       gems: 0, owned: [], outfit: {}, chal: {}, times: {} };
     store.save();
     G = null;
@@ -1627,8 +1627,8 @@
 
   // ---------- Boot ----------
   store.load();
-  // Swipe is the default. Players saved before it became the default (ctrl2 not set) are moved to it once.
-  if (!store.data.ctrl2) { store.data.controlMode = 'swipe'; store.data.ctrl2 = 1; store.save(); }
+  // Arrows are the default again. Everyone is moved back to arrows once (ctrl3 not set); swipe stays in the pause menu.
+  if (!store.data.ctrl3) { store.data.controlMode = 'pad'; store.data.ctrl3 = 1; delete store.data.ctrl2; store.save(); }
   loadImages().then(() => {
     show('title');
     requestAnimationFrame(frame);
