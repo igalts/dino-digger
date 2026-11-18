@@ -916,10 +916,21 @@ window.DinoBlocks = (core) => {
     const cy = TOP / 2 - 2;
     if (G.perk === 'stegi') {
       // Stegi sees two stones ahead: the next one big, the one after it smaller.
+      // Numbered 1 (comes first, on the right where Hebrew starts) and 2 (after it, smaller and paler).
       const cx = 168, w = 124;
-      box(c, cx, cy, w, 72, 'הבאים');
-      if (G.next) drawMini(c, G.next, cx + 24, cy + 8, 15);
-      if (G.after) drawMini(c, G.after, cx - 34, cy + 10, 10, 0.75);
+      box(c, cx, cy, w, 72, '');
+      const x1 = cx + 26, x2 = cx - 32;
+      c.strokeStyle = 'rgba(43,27,61,.25)'; c.lineWidth = 2; c.setLineDash([3, 4]);
+      c.beginPath(); c.moveTo(cx - 6, cy - 28); c.lineTo(cx - 6, cy + 30); c.stroke(); c.setLineDash([]);
+      if (G.next) drawMini(c, G.next, x1, cy + 10, 15);
+      if (G.after) drawMini(c, G.after, x2, cy + 12, 10, 0.6);
+      for (const [x, n, big] of [[x1, '1', true], [x2, '2', false]]) {
+        const bx = x, by = cy - 21, rad = big ? 10 : 8;
+        c.beginPath(); c.arc(bx, by, rad, 0, Math.PI * 2);
+        c.fillStyle = big ? '#FFD23F' : '#E3DDEE'; c.fill(); c.lineWidth = 2.5; c.strokeStyle = INK; c.stroke();
+        c.fillStyle = INK; c.font = `700 ${big ? 13 : 11}px Fredoka, Rubik, sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
+        c.fillText(n, bx, by + 1);
+      }
       return;
     }
     const cx = G.perk === 'petra' ? 190 : VW / 2 - 4;
