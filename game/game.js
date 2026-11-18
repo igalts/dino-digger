@@ -1218,6 +1218,7 @@
     const m = controlMode();
     $('#pad').hidden = m !== 'pad';
     $('#hint').hidden = true;
+    $('#controlSeg').classList.toggle('swipe', m === 'swipe');
     for (const b of document.querySelectorAll('#controlSeg button')) {
       b.classList.toggle('on', b.dataset.m === m);
       b.setAttribute('aria-checked', b.dataset.m === m);
@@ -1592,12 +1593,39 @@
     store.data.muted = !store.data.muted; store.save(); sfx.tap();
     $('#pauseMuteBtn').classList.toggle('muted', !!store.data.muted);
   });
-  for (const b of document.querySelectorAll('#controlSeg button')) {
-    b.addEventListener('click', () => {
-      store.data.controlMode = b.dataset.m;
-      store.save(); sfx.tap();
-      applyControlMode();
+  // Controls slider: drag the knob to a side, or tap anywhere on it to flip
+  {
+    const seg = $('#controlSeg'), thumb = seg.querySelector('.thumb');
+    let drag = null;
+    const setMode = (m) => {
+      if (m !== controlMode()) { store.data.controlMode = m; store.save(); }
+      sfx.tap(); applyControlMode();
+    };
+    seg.addEventListener('pointerdown', (e) => {
+      const span = thumb.offsetWidth + 4;
+      drag = { id: e.pointerId, x: e.clientX, span, start: controlMode() === 'swipe' ? -span : 0, off: null };
+      seg.setPointerCapture(e.pointerId);
     });
+    seg.addEventListener('pointermove', (e) => {
+      if (!drag || e.pointerId !== drag.id) return;
+      const dx = e.clientX - drag.x;
+      if (drag.off === null && Math.abs(dx) < 6) return;
+      seg.classList.add('dragging');
+      drag.off = clamp(drag.start + dx, -drag.span, 0);
+      thumb.style.transform = `translateX(${drag.off}px)`;
+    });
+    const end = (e) => {
+      if (!drag || e.pointerId !== drag.id) return;
+      const d = drag; drag = null;
+      seg.classList.remove('dragging'); thumb.style.transform = '';
+      if (e.type === 'pointercancel') return;
+      if (d.off === null) setMode(controlMode() === 'pad' ? 'swipe' : 'pad');
+      else setMode(d.off < -d.span / 2 ? 'swipe' : 'pad');
+    };
+    seg.addEventListener('pointerup', end);
+    seg.addEventListener('pointercancel', end);
+    // Keyboard users still get the two buttons
+    for (const b of seg.querySelectorAll('button')) b.addEventListener('click', (e) => { if (e.detail === 0) setMode(b.dataset.m); });
   }
   $('#pauseHomeBtn').addEventListener('click', () => { sfx.tap(); paused = false; hideOverlays(); show('title'); });
   $('#nextBtn').addEventListener('click', () => {

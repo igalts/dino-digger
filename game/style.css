@@ -291,6 +291,7 @@ img { -webkit-user-drag: none; }
 .round-toggle.muted .on-only { display: none; }
 .round-toggle.muted .off-only { display: inline; }
 .seg {
+  position: relative; touch-action: none; cursor: pointer;
   flex: 1; display: flex; padding: 4px; gap: 4px;
   background: #E7E1EE; border: 4px solid var(--ink); border-radius: 999px;
 }
@@ -300,7 +301,16 @@ img { -webkit-user-drag: none; }
   font-family: var(--display); font-weight: 700; font-size: 16px; color: rgba(43,27,61,.5);
 }
 .seg button .ic { width: 22px; height: 22px; opacity: .5; }
-.seg button.on { background: var(--sun); border-color: var(--ink); color: var(--ink); box-shadow: 0 3px 0 var(--ink); }
+.seg button { position: relative; z-index: 1; pointer-events: none; transition: color .2s; }
+.seg button.on { color: var(--ink); }
+/* The yellow knob slides between the two sides (pad is on the right in RTL) */
+.seg .thumb {
+  position: absolute; top: 4px; bottom: 4px; right: 4px; width: calc(50% - 6px);
+  background: var(--sun); border: 3px solid var(--ink); border-radius: 999px; box-shadow: 0 3px 0 var(--ink);
+  transition: transform .28s cubic-bezier(.3, 1.4, .5, 1);
+}
+.seg.swipe .thumb { transform: translateX(calc(-100% - 4px)); }
+.seg.dragging .thumb { transition: none; }
 .seg button.on .ic { opacity: 1; }
 .stars-big { font-size: 56px; line-height: 1; }
 .stars-big span { display: inline-block; }
