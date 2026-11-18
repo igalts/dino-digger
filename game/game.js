@@ -1295,7 +1295,7 @@
   const gameEl = $('#game');
   const MODES = ['swipe', 'pad'];
   const MODE_LABEL = { pad: '🎮 שליטה: חיצים', swipe: '👆 שליטה: החלקה' };
-  const MODE_HINT = { pad: '', swipe: 'מחליקים או נוגעים כדי ללכת · נגיעה נוספת עוצרת' };
+  const MODE_HINT = { pad: '', swipe: 'מחליקים או נוגעים כדי ללכת · נגיעה בדינו עוצרת' };
   // Swipe is the default. Players saved before it became the default (ctrl2 not set) are moved to it once.
   if (!store.data.ctrl2) { store.data.controlMode = 'swipe'; store.data.ctrl2 = 1; store.save(); }
   const controlMode = () => (MODES.includes(store.data.controlMode) ? store.data.controlMode : 'swipe');
@@ -1349,17 +1349,24 @@
 
   // Swipe mode (with tap-to-go): a swipe sets a direction and the dino keeps going that way until
   // it's blocked or the cut closes. Swiping again (even without lifting the finger) turns.
-  // A tap while he's standing still sends him to that spot; a tap while he's walking stops him.
+  // A tap sends him to that spot (also while walking); a tap on or near him stops him.
   const SWIPE_MIN = 22; // px of finger travel that counts as a swipe
   input.hold = false; input.target = null;
   const isWalking = () => {
     const p = G.player;
     return !!(input.dir || input.target || (p.drawing && !input.hold));
   };
-  function setTarget(e) {
+  const toBoard = (e) => {
     const r = cv.getBoundingClientRect();
-    const lx = (e.clientX - r.left) / r.width * VW - PAD;
-    const ly = (e.clientY - r.top) / r.height * VH - PAD;
+    return { lx: (e.clientX - r.left) / r.width * VW - PAD, ly: (e.clientY - r.top) / r.height * VH - PAD };
+  };
+  const STOP_R = 44; // board units: a tap this close to the dino stops him
+  const nearDino = (e) => {
+    const { lx, ly } = toBoard(e), p = G.player;
+    return Math.hypot(lx - (p.x * CELL + CELL / 2), ly - (p.y * CELL + CELL / 2 - 6)) < STOP_R;
+  };
+  function setTarget(e) {
+    const { lx, ly } = toBoard(e);
     const cx = clamp(Math.floor(lx / CELL), 0, GW - 1), cy = clamp(Math.floor(ly / CELL), 0, GH - 1);
     const t = snapTarget(cx, cy);
     if (t.x === G.player.x && t.y === G.player.y) return;
@@ -1372,9 +1379,9 @@
     input.id = e.pointerId; input.ax = e.clientX; input.ay = e.clientY; input.swiped = false;
     input.stopped = !G || G.state !== 'play' || paused; // e.g. the tap that skipped the intro isn't a "go there"
     try { gameEl.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
-    // Touching the screen while he walks stops him right where he is, in the dirt too;
-    // if the finger then slides, that's a new swipe.
-    if (G && G.state === 'play' && !paused && isWalking()) {
+    // Touching the dino (or close to him) while he walks stops him right where he is, in the dirt too;
+    // if the finger then slides, that's a new swipe. A tap anywhere else redirects him there.
+    if (G && G.state === 'play' && !paused && isWalking() && nearDino(e)) {
       input.dir = null; input.target = null; input.hold = true; input.stopped = true;
     }
   });
