@@ -1374,7 +1374,7 @@
       b.setAttribute('aria-label', it.name);
       b.innerHTML = `<canvas></canvas><span class="tag">${worn ? '✓ לבוש' : owned ? 'שלי' : `💎 ${it.price}`}</span>`;
       b.addEventListener('click', () => {
-        if (performance.now() - (shop.slidAt || 0) < 500) return; // the finger lift after a slide
+        if (slidRecently()) return; // the finger lift after a slide
         sfx.init(); sfx.tap();
         if (owned) {
           d.outfit[it.slot] = worn ? null : it.id;
@@ -1414,33 +1414,88 @@
   $('#shopPrev').addEventListener('click', () => shopCycle(-1));
   $('#shopNext').addEventListener('click', () => shopCycle(1));
   $('#shopHero').addEventListener('click', () => shopCycle(1));
-  for (const t of document.querySelectorAll('.shop-tabs .tab')) {
-    t.addEventListener('click', () => { if (performance.now() - (shop.slidAt || 0) < 500) return; sfx.tap(); shop.slot = t.dataset.slot; shop.trying = null; buildShop(); });
-  }
-  // Slide sideways on the items (or the tabs) to switch tab. RTL: the next tab is to the left,
-  // so a finger moving right brings it in.
-  {
-    const grid = $('#shopGrid');
-    let sw = null;
-    const switchTab = (step) => {
-      const i = OUT.SLOTS.indexOf(shop.slot) + step;
-      if (i < 0 || i >= OUT.SLOTS.length) return;
-      shop.slidAt = performance.now();
-      sfx.tap(); shop.slot = OUT.SLOTS[i]; shop.trying = null; buildShop();
-      grid.classList.remove('in-l', 'in-r'); void grid.offsetWidth;
-      grid.classList.add(step > 0 ? 'in-l' : 'in-r');
-    };
-    for (const el of [grid, $('.shop-tabs')]) {
-      el.addEventListener('pointerdown', (e) => { sw = { id: e.pointerId, x: e.clientX, y: e.clientY, done: false }; });
-      el.addEventListener('pointermove', (e) => {
-        if (!sw || sw.done || e.pointerId !== sw.id) return;
-        const dx = e.clientX - sw.x, dy = e.clientY - sw.y;
-        if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) { sw.done = true; switchTab(dx > 0 ? 1 : -1); }
-      });
-      // a slide must not also count as tapping an item or a tab
-      el.addEventListener('click', (e) => { if (sw && sw.done) { e.stopPropagation(); e.preventDefault(); } sw = null; }, true);
+  // Swipeable pages (shop tabs, map worlds). The page follows the finger; let go far or fast enough
+  // and it slides out while the next one slides in. RTL: the next page is to the left, so a finger
+  // moving right (dir +1) brings it in.
+  let lastSlideAt = 0; // taps right after a slide are the finger lift, not a real tap
+  const slidRecently = () => performance.now() - lastSlideAt < 400;
+  function attachSlide({ areas, el, canGo, apply, ignore }) {
+    let sw = null, busy = false;
+    const width = () => el.getBoundingClientRect().width || innerWidth;
+    // never wait forever: a backgrounded page can pause animations
+    const done = (a, ms) => Promise.race([a.finished.catch(() => {}), new Promise((r) => setTimeout(r, ms + 120))]);
+    async function go(step, from = 0) {
+      if (busy || !canGo(step)) return;
+      busy = true;
+      const dir = step > 0 ? 1 : -1, w = width() * 0.9;
+      const outMs = Math.max(90, 190 * (1 - Math.abs(from) / w));
+      const out = el.animate([{ translate: `${from}px 0` }, { translate: `${dir * w}px 0` }],
+        { duration: outMs, easing: 'cubic-bezier(.5,0,.9,.6)', fill: 'forwards' });
+      el.style.translate = '';
+      try {
+        await done(out, outMs);
+        await apply(step);
+        const inn = el.animate([{ translate: `${-dir * w}px 0` }, { translate: '0px 0' }],
+          { duration: 280, easing: 'cubic-bezier(.15,.85,.3,1)', fill: 'forwards' });
+        out.cancel();
+        await done(inn, 280);
+        inn.cancel();
+      } finally {
+        out.cancel();
+        busy = false;
+      }
     }
-    grid.addEventListener('animationend', () => grid.classList.remove('in-l', 'in-r'));
+    const snapBack = (from) => {
+      el.style.translate = '';
+      if (from) el.animate([{ translate: `${from}px 0` }, { translate: '0px 0' }], { duration: 240, easing: 'cubic-bezier(.15,.85,.3,1)' });
+    };
+    for (const area of areas) {
+      area.addEventListener('pointerdown', (e) => {
+        sw = busy || (ignore && ignore(e)) ? null
+          : { id: e.pointerId, x: e.clientX, y: e.clientY, track: false, off: 0, vx: 0, lx: e.clientX, lt: e.timeStamp };
+      });
+      area.addEventListener('pointermove', (e) => {
+        if (!sw || e.pointerId !== sw.id) return;
+        const dx = e.clientX - sw.x, dy = e.clientY - sw.y;
+        if (!sw.track) {
+          if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.3) sw.track = true;
+          else { if (Math.abs(dy) > 12) sw = null; return; }
+        }
+        lastSlideAt = performance.now();
+        const dt = e.timeStamp - sw.lt;
+        if (dt > 0) sw.vx = (e.clientX - sw.lx) / dt;
+        sw.lx = e.clientX; sw.lt = e.timeStamp;
+        sw.off = canGo(dx > 0 ? 1 : -1) ? dx : dx * 0.25; // rubber band at the ends
+        el.style.translate = `${sw.off}px 0`;
+      });
+      const end = (e) => {
+        if (!sw || e.pointerId !== sw.id) return;
+        const s = sw; sw = null;
+        if (!s.track) return;
+        lastSlideAt = performance.now();
+        const dir = s.off > 0 ? 1 : -1;
+        const far = Math.abs(s.off) > width() * 0.22, flick = Math.abs(s.vx) > 0.45 && Math.sign(s.vx) === dir;
+        if (e.type === 'pointerup' && canGo(dir) && (far || flick)) go(dir, s.off);
+        else snapBack(s.off);
+      };
+      area.addEventListener('pointerup', end);
+      area.addEventListener('pointercancel', end);
+    }
+    return { go: (step) => go(step) };
+  }
+
+  const shopSlide = attachSlide({
+    areas: [$('#shopGrid'), $('.shop-tabs')],
+    el: $('#shopGrid'),
+    canGo: (step) => { const i = OUT.SLOTS.indexOf(shop.slot) + step; return i >= 0 && i < OUT.SLOTS.length; },
+    apply: (step) => { sfx.tap(); shop.slot = OUT.SLOTS[OUT.SLOTS.indexOf(shop.slot) + step]; shop.trying = null; buildShop(); },
+  });
+  for (const t of document.querySelectorAll('.shop-tabs .tab')) {
+    t.addEventListener('click', () => {
+      if (slidRecently()) return;
+      const step = OUT.SLOTS.indexOf(t.dataset.slot) - OUT.SLOTS.indexOf(shop.slot);
+      if (step) shopSlide.go(step);
+    });
   }
   $('#shopBuy').addEventListener('click', () => {
     const d = store.data, it = OUT.BY_ID[shop.trying];
@@ -1513,7 +1568,7 @@
       b.innerHTML = `${face}${lvl.bossFight ? 'בוס' : i + 1}<span class="st">${[0, 1, 2].map((k) => `<span class="${k < stars ? 'on' : 'off'}">★</span>`).join('')}</span>${timeTag}`;
       b.disabled = !open;
       b.addEventListener('click', () => {
-        if (performance.now() - mapSlidAt < 500) return; // the finger lift after a slide
+        if (slidRecently()) return; // the finger lift after a slide
         sfx.init(); sfx.tap(); showLevelInfo(w, i);
       });
       box.appendChild(b);
@@ -1545,35 +1600,28 @@
   });
   $('#infoClose').addEventListener('click', () => { sfx.tap(); $('#levelInfo').hidden = true; });
   $('#levelInfo').addEventListener('click', (e) => { if (e.target.id === 'levelInfo') $('#levelInfo').hidden = true; });
-  function pageWorld(delta) {
-    const w = clamp(currentMapWorld() + delta, 0, WORLDS.length - 1);
-    if (w === currentMapWorld()) return;
-    store.data.mapWorld = w; store.save(); sfx.tap(); buildMap();
-    const st = $('#mapStage');
-    st.classList.remove('in-l', 'in-r'); void st.offsetWidth;
-    st.classList.add(delta > 0 ? 'in-l' : 'in-r');
-  }
-  $('#mapStage').addEventListener('animationend', (e) => { if (e.target.id === 'mapStage') e.target.classList.remove('in-l', 'in-r'); });
-  // Slide sideways on the map to change world. RTL: the next world is to the left,
-  // so a finger moving right brings it in.
-  let mapSlidAt = 0;
-  {
-    let sw = null;
-    const map = $('#map');
-    map.addEventListener('pointerdown', (e) => {
-      sw = $('#levelInfo').hidden && !e.target.closest('.overlay, .world-nav, .map-head')
-        ? { id: e.pointerId, x: e.clientX, y: e.clientY, done: false } : null;
-    });
-    map.addEventListener('pointermove', (e) => {
-      if (!sw || sw.done || e.pointerId !== sw.id) return;
-      const dx = e.clientX - sw.x, dy = e.clientY - sw.y;
-      if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-        sw.done = true; mapSlidAt = performance.now(); pageWorld(dx > 0 ? 1 : -1);
+  // Map pictures are decoded ahead of time so a new world never shows up blank mid-slide.
+  const mapPics = [];
+  const preloadMaps = () => {
+    if (mapPics.length) return;
+    for (let i = 1; i <= WORLDS.length; i++) {
+      for (const src of [`assets/map-${i}.svg`, `assets/boss-${i}.svg`]) {
+        const im = new Image(); im.src = src; im.decode().catch(() => {}); mapPics.push(im);
       }
-    });
-    map.addEventListener('pointerup', () => { sw = null; });
-    map.addEventListener('pointercancel', () => { sw = null; });
-  }
+    }
+  };
+  const mapSlide = attachSlide({
+    areas: [$('#map')],
+    el: $('#mapStage'),
+    ignore: (e) => !$('#levelInfo').hidden || !!e.target.closest('.overlay, .world-nav, .map-head'),
+    canGo: (step) => { const w = currentMapWorld() + step; return w >= 0 && w < WORLDS.length; },
+    apply: async (step) => {
+      store.data.mapWorld = currentMapWorld() + step; store.save(); sfx.tap(); buildMap();
+      await Promise.race([$('#mapBg').decode().catch(() => {}), new Promise((r) => setTimeout(r, 250))]);
+    },
+  });
+  function pageWorld(delta) { preloadMaps(); mapSlide.go(delta); }
+  $('#map').addEventListener('pointerdown', preloadMaps);
 
   function togglePause(on) {
     if (screen !== 'game' || !G || G.state === 'won' || G.state === 'lost') return;
