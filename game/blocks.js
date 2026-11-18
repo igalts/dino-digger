@@ -234,7 +234,8 @@ window.DinoBlocks = (core) => {
   const fits = (p, x, y, cells = p.cells) => cells.every(([cx, cy]) => !cellAt(x + cx, y + cy));
   function spawn() {
     const p = G.next;
-    if (G.after) { G.next = G.after; G.after = takePiece(); } else G.next = takePiece();
+    if (G.pending) { G.next = G.pending; G.pending = null; } // a stone that waited while Petra's stone went first
+    else if (G.after) { G.next = G.after; G.after = takePiece(); } else G.next = takePiece();
     G.prevNext = p; G.qAnim = Q_ANIM; // the preview animates the stones moving along
     G.holdUsed = false;
     place(p);
@@ -248,14 +249,22 @@ window.DinoBlocks = (core) => {
     if (!fits(p, p.x, p.y)) { G.piece = null; topOut(); return; }
     G.piece = p;
   }
-  // Petra flies off with the falling stone and keeps it for later (once per stone).
+  // Petra's pocket. Empty: she flies off with the falling stone and keeps it (once per stone).
+  // Full: the kept stone comes next (after the one falling now), and the pocket is empty again.
   function hold() {
     const p = G.piece;
-    if (G.perk !== 'petra' || !p || G.slam || G.holdUsed) return;
+    if (G.perk !== 'petra' || G.state !== 'play') return;
+    if (G.hold) {
+      if (G.pending) return; // already called one out; wait until it comes
+      G.pending = G.next; G.next = G.hold; G.hold = null;
+      G.qAnim = Q_ANIM;
+      sfx.tone(560, 0.08, 'triangle', 0.06, 0, 900);
+      return;
+    }
+    if (!p || G.slam || G.holdUsed) return;
     p.cells = SHAPES[p.t].cells.map((c) => [...c]); // back to how it started
-    const back = G.hold;
     G.hold = p;
-    if (back) place(back); else spawn();
+    spawn();
     G.holdUsed = true;
     sfx.tone(780, 0.08, 'triangle', 0.06, 0, 1100);
   }
@@ -383,7 +392,9 @@ window.DinoBlocks = (core) => {
       if (G.bombRows >= 4) {
         G.bombRows -= 4;
         G.next.magic = 'bomb'; G.next.magicAt = Math.floor(Math.random() * G.next.cells.length);
+        G.bombFlash = 1.2; // the meter flashes full, then starts again
         floatText(BX + 60, BY + 30, 'אנקי: פצצה!', '#FFD23F');
+        sfx.power();
       }
     }
   }
@@ -521,7 +532,7 @@ window.DinoBlocks = (core) => {
   function update(dt) {
     G.t += dt;
     updateParticles(dt);
-    for (const k of ['shake', 'cheer', 'sad', 'hurt', 'bump', 'bumpGoal', 'qAnim']) if (G[k] > 0) G[k] -= dt;
+    for (const k of ['shake', 'cheer', 'sad', 'hurt', 'bump', 'bumpGoal', 'qAnim', 'bombFlash']) if (G[k] > 0) G[k] -= dt;
     for (const tr of G.trails) tr.t -= dt;
     for (const b of G.bounces) { b.x += b.vx * dt; b.y += b.vy * dt; b.vy += 900 * dt; b.spin += dt * 12; b.t -= dt; }
     G.bounces = G.bounces.filter((b) => b.t > 0 && b.y < VH + 40);
@@ -968,16 +979,39 @@ window.DinoBlocks = (core) => {
       }
       return;
     }
-    const cx = G.perk === 'petra' ? 190 : VW / 2 - 4;
+    const side = G.perk === 'petra' || G.perk === 'anki'; // these two have a little box of their own on the left
+    const cx = side ? 190 : VW / 2 - 4;
     box(c, cx, cy, 96, 72, 'הבא');
     const k = queueK(), e = 1 - (1 - k) ** 3;
     if (G.next) drawMini(c, G.next, cx, cy + 8, Math.max(1, 16 * e), e);
+    const H = HOLD_BOX;
     if (G.perk === 'petra') {
-      // Petra's pocket: tap it (or Petra) to put the falling stone aside and take it back later.
-      const H = HOLD_BOX, ready = !G.holdUsed && G.state === 'play';
-      box(c, H.cx, H.cy, H.w, H.h, 'שמור', ready && Math.sin(G.t * 4) > 0.6);
+      // Petra's pocket: tap it (or Petra) to keep the falling stone; tap again to call it back as the next stone.
+      const ready = G.state === 'play' && (G.hold ? !G.pending : !G.holdUsed);
+      box(c, H.cx, H.cy, H.w, H.h, G.hold ? 'הוצא' : 'שמור', ready && Math.sin(G.t * 4) > 0.6);
       if (G.hold) drawMini(c, G.hold, H.cx, H.cy + 8, 9);
       else { c.font = '700 22px Fredoka, sans-serif'; c.fillStyle = 'rgba(43,27,61,.35)'; c.fillText('+', H.cx, H.cy + 9); }
+    }
+    if (G.perk === 'anki') drawBombMeter(c, H);
+  }
+  // Anki's hammer tail: a bomb and 4 dots; each cleared row fills a dot, all 4 and the next stone gets a bomb.
+  function drawBombMeter(c, H) {
+    const full = G.bombFlash > 0;
+    box(c, H.cx, H.cy, H.w, H.h, 'פצצה', full && Math.floor(G.t * 10) % 2 === 0);
+    c.save(); c.translate(H.cx, H.cy + 2);
+    const pulse = 1 + (full ? Math.sin(G.t * 20) * 0.12 : 0);
+    c.scale(pulse, pulse);
+    c.fillStyle = INK; c.beginPath(); c.arc(0, 2, 9, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = INK; c.lineWidth = 2.2; c.beginPath(); c.moveTo(5, -4); c.quadraticCurveTo(9, -11, 12, -10); c.stroke();
+    c.fillStyle = Math.floor(G.t * 10) % 2 ? '#FFD23F' : '#FF6B2C'; c.beginPath(); c.arc(12, -11, 3, 0, Math.PI * 2); c.fill();
+    c.fillStyle = 'rgba(255,255,255,.6)'; c.beginPath(); c.arc(-3, -1, 2.4, 0, Math.PI * 2); c.fill();
+    c.restore();
+    const n = full ? 4 : G.bombRows;
+    for (let i = 0; i < 4; i++) {
+      const dx = H.cx + (i - 1.5) * 10, dy = H.cy + 25;
+      c.beginPath(); c.arc(dx, dy, 3.8, 0, Math.PI * 2);
+      c.fillStyle = i < n ? '#FF9F1C' : 'rgba(43,27,61,.15)'; c.fill();
+      c.lineWidth = 1.6; c.strokeStyle = INK; c.stroke();
     }
   }
   // Normal levels: how many rows are left. The stars from cleared rows fly in here.
