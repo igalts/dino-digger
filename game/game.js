@@ -1341,8 +1341,10 @@
   pad.addEventListener('pointercancel', padEnd);
 
   // Tapping the intro card (or anywhere on the board) skips the wait.
-  function skipIntro() {
-    if (!G || G.state !== 'ready' || paused || G.readyT > G.readyMax - 0.3) return; // ignore a tap left over from the Play button
+  function skipIntro(e) {
+    if (!G || G.state !== 'ready' || paused) return;
+    if (e && e.pointerId !== undefined) input.skipId = e.pointerId; // this touch only skips; it doesn't move the dino
+    if (G.readyT > G.readyMax - 0.3) return; // ignore a tap left over from the Play button
     G.readyT = 0;
     startPlay();
   }
@@ -1353,10 +1355,6 @@
   // A tap sends him to that spot (also while walking); a tap on or near him stops him.
   const SWIPE_MIN = 22; // px of finger travel that counts as a swipe
   input.hold = false; input.target = null;
-  const isWalking = () => {
-    const p = G.player;
-    return !!(input.dir || input.target || (p.drawing && !input.hold));
-  };
   const toBoard = (e) => {
     const r = cv.getBoundingClientRect();
     return { lx: (e.clientX - r.left) / r.width * VW - PAD, ly: (e.clientY - r.top) / r.height * VH - PAD };
@@ -1367,10 +1365,12 @@
     return Math.hypot(lx - (p.x * CELL + CELL / 2), ly - (p.y * CELL + CELL / 2 - 6)) < STOP_R;
   };
   function setTarget(e) {
-    const { lx, ly } = toBoard(e);
+    const { lx, ly } = toBoard(e), p = G.player;
     const cx = clamp(Math.floor(lx / CELL), 0, GW - 1), cy = clamp(Math.floor(ly / CELL), 0, GH - 1);
     const t = snapTarget(cx, cy);
-    if (t.x === G.player.x && t.y === G.player.y) return;
+    if (t.x === p.x && t.y === p.y) return;
+    // Head for the tap right away: start along the longer way to it instead of finishing the current line.
+    p.axis = Math.abs(t.x - p.x) >= Math.abs(t.y - p.y) ? 'x' : 'y';
     input.dir = null; input.hold = false; input.target = t;
   }
   gameEl.addEventListener('pointerdown', (e) => {
@@ -1378,13 +1378,13 @@
     if (controlMode() !== 'swipe') return;
     sfx.init();
     input.id = e.pointerId; input.ax = e.clientX; input.ay = e.clientY; input.swiped = false;
-    input.stopped = !G || G.state !== 'play' || paused; // e.g. the tap that skipped the intro isn't a "go there"
     try { gameEl.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
-    // Touching the dino (or close to him) while he walks stops him right where he is, in the dirt too;
-    // if the finger then slides, that's a new swipe. A tap anywhere else redirects him there.
-    if (G && G.state === 'play' && !paused && isWalking() && nearDino(e)) {
-      input.dir = null; input.target = null; input.hold = true; input.stopped = true;
-    }
+    if (!G || G.state !== 'play' || paused || input.skipId === e.pointerId) return; // the tap that skipped the intro
+    // Everything happens the moment the finger lands (no waiting for it to lift):
+    // on or near the dino = stop right there (in the dirt too); anywhere else = go there.
+    // If the finger then slides, that's a swipe and it takes over.
+    if (nearDino(e)) { input.dir = null; input.target = null; input.hold = true; }
+    else setTarget(e);
   });
   gameEl.addEventListener('pointermove', (e) => {
     if (e.pointerId !== input.id || !G || G.state !== 'play' || paused) return;
@@ -1397,11 +1397,7 @@
     if (e.pointerId !== input.id) return;
     input.id = null;
   };
-  gameEl.addEventListener('pointerup', (e) => {
-    // A plain tap (no swipe) that didn't just stop him: walk to the tapped spot.
-    if (e.pointerId === input.id && !input.swiped && !input.stopped && G && G.state === 'play' && !paused) setTarget(e);
-    endPointer(e);
-  });
+  gameEl.addEventListener('pointerup', endPointer);
   gameEl.addEventListener('pointercancel', endPointer);
 
   const KEYS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
