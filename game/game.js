@@ -1380,6 +1380,9 @@
   function buildTitle() {
     const d = rec(), [l1, l2] = curGame().logo;
     $('#titleLogo').innerHTML = `${l1}<br><span>${l2}</span>`;
+    // The same picture as the game's card on the hub, as a sticker next to the name.
+    $('#title').dataset.game = GAME;
+    $('#titleBadge').innerHTML = $(`#hub [data-game="${GAME}"] .card-art`).outerHTML;
     if (!d.unlocked.includes(d.selected)) d.selected = 'pip';
     const box = $('#chars');
     box.innerHTML = '';
