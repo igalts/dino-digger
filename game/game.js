@@ -13,13 +13,14 @@
   const ITEM_SIZE = 32;
 
   // ---------- Content ----------
+  // perk / bperk: what the dino is good at in the dig game / in the blocks game. slow: blocks fall slower.
   const CHARS = {
-    pip:   { name: 'פיפ',  img: 'pip',   perk: 'חוקר אמיץ' },
-    stegi: { name: 'סטגי', img: 'stegi', perk: 'מתחיל כל שלב עם מגן', shieldStart: true },
-    petra: { name: 'פטרה', img: 'petra', perk: 'הכי מהירה', speed: 1.3 },
-    anki:  { name: 'אנקי', img: 'anki',  perk: '4 ביצים במקום 3', lives: 4 },
-    rafi:  { name: 'רפטי', img: 'rafi',  perk: 'הפתעות נמשכות כפול', powerDur: 2 },
-    rex:   { name: 'רקס',  img: 'magma-rex', perk: 'מגן וגם מהירות', shieldStart: true, speed: 1.15, faceLeft: true, w: 240, h: 220 },
+    pip:   { name: 'פיפ',  img: 'pip',   perk: 'חוקר אמיץ', bperk: 'בונה אמיץ' },
+    stegi: { name: 'סטגי', img: 'stegi', perk: 'מתחיל כל שלב עם מגן', bperk: 'מתחיל כל שלב עם מגן', shieldStart: true },
+    petra: { name: 'פטרה', img: 'petra', perk: 'הכי מהירה', bperk: 'האבנים נופלות לאט יותר', speed: 1.3, slow: 0.8 },
+    anki:  { name: 'אנקי', img: 'anki',  perk: '4 ביצים במקום 3', bperk: '4 ביצים במקום 3', lives: 4 },
+    rafi:  { name: 'רפטי', img: 'rafi',  perk: 'הפתעות נמשכות כפול', bperk: 'הפתעות נמשכות כפול', powerDur: 2 },
+    rex:   { name: 'רקס',  img: 'magma-rex', perk: 'מגן וגם מהירות', bperk: 'מגן וגם אבנים איטיות', shieldStart: true, speed: 1.15, slow: 0.9, faceLeft: true, w: 240, h: 220 },
   };
   const CHAR_ORDER = ['pip', 'stegi', 'petra', 'anki', 'rafi', 'rex'];
   CHAR_ORDER.forEach((id) => { CHARS[id].id = id; });
@@ -34,7 +35,7 @@
     { bit: 2, icon: '🍰', label: () => `ביס ${BITE_PCT}%` },
     { bit: 4, icon: '🥚', label: () => 'כל הביצים' },
   ];
-  const chalRow = (cfg, done, fresh = 0) => `<span class="chal-row">${CHALS.map((ch) =>
+  const chalRow = (cfg, done, fresh = 0, chals = curGame().chals) => `<span class="chal-row">${chals.map((ch) =>
     `<span class="chal${done & ch.bit ? ' done' : ''}${fresh & ch.bit ? ' fresh' : ''}">${ch.icon} <bdi>${ch.label(cfg)}</bdi>${
       fresh & ch.bit ? `<b class="plus">+${GEMS_PER_CHAL}💎</b>` : ''}</span>`).join('')}</span>`;
   const JOINS = { petra: ['מצטרפת', 'אותה'] }; // everyone else: מצטרף / אותו
@@ -74,8 +75,8 @@
   const SHOT_R = 8;
   WORLDS.forEach((wd) => { wd.levels[wd.levels.length - 1].bossFight = true; });
   const sceneName = (w, l) => `s${w + 1}-${l + 1}`;
-  const worldOpen = (w) => w === 0 || (store.data.stars[`${w}-5`] || 0) > 0;
-  const levelOpen = (w, l) => (l === 0 ? worldOpen(w) : (store.data.stars[`${w + 1}-${l}`] || 0) > 0);
+  const worldOpen = (w) => w === 0 || (rec().stars[`${w}-5`] || 0) > 0;
+  const levelOpen = (w, l) => (l === 0 ? worldOpen(w) : (rec().stars[`${w + 1}-${l}`] || 0) > 0);
 
   const ENEMY = {
     boss:   { img: 'magma-rex', w: 104, h: 95, faceLeft: true, r: 22, hitR: 30 },
@@ -133,6 +134,27 @@
       try { localStorage.setItem(this.key, JSON.stringify(this.data)); } catch (e) { /* ignore */ }
     },
   };
+
+  // ---------- Two games, one wardrobe ----------
+  // Each game keeps its own stars, times, challenges and unlocked dinos; gems and outfits are shared.
+  // The dig game's records stay at the top of the save (where they always were), the blocks game's live in data.blocks.
+  let GAME = 'dig';
+  const freshRecords = () => ({ stars: {}, best: {}, chal: {}, times: {}, streak: {}, unlocked: ['pip'], selected: 'pip' });
+  function rec(game = GAME) {
+    if (game === 'dig') return store.data;
+    const d = store.data;
+    if (!d.blocks) d.blocks = freshRecords();
+    for (const [k, v] of Object.entries(freshRecords())) if (d.blocks[k] == null) d.blocks[k] = v;
+    return d.blocks;
+  }
+  // Every dino unlocked in either game can be dressed up in the wardrobe.
+  const anyUnlocked = (id) => store.data.unlocked.includes(id) || rec('blocks').unlocked.includes(id);
+  const GAMES = {
+    dig: { logo: ['דינו', 'סוגר שטחים!'], worlds: WORLDS, chals: CHALS, perk: 'perk',
+      goal: (cfg) => `🗺️ תפסו <bdi>${cfg.goal}%</bdi>`, start: (w, l) => startLevel(w, l) },
+  };
+  const curGame = () => GAMES[GAME];
+  const worldsNow = () => curGame().worlds;
 
   // ---------- Sound (synthesized, no files) ----------
   const sfx = {
@@ -307,7 +329,7 @@
     const ease = DIFFICULTY * ((store.data.streak[key] || 0) >= 3 ? 0.85 : 1);
     const lives = ch.lives || 3;
     G = {
-      w, l, cfg, key, ch, ease, scene, world: WORLDS[w],
+      mode: 'dig', w, l, cfg, key, ch, ease, scene, world: WORLDS[w],
       grid: new Uint8Array(GW * GH),
       lives, maxLives: lives, score: 0, percent: 0,
       player: { x: Math.floor(GW / 2), y: GH - 1, face: 1, drawing: false, trail: [], startX: 0, startY: 0,
@@ -361,6 +383,7 @@
     paused = false;
     hideOverlays();
     $('#game').dataset.world = String(w + 1);
+    $('#game').classList.remove('blocks');
     show('game');
     resize();
     buildLives();
@@ -891,28 +914,33 @@
     G.enemies = []; G.items = []; G.player.trail = [];
     input.dir = null; padRelease();
     sfx.win();
-    const stars = clamp(G.lives, 1, 3);
-    const d = store.data;
-    d.stars[G.key] = Math.max(d.stars[G.key] || 0, stars);
-    d.streak[G.key] = 0;
-    d.best = d.best || {};
-    const time = G.playT, prevBest = d.best[G.key];
-    const record = !prevBest || time < prevBest;
-    if (record) d.best[G.key] = time;
-    d.times = d.times || {};
-    d.times[G.key] = [time, ...(d.times[G.key] || [])].slice(0, 3); // the last 3 wins, newest first
-    // Challenges: new ones pay gems once; every win pays a little too.
-    d.chal = d.chal || {};
     const doneNow = (G.percent >= claimTarget(G.cfg) ? 1 : 0) | (G.bite >= BITE_PCT ? 2 : 0) | (G.lives >= G.maxLives ? 4 : 0);
-    const before = d.chal[G.key] || 0, fresh = doneNow & ~before;
-    d.chal[G.key] = before | doneNow;
+    finishWin(clamp(G.lives, 1, 3), doneNow, 2600);
+  }
+
+  // Shared by both games: save the win (stars, times, challenges, gems, a newly unlocked dino), then show the win card.
+  function finishWin(stars, doneNow, delay) {
+    const d = store.data, r = rec(), WORLDS = worldsNow(), perkKey = curGame().perk;
+    r.stars[G.key] = Math.max(r.stars[G.key] || 0, stars);
+    r.streak = r.streak || {};
+    r.streak[G.key] = 0;
+    r.best = r.best || {};
+    const time = G.playT, prevBest = r.best[G.key];
+    const record = !prevBest || time < prevBest;
+    if (record) r.best[G.key] = time;
+    r.times = r.times || {};
+    r.times[G.key] = [time, ...(r.times[G.key] || [])].slice(0, 3); // the last 3 wins, newest first
+    // Challenges: new ones pay gems once; every win pays a little too.
+    r.chal = r.chal || {};
+    const before = r.chal[G.key] || 0, fresh = doneNow & ~before;
+    r.chal[G.key] = before | doneNow;
     const freshCount = [1, 2, 4].filter((b) => fresh & b).length;
     const gemsWon = GEMS_PER_WIN + freshCount * GEMS_PER_CHAL;
     d.gems = (d.gems || 0) + gemsWon;
     let unlocked = null;
     const world = WORLDS[G.w];
-    if (G.l === world.levels.length - 1 && world.unlock && !d.unlocked.includes(world.unlock)) {
-      d.unlocked.push(world.unlock);
+    if (G.l === world.levels.length - 1 && world.unlock && !r.unlocked.includes(world.unlock)) {
+      r.unlocked.push(world.unlock);
       unlocked = world.unlock;
     }
     store.save();
@@ -920,7 +948,7 @@
     setTimeout(() => {
       if (!G || G.state !== 'won') return;
       $('#winStars').innerHTML = [0, 1, 2].map((i) => `<span class="${i < stars ? 'on' : 'off'}">★</span>`).join('');
-      $('#winChal').innerHTML = chalRow(G.cfg, d.chal[G.key], fresh);
+      $('#winChal').innerHTML = chalRow(G.cfg, r.chal[G.key], fresh);
       $('#winScore').innerHTML = `<span class="gem-win">💎 +${gemsWon}</span><span>ניקוד: ${G.score}</span>`;
       if (freshCount) setTimeout(() => sfx.power(), 900);
       // First win of a level just sets the time; beating an old time gets the "new record" badge.
@@ -933,18 +961,18 @@
         const [joins, them] = JOINS[unlocked] || ['מצטרף', 'אותו'];
         $('#unlockImg').src = `assets/${CHARS[unlocked].img}.svg`;
         const name = CHARS[unlocked].name;
-        $('#unlockText').innerHTML = `${name} ${joins}!<small class="perk-line">${CHARS[unlocked].perk}</small>`;
+        $('#unlockText').innerHTML = `${name} ${joins}!<small class="perk-line">${CHARS[unlocked][perkKey]}</small>`;
         // One tap switches to the new friend right away; another tap goes back to the old one.
-        const pick = $('#pickBtn'), before = store.data.selected;
+        const pick = $('#pickBtn'), before = r.selected;
         const show = () => {
-          const on = store.data.selected === unlocked;
+          const on = r.selected === unlocked;
           pick.textContent = on ? `✓ ${name} ${JOINS[unlocked] ? 'נבחרה' : 'נבחר'} (לביטול לחצו)` : `לשחק עם ${name}!`;
           pick.classList.toggle('done', on);
         };
         show();
         pick.onclick = () => {
-          const on = store.data.selected === unlocked;
-          store.data.selected = on ? before : unlocked; store.save();
+          const on = r.selected === unlocked;
+          r.selected = on ? before : unlocked; store.save();
           if (!on) sfx.power(); else sfx.pop();
           show();
         };
@@ -957,12 +985,14 @@
       $('#nextBtn').hidden = lastLevel && lastWorld;
       $('#win').hidden = false;
       for (let i = 0; i < stars; i++) setTimeout(() => sfx.tone(880 + i * 220, 0.18, 'triangle', 0.1), 380 + i * 300);
-    }, 2600);
+    }, delay);
   }
 
   function lose() {
     G.state = 'lost';
-    store.data.streak[G.key] = (store.data.streak[G.key] || 0) + 1;
+    const r = rec();
+    r.streak = r.streak || {};
+    r.streak[G.key] = (r.streak[G.key] || 0) + 1;
     store.save();
     sfx.lose();
     $('#loseImg').src = `assets/${G.ch.img}.svg`;
@@ -1215,16 +1245,18 @@
   const controlMode = () => (MODES.includes(store.data.controlMode) ? store.data.controlMode : 'pad');
 
   function applyControlMode() {
-    const m = controlMode();
-    $('#pad').hidden = m !== 'pad';
+    const m = controlMode(), isBlocks = !!(G && G.mode === 'blocks');
+    $('#pad').hidden = m !== 'pad' || isBlocks;
+    $('#bpad').hidden = m !== 'pad' || !isBlocks;
     $('#hint').hidden = true;
     $('#controlSeg').classList.toggle('swipe', m === 'swipe');
     for (const b of document.querySelectorAll('#controlSeg button')) {
       b.classList.toggle('on', b.dataset.m === m);
       b.setAttribute('aria-checked', b.dataset.m === m);
     }
-    if (screen === 'game') resize();
+    if (screen === 'game') resizeBoard();
   }
+  const resizeBoard = () => { if (G && G.mode === 'blocks') blocks.resize(); else resize(); };
 
   // Arrow pad: the direction comes from where the thumb is relative to the pad's centre,
   // so sliding between arrows works without lifting the thumb.
@@ -1280,7 +1312,7 @@
   };
   gameEl.addEventListener('pointerdown', (e) => {
     if (e.target.closest('button, .overlay, .hud, .pad')) return;
-    if (controlMode() !== 'swipe') return;
+    if (controlMode() !== 'swipe' || (G && G.mode === 'blocks')) return;
     sfx.init();
     input.id = e.pointerId; input.ax = e.clientX; input.ay = e.clientY; input.swiped = false;
     try { gameEl.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
@@ -1304,11 +1336,13 @@
   const KEYS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
   window.addEventListener('keydown', (e) => {
     if (screen !== 'game') return;
+    if (e.key === 'Escape' || e.key === 'p') { togglePause(true); return; }
+    if (G && G.mode === 'blocks') { blocks.key(e, true); return; }
     const k = KEYS[e.key];
     if (k) { e.preventDefault(); sfx.init(); input.dir = { x: k[0], y: k[1] }; }
-    if (e.key === 'Escape' || e.key === 'p') togglePause(true);
   });
   window.addEventListener('keyup', (e) => {
+    if (G && G.mode === 'blocks') { blocks.key(e, false); return; }
     const k = KEYS[e.key];
     if (k && input.dir && input.dir.x === k[0] && input.dir.y === k[1]) input.dir = null;
   });
@@ -1316,15 +1350,37 @@
   // ---------- Screens ----------
   function show(name) {
     screen = name;
-    for (const id of ['title', 'map', 'game', 'shop']) $(`#${id}`).hidden = id !== name;
+    for (const id of ['hub', 'title', 'map', 'game', 'shop']) $(`#${id}`).hidden = id !== name;
+    if (name === 'hub') buildHub();
     if (name === 'title') buildTitle();
     if (name === 'map') buildMap();
     if (name === 'shop') buildShop();
   }
   function hideOverlays() { for (const id of ['pause', 'win', 'lose']) $(`#${id}`).hidden = true; }
 
-  function buildTitle() {
+  // The hub: pick a game. Each card shows how many stars you have in it.
+  function buildHub() {
     const d = store.data;
+    for (const g of Object.keys(GAMES)) {
+      const r = rec(g), total = GAMES[g].worlds.reduce((n, wd) => n + wd.levels.length * 3, 0);
+      const got = Object.values(r.stars).reduce((n, s) => n + s, 0);
+      $(`#hub [data-game="${g}"] .card-stars`).innerHTML = `★ <bdi>${got}/${total}</bdi>`;
+    }
+    $('#hubGems').textContent = `💎 ${d.gems || 0}`;
+    $('#muteBtn').textContent = d.muted ? '🔇' : '🔊';
+  }
+  function openGame(g) {
+    GAME = g; store.data.game = g; store.save();
+    $('#title').dataset.game = g;
+    show('title');
+  }
+  for (const card of document.querySelectorAll('#hub .game-card')) {
+    card.addEventListener('click', () => { sfx.init(); sfx.tap(); goFullscreen(); openGame(card.dataset.game); });
+  }
+
+  function buildTitle() {
+    const d = rec(), [l1, l2] = curGame().logo;
+    $('#titleLogo').innerHTML = `${l1}<br><span>${l2}</span>`;
     if (!d.unlocked.includes(d.selected)) d.selected = 'pip';
     const box = $('#chars');
     box.innerHTML = '';
@@ -1342,9 +1398,8 @@
       box.appendChild(b);
     });
     const sel = CHARS[d.selected];
-    $('#charPerk').textContent = `${sel.name}: ${sel.perk}`;
-    $('#titleGems').textContent = `💎 ${d.gems || 0}`;
-    $('#muteBtn').textContent = d.muted ? '🔇' : '🔊';
+    $('#charPerk').textContent = `${sel.name}: ${sel[curGame().perk]}`;
+    $('#titleGems').textContent = `💎 ${store.data.gems || 0}`;
   }
 
   // ---------- Wardrobe shop ----------
@@ -1356,7 +1411,8 @@
     return o;
   };
   function openShop() {
-    shop.char = store.data.selected; shop.trying = null;
+    shop.char = anyUnlocked(rec().selected) ? rec().selected : 'pip'; shop.trying = null;
+    shop.from = screen; // the wardrobe opens from the hub or from a game's start screen; home goes back there
     show('shop');
   }
   function buildShop() {
@@ -1401,18 +1457,18 @@
       $('#shopItemName').textContent = worn ? '' : 'לחצו על בגד כדי לנסות אותו';
       buy.hidden = true;
     }
-    const open = CHAR_ORDER.filter((id) => d.unlocked.includes(id));
-    $('#shopPrev').hidden = $('#shopNext').hidden = open.length < 2;
+    $('#shopPrev').hidden = $('#shopNext').hidden = openChars().length < 2;
   }
   function shopCycle(step) {
-    const open = CHAR_ORDER.filter((id) => store.data.unlocked.includes(id));
+    const open = openChars();
     shop.char = open[(open.indexOf(shop.char) + step + open.length) % open.length];
     sfx.tap();
   }
   $('#shopBtn').addEventListener('click', () => { sfx.init(); sfx.tap(); openShop(); });
-  $('#shopBack').addEventListener('click', () => { sfx.tap(); shop.trying = null; show('title'); });
+  $('#hubShopBtn').addEventListener('click', () => { sfx.init(); sfx.tap(); openShop(); });
+  $('#shopBack').addEventListener('click', () => { sfx.tap(); shop.trying = null; show(shop.from || 'hub'); });
   // The dino in the wardrobe slides too: drag him sideways (or use the arrows) to change dino.
-  const openChars = () => CHAR_ORDER.filter((id) => store.data.unlocked.includes(id));
+  function openChars() { return CHAR_ORDER.filter(anyUnlocked); }
   const heroSlide = attachSlide({
     areas: [$('.shop-stage')],
     el: $('#shopHero'),
@@ -1521,7 +1577,8 @@
   });
 
   function currentMapWorld() {
-    let w = store.data.mapWorld;
+    const WORLDS = worldsNow();
+    let w = rec().mapWorld;
     if (!Number.isInteger(w) || w < 0 || w >= WORLDS.length) {
       w = 0; // default to the furthest world that is open
       for (let i = 0; i < WORLDS.length; i++) if (worldOpen(i)) w = i;
@@ -1538,14 +1595,16 @@
   ];
 
   function buildMap() {
+    const WORLDS = worldsNow(), r = rec(), CHALS = curGame().chals;
     const w = currentMapWorld();
     const world = WORLDS[w];
+    $('#map').dataset.game = GAME;
     $('#map').dataset.world = String(w + 1);
     $('#mapBg').src = `assets/map-${w + 1}.svg`;
     const prize = CHARS[world.unlock];
     const prizeImg = $('#mapPrize');
     prizeImg.src = `assets/${prize.img}.svg`;
-    prizeImg.classList.toggle('locked', !store.data.unlocked.includes(world.unlock));
+    prizeImg.classList.toggle('locked', !r.unlocked.includes(world.unlock));
     const layout = MAP_LAYOUTS[w];
     prizeImg.style.left = `${layout.prize[0] / 360 * 100}%`;
     prizeImg.style.top = `${layout.prize[1] / 780 * 100}%`;
@@ -1561,7 +1620,7 @@
     const box = $('#levels');
     box.innerHTML = '';
     world.levels.forEach((lvl, i) => {
-      const stars = store.data.stars[`${w + 1}-${i + 1}`] || 0;
+      const stars = r.stars[`${w + 1}-${i + 1}`] || 0;
       const open = levelOpen(w, i);
       const b = document.createElement('button');
       b.className = `level${open ? '' : ' locked'}${lvl.bossFight ? ' boss' : ''}`;
@@ -1570,8 +1629,8 @@
       const label = lvl.bossFight ? `בוס: ${BOSSES[w].name}` : `שלב ${i + 1}`;
       b.setAttribute('aria-label', open ? label : `${label}, נעול`);
       const face = lvl.bossFight ? `<img class="boss-face" src="assets/boss-${w + 1}.svg" alt="">` : '';
-      const best = (store.data.best || {})[`${w + 1}-${i + 1}`];
-      const done = (store.data.chal || {})[`${w + 1}-${i + 1}`] || 0;
+      const best = (r.best || {})[`${w + 1}-${i + 1}`];
+      const done = (r.chal || {})[`${w + 1}-${i + 1}`] || 0;
       const marks = CHALS.map((ch) => `<span class="cm${done & ch.bit ? ' on' : ''}">${ch.icon}</span>`).join('');
       const timeTag = best && open ? `<span class="best-time">⏱ ${fmtTime(best)} ${marks}</span>` : '';
       b.innerHTML = `${face}${lvl.bossFight ? 'בוס' : i + 1}<span class="st">${[0, 1, 2].map((k) => `<span class="${k < stars ? 'on' : 'off'}">★</span>`).join('')}</span>${timeTag}`;
@@ -1588,13 +1647,13 @@
   let infoLevel = null;
   function showLevelInfo(w, l) {
     infoLevel = [w, l];
-    const d = store.data, cfg = WORLDS[w].levels[l], key = `${w + 1}-${l + 1}`;
+    const WORLDS = worldsNow(), d = rec(), cfg = WORLDS[w].levels[l], key = `${w + 1}-${l + 1}`;
     const stars = d.stars[key] || 0, best = (d.best || {})[key];
     $('#infoWorld').textContent = WORLDS[w].name;
     $('#infoTitle').textContent = cfg.bossFight ? `בוס: ${BOSSES[w].name}` : `שלב ${l + 1}`;
     $('#infoFace').hidden = !cfg.bossFight;
     if (cfg.bossFight) $('#infoFace').src = `assets/boss-${w + 1}.svg`;
-    $('#infoGoal').textContent = `תפסו ${cfg.goal}%`;
+    $('#infoGoal').innerHTML = curGame().goal(cfg);
     $('#infoStars').innerHTML = [0, 1, 2].map((k) => `<span class="${k < stars ? 'on' : 'off'}">★</span>`).join('');
     $('#infoBest').innerHTML = best ? `⏱ השיא <bdi>${fmtTime(best)}</bdi>` : 'עוד לא ניצחת כאן';
     const recent = ((d.times || {})[key] || []);
@@ -1605,7 +1664,7 @@
   }
   $('#infoPlay').addEventListener('click', () => {
     sfx.tap(); $('#levelInfo').hidden = true;
-    if (infoLevel) startLevel(infoLevel[0], infoLevel[1]);
+    if (infoLevel) playLevel(infoLevel[0], infoLevel[1]);
   });
   $('#infoClose').addEventListener('click', () => { sfx.tap(); $('#levelInfo').hidden = true; });
   $('#levelInfo').addEventListener('click', (e) => { if (e.target.id === 'levelInfo') $('#levelInfo').hidden = true; });
@@ -1625,7 +1684,7 @@
     ignore: (e) => !$('#levelInfo').hidden || !!e.target.closest('.overlay, .world-nav, .map-head, .home-btn'),
     canGo: (step) => { const w = currentMapWorld() + step; return w >= 0 && w < WORLDS.length; },
     apply: async (step) => {
-      store.data.mapWorld = currentMapWorld() + step; store.save(); sfx.tap(); buildMap();
+      rec().mapWorld = currentMapWorld() + step; store.save(); sfx.tap(); buildMap();
       await Promise.race([$('#mapBg').decode().catch(() => {}), new Promise((r) => setTimeout(r, 250))]);
     },
   });
@@ -1683,22 +1742,25 @@
   $('#resetYes').addEventListener('click', () => {
     const { muted, controlMode } = store.data;
     store.data = { stars: {}, best: {}, unlocked: ['pip'], selected: 'pip', streak: {}, muted, controlMode, ctrl3: 1,
-      gems: 0, owned: [], outfit: {}, chal: {}, times: {} };
+      gems: 0, owned: [], outfit: {}, chal: {}, times: {}, blocks: freshRecords() };
     store.save();
     G = null;
     sfx.tap();
     settingsStep(false);
     $('#resetDone').hidden = false;
-    buildTitle();
+    buildHub();
   });
 
+  // Start a level of whichever game is open.
+  function playLevel(w, l) { return curGame().start(w, l); }
   $('#mapBack').addEventListener('click', () => { sfx.tap(); show('title'); });
-  $('#muteBtn').addEventListener('click', () => { store.data.muted = !store.data.muted; store.save(); sfx.init(); sfx.tap(); buildTitle(); });
+  $('#titleHome').addEventListener('click', () => { sfx.tap(); show('hub'); });
+  $('#muteBtn').addEventListener('click', () => { store.data.muted = !store.data.muted; store.save(); sfx.init(); sfx.tap(); buildHub(); });
   $('#pauseBtn').addEventListener('click', () => { sfx.tap(); togglePause(true); });
   $('#resumeBtn').addEventListener('click', () => { sfx.tap(); togglePause(false); });
   // Tapping outside the pause panel closes it and keeps playing
   $('#pause').addEventListener('click', (e) => { if (e.target.id === 'pause') { sfx.tap(); togglePause(false); } });
-  $('#restartBtn').addEventListener('click', () => { sfx.tap(); startLevel(G.w, G.l); });
+  $('#restartBtn').addEventListener('click', () => { sfx.tap(); playLevel(G.w, G.l); });
   $('#pauseMapBtn').addEventListener('click', () => { sfx.tap(); paused = false; hideOverlays(); show('map'); });
   $('#pauseMuteBtn').addEventListener('click', () => {
     store.data.muted = !store.data.muted; store.save(); sfx.tap();
@@ -1741,21 +1803,30 @@
   $('#pauseHomeBtn').addEventListener('click', () => { sfx.tap(); paused = false; hideOverlays(); show('title'); });
   $('#nextBtn').addEventListener('click', () => {
     sfx.tap();
-    if (G.l + 1 < WORLDS[G.w].levels.length) startLevel(G.w, G.l + 1);
-    else { store.data.mapWorld = G.w + 1; store.save(); startLevel(G.w + 1, 0); }
+    if (G.l + 1 < worldsNow()[G.w].levels.length) playLevel(G.w, G.l + 1);
+    else { rec().mapWorld = G.w + 1; store.save(); playLevel(G.w + 1, 0); }
   });
   $('#prevWorld').addEventListener('click', () => pageWorld(-1));
   $('#nextWorld').addEventListener('click', () => pageWorld(1));
-  $('#winRetryBtn').addEventListener('click', () => { sfx.tap(); startLevel(G.w, G.l); });
-  $('#winMapBtn').addEventListener('click', () => { sfx.tap(); store.data.mapWorld = G.w; hideOverlays(); show('map'); });
-  $('#retryBtn').addEventListener('click', () => { sfx.tap(); startLevel(G.w, G.l); });
+  $('#winRetryBtn').addEventListener('click', () => { sfx.tap(); playLevel(G.w, G.l); });
+  $('#winMapBtn').addEventListener('click', () => { sfx.tap(); rec().mapWorld = G.w; hideOverlays(); show('map'); });
+  $('#retryBtn').addEventListener('click', () => { sfx.tap(); playLevel(G.w, G.l); });
   $('#loseMapBtn').addEventListener('click', () => { sfx.tap(); hideOverlays(); show('map'); });
 
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) togglePause(true);
     else if (screen === 'game') keepAwake();
   });
-  window.addEventListener('resize', () => { if (screen === 'game') resize(); });
+  window.addEventListener('resize', () => { if (screen === 'game') resizeBoard(); });
+
+  // ---------- The blocks game (blocks.js) gets the shared pieces ----------
+  const blocks = window.DinoBlocks({
+    $, store, rec, sfx, CHARS, images, BOSSES, BOSS_HP, DIFFICULTY, SHOTS, WORLDS,
+    G: () => G, setG: (g) => { G = g; }, isPaused: () => paused, setPaused: (v) => { paused = v; },
+    loadScene, show, hideOverlays, buildLives, keepAwake, applyControlMode, controlMode, startPlay, skipIntro,
+    finishWin, lose, chalRow, fmtTime, drawDino, drawShot,
+  });
+  GAMES.blocks = blocks.game;
 
   // ---------- Main loop ----------
   let last = 0;
@@ -1763,10 +1834,11 @@
     const dt = Math.min(0.05, (t - last) / 1000 || 0);
     last = t;
     if (G && screen === 'game') {
-      if (!paused) update(dt);
-      render();
+      if (G.mode === 'blocks') { if (!paused) blocks.update(dt); blocks.render(); }
+      else { if (!paused) update(dt); render(); }
     }
-    if (screen === 'title') paintDino($('#titleHero'), store.data.selected, store.data.outfit, t / 1000);
+    if (screen === 'title') paintDino($('#titleHero'), rec().selected, store.data.outfit, t / 1000);
+    if (screen === 'hub') paintDino($('#hubHero'), rec().selected, store.data.outfit, t / 1000);
     if (screen === 'shop') paintDino($('#shopHero'), shop.char, shopOutfit(), t / 1000);
     requestAnimationFrame(frame);
   }
@@ -1775,8 +1847,9 @@
   store.load();
   // Arrows are the default again. Everyone is moved back to arrows once (ctrl3 not set); swipe stays in the pause menu.
   if (!store.data.ctrl3) { store.data.controlMode = 'pad'; store.data.ctrl3 = 1; delete store.data.ctrl2; store.save(); }
+  if (store.data.game === 'blocks') GAME = 'blocks';
   loadImages().then(() => {
-    show('title');
+    show('hub');
     requestAnimationFrame(frame);
   });
 
@@ -1786,7 +1859,11 @@
 
   // Debug hook for testing in a desktop browser.
   window.__dino = {
-    get G() { return G; }, startLevel, store, input, shop,
-    tick(n = 1, dt = 1 / 60) { for (let i = 0; i < n; i++) update(dt); render(); },
+    get G() { return G; }, startLevel, store, input, shop, blocks, openGame, playLevel, rec,
+    tick(n = 1, dt = 1 / 60) {
+      const b = G && G.mode === 'blocks';
+      for (let i = 0; i < n; i++) { if (b) blocks.update(dt); else update(dt); }
+      if (b) blocks.render(); else render();
+    },
   };
 })();

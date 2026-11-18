@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#2B1B3D">
 <meta name="mobile-web-app-capable" content="yes">
-<title>דינו סוגר שטחים</title>
+<title>דינו-גיים</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,16 +15,38 @@
 </head>
 <body>
 
-<section id="title" class="screen title-bg">
-  <div class="title-inner">
-    <div class="logo">דינו<br><span>סוגר שטחים!</span></div>
-    <canvas id="titleHero" class="hero bob" aria-hidden="true"></canvas>
-    <button id="playBtn" class="btn big">שחק!</button>
-    <div class="chars-box">
-      <div id="chars" class="chars"></div>
-      <div id="charPerk" class="perk"></div>
-      <button id="shopBtn" class="btn alt shop-btn">👕 המלתחה <span id="titleGems" class="gem-pill"></span></button>
+<section id="hub" class="screen title-bg" hidden>
+  <div class="hub-inner">
+    <div class="logo hub-logo">דינו-<span>גיים</span></div>
+    <canvas id="hubHero" class="hero hub-hero bob" aria-hidden="true"></canvas>
+    <div class="game-cards">
+      <button class="game-card dig" data-game="dig">
+        <svg class="card-art" viewBox="0 0 120 90" aria-hidden="true">
+          <rect x="4" y="4" width="112" height="82" rx="14" fill="#A0673F" stroke="#2B1B3D" stroke-width="4"/>
+          <path d="M4 18 Q4 4 18 4 H70 V40 H40 V86 H18 Q4 86 4 72 Z" fill="#5CCB5F" stroke="#2B1B3D" stroke-width="4" stroke-linejoin="round"/>
+          <path d="M70 40 H96 V64 H40" fill="none" stroke="#FFD23F" stroke-width="5" stroke-dasharray="7 6" stroke-linecap="round"/>
+          <circle cx="40" cy="64" r="7" fill="#FFD23F" stroke="#2B1B3D" stroke-width="3"/>
+        </svg>
+        <span class="card-name">דינו<br>סוגר שטחים</span>
+        <span class="card-stars"></span>
+      </button>
+      <button class="game-card blocks" data-game="blocks">
+        <svg class="card-art" viewBox="0 0 120 90" aria-hidden="true">
+          <rect x="4" y="4" width="112" height="82" rx="14" fill="#3A2E5A" stroke="#2B1B3D" stroke-width="4"/>
+          <g stroke="#2B1B3D" stroke-width="3">
+            <rect x="46" y="10" width="18" height="18" rx="4" fill="#B07CE8"/><rect x="28" y="28" width="18" height="18" rx="4" fill="#B07CE8"/>
+            <rect x="46" y="28" width="18" height="18" rx="4" fill="#B07CE8"/><rect x="64" y="28" width="18" height="18" rx="4" fill="#B07CE8"/>
+            <rect x="10" y="64" width="18" height="18" rx="4" fill="#4FC3F7"/><rect x="28" y="64" width="18" height="18" rx="4" fill="#FFD23F"/>
+            <rect x="46" y="64" width="18" height="18" rx="4" fill="#FFD23F"/><rect x="82" y="64" width="18" height="18" rx="4" fill="#5CCB5F"/>
+            <rect x="100" y="64" width="12" height="18" rx="4" fill="#5CCB5F"/><rect x="82" y="46" width="18" height="18" rx="4" fill="#FF6B7A"/>
+            <rect x="100" y="46" width="12" height="18" rx="4" fill="#FF6B7A"/>
+          </g>
+        </svg>
+        <span class="card-name">דינו<br>בלוקים</span>
+        <span class="card-stars"></span>
+      </button>
     </div>
+    <button id="hubShopBtn" class="btn alt shop-btn">👕 המלתחה <span id="hubGems" class="gem-pill"></span></button>
   </div>
   <button id="muteBtn" class="icon-btn corner" aria-label="צליל">🔊</button>
   <button id="settingsBtn" class="icon-btn corner end" aria-label="הגדרות">⚙️</button>
@@ -44,6 +66,22 @@
       <p id="resetDone" class="done" hidden>ההתקדמות אופסה. מתחילים מההתחלה!</p>
     </div>
   </div>
+</section>
+
+<section id="title" class="screen title-bg" hidden>
+  <div class="title-inner">
+    <div id="titleLogo" class="logo">דינו<br><span>סוגר שטחים!</span></div>
+    <canvas id="titleHero" class="hero bob" aria-hidden="true"></canvas>
+    <button id="playBtn" class="btn big">שחק!</button>
+    <div class="chars-box">
+      <div id="chars" class="chars"></div>
+      <div id="charPerk" class="perk"></div>
+      <button id="shopBtn" class="btn alt shop-btn">👕 המלתחה <span id="titleGems" class="gem-pill"></span></button>
+    </div>
+  </div>
+  <button id="titleHome" class="home-btn" aria-label="לכל המשחקים">
+    <svg class="ic" viewBox="0 0 48 48"><path class="fill" d="M6 25 L24 8 L42 25 L37 25 L37 40 L11 40 L11 25 Z"/><rect class="fill door" x="20" y="28" width="8" height="12" rx="3"/></svg>
+  </button>
 </section>
 
 <section id="shop" class="screen" hidden>
@@ -120,6 +158,7 @@
   </div>
   <div id="boardWrap" class="board-wrap">
     <canvas id="cv"></canvas>
+    <canvas id="bcv"></canvas>
     <div id="banner" class="banner" hidden></div>
   </div>
   <div id="hint" class="hint" hidden></div>
@@ -128,6 +167,17 @@
     <div class="arr right" data-d="right"><svg viewBox="0 0 24 24"><path d="M19 12 L7 20 L7 4 Z"/></svg></div>
     <div class="arr down" data-d="down"><svg viewBox="0 0 24 24"><path d="M12 19 L4 7 L20 7 Z"/></svg></div>
     <div class="arr left" data-d="left"><svg viewBox="0 0 24 24"><path d="M5 12 L17 4 L17 20 Z"/></svg></div>
+  </div>
+  <div id="bpad" class="bpad" dir="ltr" hidden>
+    <div class="bpad-move">
+      <button class="bk" data-k="left" aria-label="שמאלה"><svg viewBox="0 0 24 24"><path d="M5 12 L17 4 L17 20 Z"/></svg></button>
+      <button class="bk" data-k="down" aria-label="מהר למטה"><svg viewBox="0 0 24 24"><path d="M12 19 L4 7 L20 7 Z"/></svg></button>
+      <button class="bk" data-k="right" aria-label="ימינה"><svg viewBox="0 0 24 24"><path d="M19 12 L7 20 L7 4 Z"/></svg></button>
+    </div>
+    <div class="bpad-act">
+      <button class="bk drop" data-k="drop" aria-label="להפיל"><svg viewBox="0 0 24 24"><path d="M12 21 L5 13 H19 Z M12 13 L5 5 H19 Z"/></svg></button>
+      <button class="bk rot" data-k="rot" aria-label="לסובב"><svg viewBox="0 0 48 48"><path class="o" d="M35.3 17.5 A13 13 0 1 0 36.2 28.4"/><path class="i" d="M35.3 17.5 A13 13 0 1 0 36.2 28.4"/><path d="M38.6 20 L43 31.5 L30 27.5 Z"/></svg></button>
+    </div>
   </div>
 
   <div id="pause" class="overlay" hidden>
@@ -202,6 +252,7 @@
 </section>
 
 <script src="outfits.js"></script>
+<script src="blocks.js"></script>
 <script src="game.js"></script>
 </body>
 </html>
