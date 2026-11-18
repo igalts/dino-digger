@@ -127,14 +127,42 @@
   </div>
 
   <div id="pause" class="overlay" hidden>
-    <div class="panel">
+    <div class="panel pause-panel">
+      <div class="pause-nap" aria-hidden="true"><img id="pauseDino" alt=""><span class="zz">z<i>z</i><b>z</b></span></div>
       <h2>הפסקה</h2>
-      <button id="resumeBtn" class="btn">▶️ ממשיכים</button>
-      <button id="restartBtn" class="btn alt">🔄 מתחילים מחדש</button>
-      <button id="pauseMapBtn" class="btn alt">🗺️ למפה</button>
-      <button id="pauseHomeBtn" class="btn alt">🏠 למסך הראשי</button>
-      <button id="pauseMuteBtn" class="btn alt"></button>
-      <button id="controlBtn" class="btn alt"></button>
+      <button id="resumeBtn" class="btn resume">
+        <svg class="ic" viewBox="0 0 48 48"><path class="fill" d="M15 9 L39 24 L15 39 Z"/></svg>
+        ממשיכים
+      </button>
+      <div class="pause-grid">
+        <button id="restartBtn" class="ptile t-restart">
+          <svg class="ic" viewBox="0 0 48 48"><path class="o" d="M35.3 17.5 A13 13 0 1 0 36.2 28.4"/><path class="i" d="M35.3 17.5 A13 13 0 1 0 36.2 28.4"/><path class="fill" d="M38.6 20 L43 31.5 L30 27.5 Z"/></svg>
+          <span>מחדש</span>
+        </button>
+        <button id="pauseMapBtn" class="ptile t-map">
+          <svg class="ic" viewBox="0 0 48 48"><path class="fill paper" d="M5 12 L17 8 L31 12 L43 8 L43 36 L31 40 L17 36 L5 40 Z"/><path class="line" d="M17 8 V36 M31 12 V40"/><path class="dash" d="M10 33 Q16 22 24 26 T34 19"/><path class="x" d="M33 15 L39 21 M39 15 L33 21"/></svg>
+          <span>מפה</span>
+        </button>
+        <button id="pauseHomeBtn" class="ptile t-home">
+          <svg class="ic" viewBox="0 0 48 48"><path class="fill" d="M6 25 L24 8 L42 25 L37 25 L37 40 L11 40 L11 25 Z"/><rect class="fill door" x="20" y="28" width="8" height="12" rx="3"/></svg>
+          <span>בית</span>
+        </button>
+      </div>
+      <div class="pause-row">
+        <button id="pauseMuteBtn" class="round-toggle" aria-label="צליל">
+          <svg class="ic" viewBox="0 0 48 48"><path class="fill" d="M7 19 H15 L26 10 V38 L15 29 H7 Z"/><g class="on-only"><path class="line" d="M31 18 Q35 24 31 30"/><path class="line" d="M35 13 Q43 24 35 35"/></g><path class="x off-only" d="M32 19 L42 29 M42 19 L32 29"/></svg>
+        </button>
+        <div id="controlSeg" class="seg" role="radiogroup" aria-label="שליטה">
+          <button data-m="pad" role="radio">
+            <svg class="ic" viewBox="0 0 48 48"><path class="fill" d="M18 6 H30 V18 H42 V30 H30 V42 H18 V30 H6 V18 H18 Z"/><circle class="dot" cx="24" cy="24" r="3.5"/></svg>
+            חיצים
+          </button>
+          <button data-m="swipe" role="radio">
+            <svg class="ic" viewBox="0 0 48 48"><path class="o" d="M10 34 Q20 14 36 14"/><path class="i" d="M10 34 Q20 14 36 14"/><path class="fill" d="M34 6 L45 14 L34 22 Z"/><circle class="fill tip" cx="10" cy="35" r="6"/></svg>
+            החלקה
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 

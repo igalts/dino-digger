@@ -1212,14 +1212,16 @@
   const input = { dir: null, id: null, ax: 0, ay: 0, padId: null };
   const gameEl = $('#game');
   const MODES = ['pad', 'swipe'];
-  const MODE_LABEL = { pad: '🎮 שליטה: חיצים', swipe: '👆 שליטה: החלקה' };
   const controlMode = () => (MODES.includes(store.data.controlMode) ? store.data.controlMode : 'pad');
 
   function applyControlMode() {
     const m = controlMode();
     $('#pad').hidden = m !== 'pad';
     $('#hint').hidden = true;
-    $('#controlBtn').textContent = MODE_LABEL[m];
+    for (const b of document.querySelectorAll('#controlSeg button')) {
+      b.classList.toggle('on', b.dataset.m === m);
+      b.setAttribute('aria-checked', b.dataset.m === m);
+    }
     if (screen === 'game') resize();
   }
 
@@ -1522,7 +1524,8 @@
     if (screen !== 'game' || !G || G.state === 'won' || G.state === 'lost') return;
     paused = on;
     $('#pause').hidden = !on;
-    $('#pauseMuteBtn').textContent = store.data.muted ? '🔇 צליל: כבוי' : '🔊 צליל: פועל';
+    $('#pauseMuteBtn').classList.toggle('muted', !!store.data.muted);
+    $('#pauseDino').src = `assets/${G.ch.img}.svg`;
     input.dir = null; padRelease();
   }
 
@@ -1587,13 +1590,15 @@
   $('#pauseMapBtn').addEventListener('click', () => { sfx.tap(); paused = false; hideOverlays(); show('map'); });
   $('#pauseMuteBtn').addEventListener('click', () => {
     store.data.muted = !store.data.muted; store.save(); sfx.tap();
-    $('#pauseMuteBtn').textContent = store.data.muted ? '🔇 צליל: כבוי' : '🔊 צליל: פועל';
+    $('#pauseMuteBtn').classList.toggle('muted', !!store.data.muted);
   });
-  $('#controlBtn').addEventListener('click', () => {
-    store.data.controlMode = MODES[(MODES.indexOf(controlMode()) + 1) % MODES.length];
-    store.save(); sfx.tap();
-    applyControlMode();
-  });
+  for (const b of document.querySelectorAll('#controlSeg button')) {
+    b.addEventListener('click', () => {
+      store.data.controlMode = b.dataset.m;
+      store.save(); sfx.tap();
+      applyControlMode();
+    });
+  }
   $('#pauseHomeBtn').addEventListener('click', () => { sfx.tap(); paused = false; hideOverlays(); show('title'); });
   $('#nextBtn').addEventListener('click', () => {
     sfx.tap();
