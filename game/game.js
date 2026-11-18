@@ -1581,6 +1581,8 @@
   $('#muteBtn').addEventListener('click', () => { store.data.muted = !store.data.muted; store.save(); sfx.init(); sfx.tap(); buildTitle(); });
   $('#pauseBtn').addEventListener('click', () => { sfx.tap(); togglePause(true); });
   $('#resumeBtn').addEventListener('click', () => { sfx.tap(); togglePause(false); });
+  // Tapping outside the pause panel closes it and keeps playing
+  $('#pause').addEventListener('click', (e) => { if (e.target.id === 'pause') { sfx.tap(); togglePause(false); } });
   $('#restartBtn').addEventListener('click', () => { sfx.tap(); startLevel(G.w, G.l); });
   $('#pauseMapBtn').addEventListener('click', () => { sfx.tap(); paused = false; hideOverlays(); show('map'); });
   $('#pauseMuteBtn').addEventListener('click', () => {
