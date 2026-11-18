@@ -41,7 +41,7 @@ window.DinoBlocks = (core) => {
     bomb:   { label: 'בום!' },   // blows up the stones around it
     bolt:   { label: 'ברק!' },   // clears its whole row
     freeze: { label: 'קפוא!' },  // everything slows down for a while
-    shield: { label: 'מגן!' },   // saves you once when the stack reaches the top
+    stomp:  { label: 'רקיעה!' }, // the dino stomps: the two bottom rows are cleared (and count toward the goal)
   };
   const MAGIC_EVERY = 7; // every 7th stone is a magic stone
 
@@ -164,7 +164,7 @@ window.DinoBlocks = (core) => {
       speed: cfg.speed * help, soft: false,
       throwEvery: boss ? BOSSES[w].every / help : cfg.meteors / help,
       throwT: boss ? 5 : cfg.meteors * 0.7, windup: 0, target: null,
-      riseT: cfg.rise, freeze: 0, shield: false,
+      riseT: cfg.rise, freeze: 0, extraRows: null, qAnim: 0,
       cheer: 0, sad: 0, shake: 0, hurt: 0, bump: 0, winT: 0, outfit: { ...store.data.outfit },
     };
     G.readyMax = G.readyT;
@@ -232,6 +232,7 @@ window.DinoBlocks = (core) => {
   function spawn() {
     const p = G.next;
     if (G.after) { G.next = G.after; G.after = takePiece(); } else G.next = takePiece();
+    G.prevNext = p; G.qAnim = Q_ANIM; // the preview animates the stones moving along
     G.holdUsed = false;
     place(p);
   }
@@ -326,7 +327,8 @@ window.DinoBlocks = (core) => {
     sfx.tone(170, 0.08, 'square', 0.045);
     if (over) { topOut(); return; }
     if (magicAt) doMagic(p.magic, magicAt[0], magicAt[1]);
-    checkRows();
+    checkRows(G.extraRows || []);
+    G.extraRows = null;
   }
   function fullRows() {
     const rows = [];
@@ -398,20 +400,15 @@ window.DinoBlocks = (core) => {
     if (G.flown >= G.cfg.goal && G.state === 'play') win();
   }
 
-  // The stack reached the top: the shield saves you, otherwise an egg breaks. Either way the bottom rows crumble away.
+  // The stack reached the top: an egg breaks and the bottom rows crumble away.
   function topOut() {
-    if (G.shield) {
-      G.shield = false;
-      floatText(BX + BW / 2, BY + 80, 'המגן הציל!', '#BDEBFF');
-      sfx.pop();
-    } else {
-      G.lives--;
-      core.buildLives();
-      sfx.hit();
-      G.sad = 1.2; G.shake = 0.4;
-      try { if (navigator.vibrate) navigator.vibrate(180); } catch (e) { /* ignore */ }
-      if (G.lives <= 0) { core.lose(); return; }
-      floatText(BX + BW / 2, BY + 80, 'אוי! ביצה נשברה', '#FF8FA3');    }
+    G.lives--;
+    core.buildLives();
+    sfx.hit();
+    G.sad = 1.2; G.shake = 0.4;
+    try { if (navigator.vibrate) navigator.vibrate(180); } catch (e) { /* ignore */ }
+    if (G.lives <= 0) { core.lose(); return; }
+    floatText(BX + BW / 2, BY + 80, 'אוי! ביצה נשברה', '#FF8FA3');
     for (let y = ROWS - 7; y < ROWS; y++) {
       for (let x = 0; x < COLS; x++) {
         const cell = G.grid[y * COLS + x];
@@ -445,7 +442,13 @@ window.DinoBlocks = (core) => {
       sfx.tone(1400, 0.2, 'sawtooth', 0.05, 0, 300);
     }
     if (type === 'freeze') { G.freeze = 8 * dur; sfx.tone(1200, 0.4, 'sine', 0.06, 0, 600); }
-    if (type === 'shield') { G.shield = true; sfx.power(); }
+    if (type === 'stomp') {
+      // The dino stomps: the two bottom rows (if they have stones) clear like full rows and count toward the goal.
+      G.extraRows = [ROWS - 1, ROWS - 2].filter((yy) => G.grid.slice(yy * COLS, yy * COLS + COLS).some(Boolean));
+      G.shake = 0.45; G.cheer = 1;
+      sfx.tone(70, 0.3, 'square', 0.1, 0, 45); sfx.tone(90, 0.3, 'sawtooth', 0.06, 0.12, 50);
+      try { if (navigator.vibrate) navigator.vibrate([40, 60, 40]); } catch (e) { /* ignore */ }
+    }
     floatText(px, py - 22, MAGIC[type].label, '#FFFFFF');
     burst(px, py, ['#FFD23F', '#4FC3F7', '#FFFFFF'], 10);  }
 
@@ -498,7 +501,7 @@ window.DinoBlocks = (core) => {
   function update(dt) {
     G.t += dt;
     updateParticles(dt);
-    for (const k of ['shake', 'cheer', 'sad', 'hurt', 'bump', 'bumpGoal']) if (G[k] > 0) G[k] -= dt;
+    for (const k of ['shake', 'cheer', 'sad', 'hurt', 'bump', 'bumpGoal', 'qAnim']) if (G[k] > 0) G[k] -= dt;
     for (const tr of G.trails) tr.t -= dt;
     G.trails = G.trails.filter((tr) => tr.t > 0);
     if (G.flashes) { for (const f of G.flashes) { f.t -= dt; f.r += dt * 260; } G.flashes = G.flashes.filter((f) => f.t > 0); }
@@ -725,9 +728,13 @@ window.DinoBlocks = (core) => {
       c.strokeStyle = '#4FC3F7'; c.lineWidth = 2.6; c.beginPath();
       for (let i = 0; i < 3; i++) { const a = i * Math.PI / 3; c.moveTo(Math.cos(a) * -10, Math.sin(a) * -10); c.lineTo(Math.cos(a) * 10, Math.sin(a) * 10); }
       c.stroke();
-    } else if (type === 'shield') {
-      c.fillStyle = '#7EC8FF'; c.beginPath();
-      c.moveTo(0, -11); c.lineTo(9, -7); c.quadraticCurveTo(9, 6, 0, 11); c.quadraticCurveTo(-9, 6, -9, -7); c.closePath(); c.fill(); c.stroke();
+    } else if (type === 'stomp') {
+      // a dino footprint: three toes and a heel
+      c.fillStyle = '#FF9F1C';
+      for (const [tx, ty, a] of [[-7, -6, -0.5], [0, -9, 0], [7, -6, 0.5]]) {
+        c.beginPath(); c.ellipse(tx, ty, 2.8, 5, a, 0, Math.PI * 2); c.fill(); c.stroke();
+      }
+      c.beginPath(); c.ellipse(0, 5, 7, 6.5, 0, 0, Math.PI * 2); c.fill(); c.stroke();
     }
     c.restore();
   }
@@ -890,10 +897,6 @@ window.DinoBlocks = (core) => {
     c.translate(-pw / 2, -ph);
     core.drawDino(c, ch, G.outfit, pw, ph, G.t, sprite(ch.img, pw, ph));
     c.restore();
-    if (G.shield) {
-      c.strokeStyle = 'rgba(126,200,255,0.95)'; c.lineWidth = 3;
-      c.beginPath(); c.arc(PAD + 46, TOP - 12 - ph * 0.45, 40 + Math.sin(G.t * 5) * 2, 0, Math.PI * 2); c.stroke();
-    }
   }
   // A small stone centred on (cx, cy).
   function drawMini(c, p, cx, cy, size, alpha = 1) {
@@ -912,6 +915,8 @@ window.DinoBlocks = (core) => {
     c.fillStyle = INK; c.fillText(label, cx, cy - h / 2 + 11);
   }
   const HOLD_BOX = { cx: 114, cy: TOP / 2 - 2, w: 50, h: 72 };
+  const Q_ANIM = 0.4; // seconds for the "next" stones to move along
+  const queueK = () => clamp(1 - G.qAnim / Q_ANIM, 0, 1);
   function drawNext(c) {
     const cy = TOP / 2 - 2;
     if (G.perk === 'stegi') {
@@ -922,8 +927,15 @@ window.DinoBlocks = (core) => {
       const x1 = cx + 26, x2 = cx - 32;
       c.strokeStyle = 'rgba(43,27,61,.25)'; c.lineWidth = 2; c.setLineDash([3, 4]);
       c.beginPath(); c.moveTo(cx - 6, cy - 28); c.lineTo(cx - 6, cy + 30); c.stroke(); c.setLineDash([]);
-      if (G.next) drawMini(c, G.next, x1, cy + 10, 15);
-      if (G.after) drawMini(c, G.after, x2, cy + 12, 10, 0.6);
+      // When a stone drops in: stone 1 slides down out of the box, stone 2 glides over and grows into
+      // place 1, and a new stone fades in at place 2.
+      const k = queueK(), e = k * k * (3 - 2 * k), f = clamp((k - 0.35) / 0.65, 0, 1);
+      c.save();
+      rr(c, cx - w / 2 + 2, cy - 34, w - 4, 68, 14); c.clip();
+      if (k < 1 && G.prevNext) drawMini(c, G.prevNext, x1, cy + 10 + 46 * e, 15, 1 - e);
+      if (G.next) drawMini(c, G.next, x2 + (x1 - x2) * e, cy + 12 - 2 * e, 10 + 5 * e, 0.6 + 0.4 * e);
+      if (G.after) drawMini(c, G.after, x2, cy + 12, Math.max(1, 10 * f), 0.6 * f);
+      c.restore();
       for (const [x, n, big] of [[x1, '1', true], [x2, '2', false]]) {
         const bx = x, by = cy - 21, rad = big ? 10 : 8;
         c.beginPath(); c.arc(bx, by, rad, 0, Math.PI * 2);
@@ -935,7 +947,8 @@ window.DinoBlocks = (core) => {
     }
     const cx = G.perk === 'petra' ? 190 : VW / 2 - 4;
     box(c, cx, cy, 96, 72, 'הבא');
-    if (G.next) drawMini(c, G.next, cx, cy + 8, 16);
+    const k = queueK(), e = 1 - (1 - k) ** 3;
+    if (G.next) drawMini(c, G.next, cx, cy + 8, Math.max(1, 16 * e), e);
     if (G.perk === 'petra') {
       // Petra's pocket: tap it (or Petra) to put the falling stone aside and take it back later.
       const H = HOLD_BOX, ready = !G.holdUsed && G.state === 'play';
