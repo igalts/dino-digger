@@ -234,8 +234,7 @@ window.DinoBlocks = (core) => {
   const fits = (p, x, y, cells = p.cells) => cells.every(([cx, cy]) => !cellAt(x + cx, y + cy));
   function spawn() {
     const p = G.next;
-    if (G.pending) { G.next = G.pending; G.pending = null; } // a stone that waited while Petra's stone went first
-    else if (G.after) { G.next = G.after; G.after = takePiece(); } else G.next = takePiece();
+    if (G.after) { G.next = G.after; G.after = takePiece(); } else G.next = takePiece();
     G.prevNext = p; G.qAnim = Q_ANIM; // the preview animates the stones moving along
     G.holdUsed = false;
     place(p);
@@ -250,18 +249,26 @@ window.DinoBlocks = (core) => {
     G.piece = p;
   }
   // Petra's pocket. Empty: she flies off with the falling stone and keeps it (once per stone).
-  // Full: the kept stone comes next (after the one falling now), and the pocket is empty again.
+  // Full: the kept stone swaps in right where the falling stone is, in the air; that stone goes away and the pocket is empty again.
   function hold() {
     const p = G.piece;
-    if (G.perk !== 'petra' || G.state !== 'play') return;
+    if (G.perk !== 'petra' || G.state !== 'play' || !p || G.slam) return;
     if (G.hold) {
-      if (G.pending) return; // already called one out; wait until it comes
-      G.pending = G.next; G.next = G.hold; G.hold = null;
-      G.qAnim = Q_ANIM;
-      sfx.tone(560, 0.08, 'triangle', 0.06, 0, 900);
-      return;
+      const h = G.hold;
+      // Same spot, centred on the old stone; nudge sideways or up if it doesn't fit there.
+      const x0 = p.x + Math.round((p.n - h.n) / 2);
+      for (const [kx, ky] of [[0, 0], [-1, 0], [1, 0], [0, -1], [-2, 0], [2, 0], [0, -2]]) {
+        if (fits(h, x0 + kx, p.y + ky)) {
+          h.x = x0 + kx; h.y = p.y + ky; h.rx = h.x; h.ry = p.ry + ky;
+          G.piece = h; G.hold = null; G.fall = 0; G.lockT = 0; G.lockMoves = 0;
+          burst(BX + (p.rx + p.n / 2) * CS, BY + (p.ry + p.n / 2) * CS, ['#FF8FA3', '#FFFFFF'], 10);
+          sfx.tone(560, 0.08, 'triangle', 0.06, 0, 900);
+          return;
+        }
+      }
+      return; // no room right now
     }
-    if (!p || G.slam || G.holdUsed) return;
+    if (G.holdUsed) return;
     p.cells = SHAPES[p.t].cells.map((c) => [...c]); // back to how it started
     G.hold = p;
     spawn();
@@ -986,8 +993,8 @@ window.DinoBlocks = (core) => {
     if (G.next) drawMini(c, G.next, cx, cy + 8, Math.max(1, 16 * e), e);
     const H = HOLD_BOX;
     if (G.perk === 'petra') {
-      // Petra's pocket: tap it (or Petra) to keep the falling stone; tap again to call it back as the next stone.
-      const ready = G.state === 'play' && (G.hold ? !G.pending : !G.holdUsed);
+      // Petra's pocket: tap it (or Petra) to keep the falling stone; tap again to swap it in for the falling stone.
+      const ready = G.state === 'play' && (G.hold ? true : !G.holdUsed);
       box(c, H.cx, H.cy, H.w, H.h, G.hold ? 'הוצא' : 'שמור', ready && Math.sin(G.t * 4) > 0.6);
       if (G.hold) drawMini(c, G.hold, H.cx, H.cy + 8, 9);
       else { c.font = '700 22px Fredoka, sans-serif'; c.fillStyle = 'rgba(43,27,61,.35)'; c.fillText('+', H.cx, H.cy + 9); }
