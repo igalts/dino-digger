@@ -1,0 +1,390 @@
+"""Art for the blocks game (דינו בלוקים): five new worlds, each with a map (bmap-N, 360x780),
+a level background (bbg-N, 360x640) and a boss (bboss-N), plus the blocks title background (btitle-bg).
+
+Keep NODES / PRIZE in sync with B_MAP_LAYOUTS in game/game.js.
+Run:  py -I tools/make_blocks_art.py
+"""
+import math
+import os
+import random
+import re
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import make_scenes as ms  # noqa: E402
+import make_maps as mm  # noqa: E402
+
+OUT = ms.OUT
+INK = ms.INK
+W, H = 360, 780
+
+LAYOUTS = [
+    # crystal cave: up through the cave in a zig-zag
+    dict(nodes=[(180, 650), (85, 540), (255, 450), (105, 335), (235, 225)], prize=(100, 118), entry=[(180, 830), (180, 745)]),
+    # candy land: a swirly road
+    dict(nodes=[(80, 640), (270, 585), (150, 470), (280, 335), (95, 255)], prize=(255, 118), entry=[(-40, 700), (10, 672)]),
+    # under the sea: down in the deep, up to the light
+    dict(nodes=[(265, 660), (95, 585), (205, 455), (80, 335), (255, 240)], prize=(110, 118), entry=[(330, 830), (300, 742)]),
+    # desert: past the pyramids
+    dict(nodes=[(100, 652), (255, 560), (105, 440), (262, 330), (150, 215)], prize=(275, 112), entry=[(40, 830), (60, 742)]),
+    # space: hopping between planets
+    dict(nodes=[(180, 662), (292, 520), (160, 420), (62, 300), (222, 210)], prize=(292, 112), entry=[(180, 830), (180, 752)]),
+]
+
+
+# ---------------------------------------------------------------- props
+def crystal(x, gy, s=1.0, c="#B07CE8", light="#E3D6FF"):
+    g = (f'<path d="M-14 0 L-18 -40 L-6 -62 L6 -40 L2 0 Z" fill="{c}"/>'
+         f'<path d="M0 0 L4 -54 L18 -86 L30 -54 L24 0 Z" fill="{c}"/>'
+         f'<path d="M20 0 L26 -30 L36 -44 L44 -28 L40 0 Z" fill="{c}"/>'
+         f'<path d="M8 -50 L17 -78 L20 -52 Z" fill="{light}" stroke="none"/>'
+         f'<path d="M-12 -36 L-6 -54 L-4 -38 Z" fill="{light}" stroke="none"/>')
+    return f'<g transform="translate({x} {gy}) scale({s})" stroke-width="{4 / s:.1f}">{g}</g>'
+
+
+def glow(x, y, r, c):
+    return f'<circle cx="{x}" cy="{y}" r="{r}" fill="{c}" opacity="0.22" stroke="none"/>'
+
+
+def stalactites(color, seed, y=0, n=9, maxh=90):
+    rnd = random.Random(seed)
+    out = ""
+    for i in range(n):
+        x = i * (W / (n - 1)) + rnd.uniform(-12, 12)
+        h = rnd.uniform(maxh * 0.4, maxh)
+        w = rnd.uniform(16, 30)
+        out += f'<path d="M{x - w:.0f} {y - 10} L{x + w:.0f} {y - 10} L{x:.0f} {y + h:.0f} Z" fill="{color}"/>'
+    return out
+
+
+def lollipop(x, gy, s=1.0, c="#FF6FA8"):
+    g = (f'<path d="M0 0 L0 -70" fill="none" stroke="#FFFFFF" stroke-width="9"/>'
+         f'<path d="M0 0 L0 -70" fill="none" stroke="{INK}" stroke-width="3" opacity=".25"/>'
+         f'<circle cx="0" cy="-92" r="28" fill="{c}"/>'
+         f'<path d="M0 -92 m-18 0 a18 18 0 1 1 18 18 a12 12 0 1 1 -12 -12 a6 6 0 1 1 6 6" fill="none" stroke="#FFFFFF" stroke-width="5"/>')
+    return f'<g transform="translate({x} {gy}) scale({s})" stroke-width="{5 / s:.1f}">{g}</g>'
+
+
+def candycane(x, gy, s=1.0, flip=False):
+    d = "M0 0 L0 -70 Q0 -96 22 -96 Q44 -96 44 -74"
+    g = (f'<path d="{d}" fill="none" stroke="{INK}" stroke-width="20"/>'
+         f'<path d="{d}" fill="none" stroke="#FFFFFF" stroke-width="12"/>'
+         f'<path d="{d}" fill="none" stroke="#FF4F6E" stroke-width="12" stroke-dasharray="9 9"/>')
+    sx = -s if flip else s
+    return f'<g transform="translate({x} {gy}) scale({sx} {s})">{g}</g>'
+
+
+def cupcake(x, gy, s=1.0, frost="#FFC2DD", cup="#8FD3FF"):
+    g = (f'<path d="M-30 -40 L30 -40 L22 0 L-22 0 Z" fill="{cup}"/>'
+         '<path d="M-14 -38 L-11 -2 M0 -38 L0 -2 M14 -38 L11 -2" fill="none" stroke-width="3" opacity=".4"/>'
+         f'<path d="M-36 -40 Q-40 -62 -18 -64 Q-14 -86 6 -80 Q26 -88 30 -64 Q46 -60 36 -40 Z" fill="{frost}"/>'
+         '<circle cx="2" cy="-86" r="8" fill="#FF4F6E" stroke-width="3"/>'
+         '<path d="M-20 -52 L-16 -50 M8 -58 L12 -60 M20 -48 L24 -46 M-6 -66 L-4 -62" fill="none" stroke="#FFD23F" stroke-width="3"/>')
+    return f'<g transform="translate({x} {gy}) scale({s})" stroke-width="{4 / s:.1f}">{g}</g>'
+
+
+def gumdrops(points):
+    cols = ("#FF6FA8", "#7EE0C3", "#FFD23F", "#B07CE8", "#FF9F1C")
+    return "".join(f'<path d="M{x - 12} {y} Q{x - 12} {y - 22} {x} {y - 22} Q{x + 12} {y - 22} {x + 12} {y} Z" fill="{cols[i % 5]}" stroke-width="3.5"/>'
+                   f'<circle cx="{x - 4}" cy="{y - 14}" r="2.5" fill="#FFFFFF" stroke="none"/>' for i, (x, y) in enumerate(points))
+
+
+def seaweed(x, gy, h=120, c="#3FBF7F", seed=1):
+    rnd = random.Random(seed)
+    d = f"M{x} {gy}"
+    for k in range(1, 6):
+        d += f" Q{x + rnd.uniform(-22, 22):.0f} {gy - h * (k - .5) / 5:.0f} {x + rnd.uniform(-6, 6):.0f} {gy - h * k / 5:.0f}"
+    return (f'<path d="{d}" fill="none" stroke="{INK}" stroke-width="14"/>'
+            f'<path d="{d}" fill="none" stroke="{c}" stroke-width="8"/>')
+
+
+def coral(x, gy, s=1.0, c="#FF7F7F"):
+    g = (f'<path d="M0 0 L0 -40 M0 -26 Q-22 -30 -24 -56 M0 -34 Q20 -40 22 -66 M-24 -56 L-30 -70 M22 -66 L30 -78 M-14 -40 L-14 -60" '
+         f'fill="none" stroke="{INK}" stroke-width="15"/>'
+         f'<path d="M0 0 L0 -40 M0 -26 Q-22 -30 -24 -56 M0 -34 Q20 -40 22 -66 M-24 -56 L-30 -70 M22 -66 L30 -78 M-14 -40 L-14 -60" '
+         f'fill="none" stroke="{c}" stroke-width="9"/>')
+    return f'<g transform="translate({x} {gy}) scale({s})">{g}</g>'
+
+
+def bubbles(seed, n=16, ymax=760):
+    rnd = random.Random(seed)
+    out = ""
+    for _ in range(n):
+        x, y, r = rnd.uniform(10, 350), rnd.uniform(20, ymax), rnd.uniform(4, 11)
+        out += (f'<circle cx="{x:.0f}" cy="{y:.0f}" r="{r:.1f}" fill="#FFFFFF" fill-opacity=".18" stroke="#FFFFFF" stroke-width="2.5"/>'
+                f'<circle cx="{x - r * .35:.1f}" cy="{y - r * .35:.1f}" r="{r * .25:.1f}" fill="#FFFFFF" stroke="none"/>')
+    return out
+
+
+def chest(x, gy, s=1.0):
+    g = ('<rect x="-30" y="-34" width="60" height="34" rx="4" fill="#B57745"/>'
+         '<path d="M-30 -34 Q-30 -56 0 -56 Q30 -56 30 -34 Z" fill="#C98A52"/>'
+         '<rect x="-30" y="-38" width="60" height="8" fill="#FFD23F" stroke-width="3"/>'
+         '<rect x="-6" y="-42" width="12" height="16" rx="3" fill="#FFD23F" stroke-width="3"/>'
+         '<circle cx="-18" cy="-60" r="6" fill="#FFD23F" stroke-width="3"/><circle cx="14" cy="-62" r="5" fill="#7EE0C3" stroke-width="3"/>')
+    return f'<g transform="translate({x} {gy}) scale({s})" stroke-width="{4 / s:.1f}">{g}</g>'
+
+
+def jelly(x, y, s=1.0, c="#FF9EC0"):
+    g = (f'<path d="M-20 0 Q-20 -26 0 -26 Q20 -26 20 0 Z" fill="{c}"/>'
+         f'<path d="M-14 0 Q-18 14 -12 26 M-4 0 Q-8 16 -2 30 M6 0 Q2 14 8 26 M14 0 Q12 12 18 22" fill="none" stroke="{c}" stroke-width="4"/>'
+         '<circle cx="-7" cy="-12" r="2.5" fill="#2B1B3D" stroke="none"/><circle cx="7" cy="-12" r="2.5" fill="#2B1B3D" stroke="none"/>')
+    return f'<g transform="translate({x} {y}) scale({s})" stroke-width="{4 / s:.1f}">{g}</g>'
+
+
+def pyramid(x, gy, w=160, h=110, c="#F2B45C", shade="#D9923A"):
+    return (f'<path d="M{x - w / 2} {gy} L{x} {gy - h} L{x + w / 2} {gy} Z" fill="{c}"/>'
+            f'<path d="M{x} {gy - h} L{x + w / 2} {gy} L{x + w * .12:.0f} {gy} Z" fill="{shade}" stroke="none"/>'
+            f'<path d="M{x - w * .32:.0f} {gy - h * .36:.0f} L{x + w * .32:.0f} {gy - h * .36:.0f} M{x - w * .16:.0f} {gy - h * .68:.0f} L{x + w * .16:.0f} {gy - h * .68:.0f}" '
+            'fill="none" stroke-width="3" opacity=".35"/>'
+            f'<path d="M{x - w / 2} {gy} L{x} {gy - h} L{x + w / 2} {gy} Z" fill="none"/>')
+
+
+def cactus(x, gy, s=1.0, c="#5CCB5F"):
+    g = (f'<path d="M-9 0 L-9 -70 Q-9 -82 0 -82 Q9 -82 9 -70 L9 0 Z" fill="{c}"/>'
+         f'<path d="M-9 -36 L-22 -36 Q-30 -36 -30 -46 L-30 -60 Q-30 -66 -24 -66 Q-18 -66 -18 -60 L-18 -46 L-9 -46" fill="{c}"/>'
+         f'<path d="M9 -48 L20 -48 Q28 -48 28 -58 L28 -66 Q28 -72 22 -72 Q16 -72 16 -66 L16 -58 L9 -58" fill="{c}"/>'
+         '<circle cx="0" cy="-86" r="5" fill="#FF6FA8" stroke-width="3"/>')
+    return f'<g transform="translate({x} {gy}) scale({s})" stroke-width="{4 / s:.1f}">{g}</g>'
+
+
+def dune(y, color, seed, amp=30):
+    return mm.layer(y, color, seed, amp)
+
+
+def planet(x, y, r, c, ring=None, spots=None):
+    out = ""
+    if ring:
+        out += f'<ellipse cx="{x}" cy="{y}" rx="{r * 1.7:.0f}" ry="{r * .45:.0f}" fill="none" stroke="{INK}" stroke-width="11" transform="rotate(-18 {x} {y})"/>'
+        out += f'<ellipse cx="{x}" cy="{y}" rx="{r * 1.7:.0f}" ry="{r * .45:.0f}" fill="none" stroke="{ring}" stroke-width="5" transform="rotate(-18 {x} {y})"/>'
+    out += f'<circle cx="{x}" cy="{y}" r="{r}" fill="{c}"/>'
+    if spots:
+        out += "".join(f'<circle cx="{x + dx * r:.0f}" cy="{y + dy * r:.0f}" r="{rr * r:.0f}" fill="{spots}" stroke="none"/>'
+                       for dx, dy, rr in ((-.35, -.2, .22), (.3, .25, .16), (.1, -.5, .1)))
+    if ring:  # front half of the ring over the planet
+        out += (f'<path d="M{x - r * 1.7:.0f} {y} A{r * 1.7:.0f} {r * .45:.0f} 0 0 0 {x + r * 1.7:.0f} {y}" fill="none" stroke="{INK}" stroke-width="11" transform="rotate(-18 {x} {y})"/>'
+                f'<path d="M{x - r * 1.7:.0f} {y} A{r * 1.7:.0f} {r * .45:.0f} 0 0 0 {x + r * 1.7:.0f} {y}" fill="none" stroke="{ring}" stroke-width="5" transform="rotate(-18 {x} {y})"/>')
+    return out
+
+
+def rocket(x, y, s=1.0, a=20):
+    g = ('<path d="M0 -50 Q18 -30 16 10 L-16 10 Q-18 -30 0 -50 Z" fill="#FFFFFF"/>'
+         '<circle cx="0" cy="-16" r="8" fill="#4FC3F7" stroke-width="4"/>'
+         '<path d="M-16 0 L-28 18 L-14 14 Z M16 0 L28 18 L14 14 Z" fill="#FF6B7A"/>'
+         '<path d="M-10 12 Q0 40 10 12 Z" fill="#FFD23F"/><path d="M-5 12 Q0 26 5 12 Z" fill="#FF9F1C" stroke="none"/>')
+    return f'<g transform="translate({x} {y}) rotate({a}) scale({s})" stroke-width="{4 / s:.1f}">{g}</g>'
+
+
+def ufo(x, y, s=1.0):
+    g = ('<ellipse cx="0" cy="-8" rx="16" ry="14" fill="#BDEBFF"/>'
+         '<ellipse cx="0" cy="0" rx="38" ry="12" fill="#B07CE8"/>'
+         '<circle cx="-20" cy="0" r="3.5" fill="#FFD23F" stroke="none"/><circle cx="0" cy="3" r="3.5" fill="#FFD23F" stroke="none"/><circle cx="20" cy="0" r="3.5" fill="#FFD23F" stroke="none"/>')
+    return f'<g transform="translate({x} {y}) scale({s})" stroke-width="{4 / s:.1f}">{g}</g>'
+
+
+def craters(points, c="#8E84B8"):
+    return "".join(f'<ellipse cx="{x}" cy="{y}" rx="{r}" ry="{r * .45:.1f}" fill="{c}" stroke-width="3.5"/>' for x, y, r in points)
+
+
+def road_paved(L, color, edge, dash):
+    return mm.road(L, color, edge, dash)
+
+
+# ---------------------------------------------------------------- maps
+def wrap(body, sky):
+    return mm.wrap(body, sky)
+
+
+def map_crystal():
+    L = LAYOUTS[0]
+    body = (stalactites("#4A3A7E", 1, 0, 9, 110) +
+            mm.layer(260, "#5B4A9E", 101, 26) + mm.layer(420, "#4E4092", 102, 30) + mm.layer(580, "#433788", 103, 24) +
+            mm.layer(700, "#3A2E7A", 104, 18) +
+            glow(60, 380, 60, "#7EE0FF") + glow(300, 560, 70, "#E08CFF") + glow(300, 250, 50, "#7EE0C3") +
+            crystal(40, 420, 1.0, "#7EE0FF", "#E6FBFF") + crystal(300, 600, 1.1, "#E08CFF", "#FBE3FF") +
+            crystal(320, 300, 0.8, "#7EE0C3", "#E3FFF5") + crystal(30, 760, 1.2, "#B07CE8") + crystal(310, 770, 0.9, "#7EE0FF", "#E6FBFF") +
+            crystal(175, 170, 0.7, "#FFD23F", "#FFF6C9") +
+            road_paved(L, "#8E7FD0", "#6E5FB8", "#E3D6FF") +
+            crystal(200, 560, 0.5, "#FF8FC8", "#FFE3F0") + crystal(40, 610, 0.55, "#7EE0C3", "#E3FFF5") +
+            ms.mushroom(330, 420, 0.7, "#39C1B5", "#C9F2EE", glow="#5CF2E0") + ms.mushroom(30, 280, 0.6, "#A884E8", "#E3D6FF", glow="#C9A8FF") +
+            "".join(ms.firefly(x, y) for x, y in ((140, 300), (330, 680), (50, 520), (240, 760), (300, 160))))
+    return wrap(body, ("#2A1F5C", "#4A3A8E"))
+
+
+def map_candy():
+    L = LAYOUTS[1]
+    river = ('<path d="M-10 410 Q90 380 180 404 Q270 430 370 396 L370 440 Q270 474 180 448 Q90 424 -10 454 Z" fill="#8B5A3C"/>'
+             '<path d="M40 420 q10 -6 20 0 M230 438 q10 -6 20 0" fill="none" stroke="#C98A52" stroke-width="4"/>')
+    body = (ms.cloud(40, 110, 0.7, "#FFF0F7") + ms.cloud(250, 70, 0.6, "#FFF0F7") +
+            mm.layer(220, "#FFD6EC", 201, 30) + mm.layer(330, "#FFC2DD", 202, 26) + river +
+            mm.layer(470, "#FFB0D2", 203, 30) + mm.layer(610, "#FF9EC7", 204, 26) + mm.layer(710, "#FF8FBF", 205, 18) +
+            road_paved(L, "#FFFFFF", "#FFC2DD", "#FF4F6E") +
+            lollipop(320, 470, 0.8) + lollipop(30, 360, 0.7, "#7EE0C3") + lollipop(205, 330, 0.55, "#FFD23F") +
+            candycane(320, 760, 0.9) + candycane(20, 600, 0.7, flip=True) +
+            cupcake(200, 600, 0.7) + cupcake(330, 230, 0.6, "#FFFFFF", "#FF9EC0") + cupcake(30, 780, 0.8, "#FFF0A8", "#B07CE8") +
+            gumdrops([(130, 700), (260, 690), (60, 520), (330, 640), (170, 380), (40, 230)]))
+    return wrap(body, ("#FF9EC7", "#FFE3F0"))
+
+
+def map_sea():
+    L = LAYOUTS[2]
+    rays = "".join(f'<path d="M{x} -10 L{x + 40} -10 L{x + 120} 600 L{x + 60} 600 Z" fill="#FFFFFF" opacity=".07" stroke="none"/>' for x in (20, 140, 260))
+    sand = '<path d="M-10 790 L-10 720 Q90 690 180 712 Q270 734 370 700 L370 790 Z" fill="#F2D49B"/>'
+    body = (rays + bubbles(301, 24) +
+            ms.fish(300, 170, "#FFD23F", flip=True, s=0.8) + ms.fish(50, 250, "#FF8FA3", s=0.7) + ms.fish(170, 380, "#7EE0C3", flip=True, s=0.6) +
+            jelly(320, 360, 0.9) + jelly(40, 470, 0.7, "#C9A8FF") +
+            sand +
+            seaweed(20, 740, 220, seed=1) + seaweed(340, 720, 260, seed=2) + seaweed(160, 760, 120, "#5CCB5F", seed=3) +
+            coral(300, 740, 1.0) + coral(60, 740, 0.8, "#FFB13B") + chest(200, 760, 0.8) +
+            mm.boardwalk(L) +
+            ms.starfish(120, 770, 10) + ms.shell(260, 772, 0.8) + ms.plesio(300, 560, 0.35, "#39C1B5", "#2A7FC0"))
+    return wrap(body, ("#4FC3F7", "#164A9E"))
+
+
+def map_desert():
+    L = LAYOUTS[3]
+    body = (ms.sun(300, 70, 30) +
+            pyramid(90, 300, 200, 140) + pyramid(230, 300, 140, 100, "#F7C76E", "#DDA14A") + pyramid(320, 300, 90, 64) +
+            dune(300, "#F7D38A", 401, 24) + dune(440, "#F2C36E", 402, 30) + dune(580, "#ECB45C", 403, 26) + dune(700, "#E5A64E", 404, 18) +
+            road_paved(L, "#FFF0C8", "#D9B270", "#C98A52") +
+            cactus(330, 470, 0.8) + cactus(30, 380, 0.7) + cactus(310, 760, 1.0) + cactus(40, 600, 0.6) + cactus(200, 420, 0.5) +
+            ms.rock(330, 640, 50, 30, "#C9A07A") + ms.rock(40, 740, 44, 26, "#C9A07A") +
+            '<path d="M180 640 Q200 620 220 640" fill="none" stroke-width="4"/>' +
+            ms.fly("petra", 120, 160, 0.26, colors=ms.PETRA_ORANGE))
+    return wrap(body, ("#FFB86B", "#FFE9B8"))
+
+
+def map_space():
+    L = LAYOUTS[4]
+    moon_ground = ('<path d="M-10 790 L-10 730 Q90 700 180 720 Q270 740 370 708 L370 790 Z" fill="#B8AEDB"/>' +
+                   craters([(60, 760, 22), (200, 752, 16), (300, 770, 20)]))
+    body = (ms.stars(80, 501, 760) +
+            planet(70, 170, 34, "#FF9F1C", ring="#FFD23F", spots="#E07F00") + planet(310, 340, 26, "#7EE0C3", spots="#39C1B5") +
+            planet(40, 520, 22, "#FF8FC8", spots="#E8557A") + planet(330, 640, 18, "#5B8DEF", ring="#BDEBFF") +
+            ms.shooting_star(300, 60, 70) + rocket(330, 220, 0.7, 25) + ufo(200, 120, 0.7) +
+            moon_ground +
+            mm.road(L, "#5B4E8E", "#3E3470", "#FFF27A"))
+    return wrap(body, ("#0E0A2E", "#3A2E7A"))
+
+
+# ---------------------------------------------------------------- level backgrounds (behind the board, 360x640)
+BW, BH = 360, 640
+
+
+def bg(body, sky):
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {BW} {BH}" width="{BW}" height="{BH}">'
+            f'<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{sky[0]}"/>'
+            f'<stop offset="1" stop-color="{sky[1]}"/></linearGradient>{ms.DEFS}</defs>'
+            f'<rect width="{BW}" height="{BH}" fill="url(#sky)"/>'
+            f'<g stroke="{INK}" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">{body}</g></svg>')
+
+
+def low_layer(y, color, seed, amp=26):
+    rnd = random.Random(seed)
+    a, b, c, e = (rnd.uniform(-amp, amp) for _ in range(4))
+    return (f'<path d="M-10 {y + a:.0f} Q80 {y - amp + b:.0f} 170 {y + c / 2:.0f} Q270 {y + amp + e:.0f} 370 {y - a / 2:.0f} '
+            f'L370 {BH + 10} L-10 {BH + 10} Z" fill="{color}"/>')
+
+
+def bg_crystal():
+    return bg(stalactites("#4A3A7E", 11, 0, 8, 120) + glow(80, 300, 80, "#7EE0FF") + glow(290, 420, 90, "#E08CFF") +
+              low_layer(470, "#4E4092", 111) + low_layer(560, "#3A2E7A", 112, 18) +
+              crystal(40, 520, 1.3, "#7EE0FF", "#E6FBFF") + crystal(290, 560, 1.5, "#E08CFF", "#FBE3FF") +
+              crystal(180, 610, 0.9, "#7EE0C3", "#E3FFF5") + crystal(320, 250, 0.7, "#FFD23F", "#FFF6C9") +
+              "".join(ms.firefly(x, y) for x, y in ((120, 200), (250, 160), (60, 420), (300, 330))), ("#2A1F5C", "#4A3A8E"))
+
+
+def bg_candy():
+    return bg(ms.cloud(40, 90, 0.8, "#FFF0F7") + ms.cloud(240, 150, 0.7, "#FFF0F7") +
+              low_layer(400, "#FFC2DD", 211) + low_layer(500, "#FFB0D2", 212) + low_layer(580, "#FF9EC7", 213, 18) +
+              lollipop(60, 470, 1.0) + lollipop(300, 520, 1.1, "#7EE0C3") + candycane(190, 560, 0.9) +
+              cupcake(110, 630, 1.0) + cupcake(280, 640, 0.9, "#FFFFFF", "#B07CE8") +
+              gumdrops([(30, 610), (220, 620), (340, 600), (170, 500)]), ("#FF9EC7", "#FFE3F0"))
+
+
+def bg_sea():
+    rays = "".join(f'<path d="M{x} -10 L{x + 40} -10 L{x + 130} 640 L{x + 70} 640 Z" fill="#FFFFFF" opacity=".08" stroke="none"/>' for x in (10, 150, 270))
+    return bg(rays + bubbles(311, 20, 600) + ms.fish(280, 140, "#FFD23F", flip=True, s=0.9) + ms.fish(60, 260, "#FF8FA3", s=0.8) +
+              jelly(300, 330, 1.0) +
+              '<path d="M-10 650 L-10 570 Q90 540 180 562 Q270 584 370 550 L370 650 Z" fill="#F2D49B"/>' +
+              seaweed(25, 620, 260, seed=11) + seaweed(335, 600, 300, seed=12) + seaweed(130, 630, 150, "#5CCB5F", seed=13) +
+              coral(240, 610, 1.1) + coral(80, 620, 0.9, "#FFB13B") + chest(180, 640, 0.9) + ms.starfish(300, 625, 11),
+              ("#4FC3F7", "#164A9E"))
+
+
+def bg_desert():
+    return bg(ms.sun(290, 80, 34) + pyramid(100, 400, 230, 160) + pyramid(260, 400, 160, 110, "#F7C76E", "#DDA14A") +
+              low_layer(400, "#F7D38A", 411) + low_layer(490, "#F2C36E", 412) + low_layer(580, "#ECB45C", 413, 18) +
+              cactus(40, 560, 1.0) + cactus(320, 610, 1.2) + cactus(180, 630, 0.7) + ms.rock(260, 530, 50, 30, "#C9A07A"),
+              ("#FFB86B", "#FFE9B8"))
+
+
+def bg_space():
+    return bg(ms.stars(70, 511, 600) + planet(80, 140, 40, "#FF9F1C", ring="#FFD23F", spots="#E07F00") +
+              planet(300, 300, 28, "#7EE0C3", spots="#39C1B5") + ms.shooting_star(260, 70, 80) + ufo(220, 200, 0.8) +
+              rocket(60, 380, 0.8, -20) +
+              '<path d="M-10 650 L-10 560 Q90 530 180 552 Q270 574 370 540 L370 650 Z" fill="#B8AEDB"/>' +
+              craters([(70, 600, 26), (220, 590, 18), (310, 620, 22)]), ("#0E0A2E", "#3A2E7A"))
+
+
+def btitle_bg():
+    """The blocks game's start screen: a crystal-and-candy landscape with stacked blocks and planets."""
+    blocks = ""
+    cols = ("#4FC3F7", "#FFD23F", "#B07CE8", "#FF9F1C", "#5B8DEF", "#5CCB5F", "#FF6B7A")
+    rnd = random.Random(7)
+    for i, (x, y) in enumerate(((10, 740), (42, 740), (74, 740), (10, 708), (42, 708), (10, 676),
+                                (286, 740), (318, 740), (318, 708), (286, 708), (318, 676), (254, 740))):
+        c = cols[rnd.randrange(7)]
+        blocks += (f'<rect x="{x}" y="{y}" width="30" height="30" rx="7" fill="{c}" stroke-width="3.5"/>'
+                   f'<rect x="{x + 6}" y="{y + 5}" width="16" height="5" rx="2.5" fill="#FFFFFF" opacity=".45" stroke="none"/>')
+    body = (ms.stars(40, 701, 260) + planet(300, 90, 30, "#FF9F1C", ring="#FFD23F", spots="#E07F00") + planet(50, 170, 18, "#7EE0C3") +
+            ms.shooting_star(140, 60, 70) +
+            mm.layer(430, "#B8AEDB", 702, 30) + crystal(60, 470, 1.2, "#7EE0FF", "#E6FBFF") + crystal(300, 480, 1.0, "#E08CFF", "#FBE3FF") +
+            mm.layer(560, "#FFC2DD", 703, 26) + lollipop(330, 620, 0.9) + candycane(30, 640, 0.8) +
+            mm.layer(660, "#FF9EC7", 704, 20) + cupcake(200, 760, 0.8) + blocks)
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" preserveAspectRatio="xMidYMax slice">'
+            '<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1E1A5C"/>'
+            f'<stop offset="0.45" stop-color="#6B5BD0"/><stop offset="0.8" stop-color="#FFC2DD"/></linearGradient>{ms.DEFS}</defs>'
+            f'<rect width="{W}" height="{H}" fill="url(#sky)"/>'
+            f'<g stroke="{INK}" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">{body}</g></svg>')
+
+
+# ---------------------------------------------------------------- bosses: the big rex in each new world's colours
+BASE = ("#E8553D", "#B83B2E", "#FFB15C", "#6B2A5E")
+BOSSES = {
+    1: (("#8E5BD9", "#5E3A9E", "#7EE0FF", "#2E1A5C"), "#7EE0FF", "#E08CFF"),   # crystal
+    2: (("#FF6FA8", "#D94F86", "#FFE3F0", "#7B2A55"), "#FFFFFF", "#7EE0C3"),   # candy
+    3: (("#2AA39A", "#1B7A73", "#9FF0E6", "#FF9F1C"), "#FFD23F", "#FF6B7A"),   # sea
+    4: (("#E0A040", "#B87A28", "#FFE0A0", "#7A4A12"), "#FFD23F", "#4FC3F7"),   # desert
+    5: (("#5B6BB8", "#3A4890", "#C9D3FF", "#FFD23F"), "#E6E6F0", "#FF6B7A"),   # space
+}
+
+
+def bosses():
+    with open(os.path.join(ms.ART, "magma-rex.svg"), encoding="utf8") as f:
+        inner = re.search(r"<svg[^>]*>(.*)</svg>", f.read(), re.S).group(1)
+    import make_bosses as mb
+    for w, (cols, gold, gem) in BOSSES.items():
+        m = dict(zip(BASE, cols))
+        body = re.sub("|".join(BASE), lambda mo: m[mo.group(0)], inner)
+        svg = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -30 240 250" width="240" height="250">'
+               f"{body}{mb.crown(gold, gem)}</svg>\n")
+        with open(os.path.join(OUT, f"bboss-{w}.svg"), "w", encoding="utf8") as f:
+            f.write(svg)
+
+
+def main():
+    for i, fn in enumerate((map_crystal, map_candy, map_sea, map_desert, map_space), 1):
+        with open(os.path.join(OUT, f"bmap-{i}.svg"), "w", encoding="utf8") as f:
+            f.write(fn())
+    for i, fn in enumerate((bg_crystal, bg_candy, bg_sea, bg_desert, bg_space), 1):
+        with open(os.path.join(OUT, f"bbg-{i}.svg"), "w", encoding="utf8") as f:
+            f.write(fn())
+    with open(os.path.join(OUT, "btitle-bg.svg"), "w", encoding="utf8") as f:
+        f.write(btitle_bg())
+    bosses()
+    print("wrote bmap-1..5, bbg-1..5, btitle-bg, bboss-1..5")
+
+
+if __name__ == "__main__":
+    main()

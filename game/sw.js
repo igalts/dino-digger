@@ -1,8 +1,9 @@
 // Offline support: serve from cache, refresh the cache in the background.
-const CACHE = 'dino-dig-v50';
-const SCENES = [];
+const CACHE = 'dino-dig-v51';
+const SCENES = ['assets/btitle-bg.svg'];
 for (let w = 1; w <= 5; w++) {
   SCENES.push(`assets/map-${w}.svg`, `assets/boss-${w}.svg`, `assets/rex-${w}.svg`);
+  SCENES.push(`assets/bmap-${w}.svg`, `assets/bbg-${w}.svg`, `assets/bboss-${w}.svg`);
   for (let l = 1; l <= 5; l++) SCENES.push(`assets/s${w}-${l}.svg`);
 }
 const SHELL = [

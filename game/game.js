@@ -1351,6 +1351,7 @@
   function show(name) {
     screen = name;
     for (const id of ['hub', 'title', 'map', 'game', 'shop']) $(`#${id}`).hidden = id !== name;
+    if (name !== 'game') blocks.hideTip(); // (show() only runs after boot, when blocks exists)
     if (name === 'hub') buildHub();
     if (name === 'title') buildTitle();
     if (name === 'map') buildMap();
@@ -1593,19 +1594,21 @@
     { nodes: [[180, 640], [295, 480], [190, 325], [65, 455], [95, 220]], prize: [265, 120] },
     { nodes: [[180, 655], [215, 545], [150, 435], [210, 325], [165, 215]], prize: [285, 125] },
   ];
+  GAMES.dig.bosses = BOSSES;
+  GAMES.dig.map = { img: (w) => `assets/map-${w + 1}.svg`, boss: (w) => `assets/boss-${w + 1}.svg`, layouts: MAP_LAYOUTS };
 
   function buildMap() {
-    const WORLDS = worldsNow(), r = rec(), CHALS = curGame().chals;
+    const WORLDS = worldsNow(), r = rec(), CHALS = curGame().chals, MAP = curGame().map, BOSSES = curGame().bosses;
     const w = currentMapWorld();
     const world = WORLDS[w];
     $('#map').dataset.game = GAME;
     $('#map').dataset.world = String(w + 1);
-    $('#mapBg').src = `assets/map-${w + 1}.svg`;
+    $('#mapBg').src = MAP.img(w);
     const prize = CHARS[world.unlock];
     const prizeImg = $('#mapPrize');
     prizeImg.src = `assets/${prize.img}.svg`;
     prizeImg.classList.toggle('locked', !r.unlocked.includes(world.unlock));
-    const layout = MAP_LAYOUTS[w];
+    const layout = MAP.layouts[w];
     prizeImg.style.left = `${layout.prize[0] / 360 * 100}%`;
     prizeImg.style.top = `${layout.prize[1] / 780 * 100}%`;
     // The prize looks toward the middle of the map.
@@ -1628,7 +1631,7 @@
       b.style.top = `${layout.nodes[i][1] / 780 * 100}%`;
       const label = lvl.bossFight ? `בוס: ${BOSSES[w].name}` : `שלב ${i + 1}`;
       b.setAttribute('aria-label', open ? label : `${label}, נעול`);
-      const face = lvl.bossFight ? `<img class="boss-face" src="assets/boss-${w + 1}.svg" alt="">` : '';
+      const face = lvl.bossFight ? `<img class="boss-face" src="${MAP.boss(w)}" alt="">` : '';
       const best = (r.best || {})[`${w + 1}-${i + 1}`];
       const done = (r.chal || {})[`${w + 1}-${i + 1}`] || 0;
       const marks = CHALS.map((ch) => `<span class="cm${done & ch.bit ? ' on' : ''}">${ch.icon}</span>`).join('');
@@ -1650,9 +1653,9 @@
     const WORLDS = worldsNow(), d = rec(), cfg = WORLDS[w].levels[l], key = `${w + 1}-${l + 1}`;
     const stars = d.stars[key] || 0, best = (d.best || {})[key];
     $('#infoWorld').textContent = WORLDS[w].name;
-    $('#infoTitle').textContent = cfg.bossFight ? `בוס: ${BOSSES[w].name}` : `שלב ${l + 1}`;
+    $('#infoTitle').textContent = cfg.bossFight ? `בוס: ${curGame().bosses[w].name}` : `שלב ${l + 1}`;
     $('#infoFace').hidden = !cfg.bossFight;
-    if (cfg.bossFight) $('#infoFace').src = `assets/boss-${w + 1}.svg`;
+    if (cfg.bossFight) $('#infoFace').src = curGame().map.boss(w);
     $('#infoGoal').innerHTML = curGame().goal(cfg);
     $('#infoStars').innerHTML = [0, 1, 2].map((k) => `<span class="${k < stars ? 'on' : 'off'}">★</span>`).join('');
     $('#infoBest').innerHTML = best ? `⏱ השיא <bdi>${fmtTime(best)}</bdi>` : 'עוד לא ניצחת כאן';
@@ -1669,12 +1672,14 @@
   $('#infoClose').addEventListener('click', () => { sfx.tap(); $('#levelInfo').hidden = true; });
   $('#levelInfo').addEventListener('click', (e) => { if (e.target.id === 'levelInfo') $('#levelInfo').hidden = true; });
   // Map pictures are decoded ahead of time so a new world never shows up blank mid-slide.
-  const mapPics = [];
+  const mapPics = {};
   const preloadMaps = () => {
-    if (mapPics.length) return;
-    for (let i = 1; i <= WORLDS.length; i++) {
-      for (const src of [`assets/map-${i}.svg`, `assets/boss-${i}.svg`]) {
-        const im = new Image(); im.src = src; im.decode().catch(() => {}); mapPics.push(im);
+    if (mapPics[GAME]) return;
+    mapPics[GAME] = [];
+    const MAP = curGame().map;
+    for (let i = 0; i < worldsNow().length; i++) {
+      for (const src of [MAP.img(i), MAP.boss(i)]) {
+        const im = new Image(); im.src = src; im.decode().catch(() => {}); mapPics[GAME].push(im);
       }
     }
   };

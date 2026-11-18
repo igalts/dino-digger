@@ -1,74 +1,96 @@
 'use strict';
-// דינו בלוקים: a falling-stones game in the same five worlds, with the same dinos, bosses, eggs and gems.
-// Clear full rows to reach the level's goal. Rex (and on the last level, the boss) throws rocks onto your stack;
-// on boss levels every few rows you clear takes away one of the boss's hearts.
+// דינו בלוקים: a falling-blocks game with its own five worlds, using the same dinos, eggs, gems and wardrobe.
+// Clear full rows to reach the level's goal. Each cleared row sends a star flying: to the goal counter,
+// or, in a boss level, straight into the boss (one hit per row). The boss throws rocks onto your stack;
+// a red marker shows where each one will land. Magic stones do something the moment they land.
 // game.js builds the shared pieces (save, sounds, wardrobe, map, win card) and hands them in as `core`.
 window.DinoBlocks = (core) => {
-  const { $, store, rec, sfx, CHARS, images, BOSSES, BOSS_HP, DIFFICULTY } = core;
+  const { $, store, rec, sfx, CHARS, images, SHOTS } = core;
   const INK = '#2B1B3D';
   const COLS = 10, ROWS = 18, CS = 32;      // board cells, cell size in logical px
   const BW = COLS * CS, BH = ROWS * CS;      // 320 x 576
-  const PAD = 10, TOP = 104;                 // the strip above the board holds the dino, the next stone and Rex
+  const PAD = 10, TOP = 100;                 // strip above the board: the dino, the next stone, the goal or the boss
   const VW = BW + PAD * 2, VH = TOP + BH + PAD;
   const BX = PAD, BY = TOP;                  // board's top-left on the canvas
   const rand = (a, b) => a + Math.random() * (b - a);
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-  // ---------- Stones ----------
-  // n: size of the box they turn in. The small ones (d, i3, v) only show up in the easy levels.
+  // ---------- The seven classic stones ----------
   const SHAPES = {
-    I:  { n: 4, cells: [[0, 1], [1, 1], [2, 1], [3, 1]], color: '#4FC3F7' },
-    O:  { n: 2, cells: [[0, 0], [1, 0], [0, 1], [1, 1]], color: '#FFD23F' },
-    T:  { n: 3, cells: [[0, 1], [1, 1], [2, 1], [1, 0]], color: '#B07CE8' },
-    L:  { n: 3, cells: [[0, 1], [1, 1], [2, 1], [2, 0]], color: '#FF9F1C' },
-    J:  { n: 3, cells: [[0, 1], [1, 1], [2, 1], [0, 0]], color: '#5B8DEF' },
-    S:  { n: 3, cells: [[0, 1], [1, 1], [1, 0], [2, 0]], color: '#5CCB5F' },
-    Z:  { n: 3, cells: [[0, 0], [1, 0], [1, 1], [2, 1]], color: '#FF6B7A' },
-    d:  { n: 2, cells: [[0, 0], [1, 0]], color: '#FF8FC8' },
-    i3: { n: 3, cells: [[0, 1], [1, 1], [2, 1]], color: '#4FD1C5' },
-    v:  { n: 2, cells: [[0, 0], [0, 1], [1, 1]], color: '#C5E86C' },
+    I: { n: 4, cells: [[0, 1], [1, 1], [2, 1], [3, 1]], color: '#4FC3F7' },
+    O: { n: 2, cells: [[0, 0], [1, 0], [0, 1], [1, 1]], color: '#FFD23F' },
+    T: { n: 3, cells: [[0, 1], [1, 1], [2, 1], [1, 0]], color: '#B07CE8' },
+    L: { n: 3, cells: [[0, 1], [1, 1], [2, 1], [2, 0]], color: '#FF9F1C' },
+    J: { n: 3, cells: [[0, 1], [1, 1], [2, 1], [0, 0]], color: '#5B8DEF' },
+    S: { n: 3, cells: [[0, 1], [1, 1], [1, 0], [2, 0]], color: '#5CCB5F' },
+    Z: { n: 3, cells: [[0, 0], [1, 0], [1, 1], [2, 1]], color: '#FF6B7A' },
   };
-  const BAG = ['I', 'O', 'T', 'L', 'J', 'S', 'Z'];
-  const EASY_BAG = ['d', 'i3', 'v', 'O', 'I', 'T', 'L', 'i3', 'v'];
-  const SMALL = ['d', 'i3', 'v'];
-  const ROCK = { rock: '#9A90A8', sand: '#E9C46A', ice: '#BDEBFF', vine: '#3F9A3C' };
+  const BAG = Object.keys(SHAPES);
+  // Rows that are already on the board (or push up from below) look like the world they're in.
+  const ROWKIND = {
+    crystal: { c: '#9C8ADB', mark: '#E3D6FF' },
+    candy:   { c: '#FFB0D2', mark: '#FFFFFF' },
+    coral:   { c: '#5FC9C0', mark: '#C9F2EE' },
+    sand:    { c: '#E9C46A', mark: '#C98A52' },
+    moon:    { c: '#B8AEDB', mark: '#8E84B8' },
+    rock:    { c: '#9A90A8', mark: '#6E6480' },
+  };
 
-  // Power-ups ride on a stone; clear the row they sit in to get them.
-  const POWERS = {
-    bone:   { img: 'power-bone',   label: 'אבנים קטנות!' },
-    shield: { img: 'power-shield', label: 'מגן!' },
-    ice:    { img: 'power-ice',    label: 'קפוא!' },
-    amber:  { img: 'power-amber',  label: '+500' },
+  // Magic stones: one cell of the stone glows. The magic happens the moment the stone lands.
+  const MAGIC = {
+    bomb:   { label: 'בום!',  tip: '💣 פצצה! מפוצצת את האבנים מסביב' },
+    bolt:   { label: 'ברק!',  tip: '⚡ ברק! מוחק את כל השורה שלו' },
+    freeze: { label: 'קפוא!', tip: '❄️ קרח! הכול נופל לאט וזורקים פחות' },
+    shield: { label: 'מגן!',  tip: '🛡️ מגן! אם המגדל מגיע למעלה, המגן מציל' },
   };
+  const MAGIC_EVERY = 7; // every 7th stone is a magic stone
 
   // ---------- Worlds and levels ----------
-  // goal: rows to clear. speed: rows per second the stone falls. throwEvery: seconds between Rex's rocks.
-  // rise: seconds between new rows pushing up from the bottom. start: rows already on the board. easy: small stones too.
-  const L = (goal, speed, o = {}) => ({ goal, speed, throwEvery: 0, rise: 0, start: 0, easy: false, ...o });
-  const SPECIAL = [
-    { rows: 'rock', strip: '#8FDCFF' },
-    { rows: 'vine', strip: '#A6E58A' },
-    { rows: 'sand', strip: '#8FE3FF' },
-    { rows: 'ice',  strip: '#DDEFFF' },
-    { rows: 'rock', strip: '#3A2E7A', dark: true },
+  // goal: rows to clear. speed: rows per second the stone falls. start: rows on the board at the start.
+  // rise: seconds between new rows pushing up from below. meteors: seconds between meteors (space).
+  const L = (goal, speed, o = {}) => ({ goal, speed, start: 0, rise: 0, meteors: 0, ...o });
+  const WORLDS = [
+    { name: 'מערת הקריסטלים', unlock: 'stegi', rows: 'crystal', strip: '#C9BCF5', bg: 'bbg-1', game: '#2A1F5C',
+      levels: [L(4, 0.75), L(5, 0.85), L(6, 0.9, { start: 2 }), L(7, 0.95, { start: 3 }), L(8, 0.9)] },
+    { name: 'ארץ הממתקים', unlock: 'petra', rows: 'candy', strip: '#FFD6EC', bg: 'bbg-2', game: '#7A2E58',
+      levels: [L(6, 1.0, { start: 3 }), L(7, 1.05, { start: 4 }), L(7, 1.1, { start: 4 }), L(8, 1.15, { start: 5 }), L(9, 1.0, { start: 3 })] },
+    { name: 'מתחת לים', unlock: 'anki', rows: 'coral', strip: '#A6E4FF', bg: 'bbg-3', game: '#103A72',
+      levels: [L(7, 1.1, { rise: 24 }), L(8, 1.15, { rise: 21 }), L(8, 1.2, { start: 2, rise: 20 }), L(9, 1.25, { start: 3, rise: 18 }),
+        L(10, 1.1, { rise: 26 })] },
+    { name: 'מדבר הפירמידות', unlock: 'rafi', rows: 'sand', strip: '#FFE3A8', bg: 'bbg-4', game: '#7A4A18',
+      levels: [L(8, 1.3, { start: 3 }), L(8, 1.4, { start: 4 }), L(9, 1.45, { start: 4, rise: 24 }), L(10, 1.5, { start: 5, rise: 22 }),
+        L(10, 1.3, { start: 3 })] },
+    { name: 'החלל', unlock: 'rex', rows: 'moon', strip: '#B8AEDB', bg: 'bbg-5', game: '#0E0A2E',
+      levels: [L(8, 1.4, { meteors: 14 }), L(9, 1.45, { meteors: 12, start: 2 }), L(9, 1.5, { meteors: 12, rise: 24 }),
+        L(10, 1.55, { meteors: 10, start: 3 }), L(11, 1.35, { start: 2 })] },
   ];
-  const LEVELS = [
-    [L(4, 0.8, { easy: true }), L(5, 0.9, { easy: true }), L(6, 1.0, { easy: true }), L(7, 1.05, { easy: true, throwEvery: 12 }),
-      L(8, 1.0, { easy: true })],
-    [L(7, 1.1, { rise: 24 }), L(8, 1.15, { rise: 22 }), L(8, 1.2, { rise: 20, throwEvery: 14 }), L(9, 1.25, { rise: 18, throwEvery: 13 }),
-      L(9, 1.15, { rise: 26 })],
-    [L(8, 1.25, { start: 3 }), L(9, 1.3, { start: 4, throwEvery: 14 }), L(9, 1.35, { start: 4, rise: 24 }), L(10, 1.4, { start: 5, throwEvery: 12 }),
-      L(10, 1.25, { start: 3 })],
-    [L(9, 1.4, { start: 3, throwEvery: 13 }), L(10, 1.45, { start: 4, throwEvery: 12 }), L(10, 1.5, { start: 4, rise: 24, throwEvery: 14 }),
-      L(11, 1.55, { start: 5, throwEvery: 11 }), L(10, 1.4, { start: 3 })],
-    [L(10, 1.5, { throwEvery: 13 }), L(10, 1.55, { rise: 22, throwEvery: 14 }), L(11, 1.6, { start: 3, throwEvery: 12 }),
-      L(12, 1.65, { start: 4, rise: 22, throwEvery: 12 }), L(11, 1.5, { start: 3 })],
+  WORLDS.forEach((wd) => { wd.levels[wd.levels.length - 1].bossFight = true; });
+  // One boss per world. It throws something every `every` seconds; every row you clear hits it once.
+  const BOSSES = [
+    { name: 'מלך הקריסטלים', shot: 'crystal', every: 9.5 },
+    { name: 'רקס הסוכריות',  shot: 'candy',   every: 9 },
+    { name: 'מלך הים',       shot: 'bubble',  every: 8.5 },
+    { name: 'פרעה רקס',      shot: 'sandball', every: 8 },
+    { name: 'רקס החלל',      shot: 'star',    every: 7.5 },
   ];
-  const WORLDS = core.WORLDS.map((wd, i) => {
-    const levels = LEVELS[i];
-    levels[levels.length - 1].bossFight = true;
-    return { name: wd.name, unlock: wd.unlock, ...SPECIAL[i], levels };
+  Object.assign(SHOTS, {
+    crystal:  { fill: '#7EE0FF', core: '#E6FBFF', sparks: ['#7EE0FF', '#E08CFF'] },
+    candy:    { fill: '#FF6FA8', core: '#FFFFFF', sparks: ['#FF6FA8', '#FFFFFF'] },
+    sandball: { fill: '#F2C36E', core: '#FFF0C8', sparks: ['#F2C36E', '#C98A52'] },
+    meteor:   { fill: '#9A90A8', core: '#FF9F1C', sparks: ['#FF9F1C', '#FFD23F'] },
   });
+  // Map: level spots and prize spot on each bmap-N picture (keep in sync with tools/make_blocks_art.py).
+  const MAP = {
+    img: (w) => `assets/bmap-${w + 1}.svg`,
+    boss: (w) => `assets/bboss-${w + 1}.svg`,
+    layouts: [
+      { nodes: [[180, 650], [85, 540], [255, 450], [105, 335], [235, 225]], prize: [100, 118] },
+      { nodes: [[80, 640], [270, 585], [150, 470], [280, 335], [95, 255]], prize: [255, 118] },
+      { nodes: [[265, 660], [95, 585], [205, 455], [80, 335], [255, 240]], prize: [110, 118] },
+      { nodes: [[100, 652], [255, 560], [105, 440], [262, 330], [150, 215]], prize: [275, 112] },
+      { nodes: [[180, 662], [292, 520], [160, 420], [62, 300], [222, 210]], prize: [292, 112] },
+    ],
+  };
 
   // Challenges: each pays gems once, like in the dig game.
   const par = (cfg) => Math.round(cfg.goal * 11 + 20); // seconds
@@ -94,7 +116,7 @@ window.DinoBlocks = (core) => {
   }
   function resize() {
     const wrap = $('#boardWrap');
-    const W = wrap.clientWidth - 12, H = wrap.clientHeight;
+    const W = wrap.clientWidth - 8, H = wrap.clientHeight;
     if (W <= 0 || H <= 0) return;
     const s = Math.min(W / VW, H / VH);
     cv.style.width = `${Math.floor(VW * s)}px`;
@@ -105,44 +127,45 @@ window.DinoBlocks = (core) => {
     const G = core.G();
     if (G && G.mode === 'blocks') buildScene(G);
   }
-  // The level's picture behind the board, dimmed so the stones stand out.
+  // The world's picture behind the board, dimmed a little so the stones stand out.
   function buildScene(G) {
     sceneCv = document.createElement('canvas');
     sceneCv.width = Math.round(BW * RES); sceneCv.height = Math.round(BH * RES);
-    const c = sceneCv.getContext('2d'), img = images[G.scene];
+    const c = sceneCv.getContext('2d'), img = images[G.world.bg];
     c.scale(RES, RES);
     if (img) {
-      const k = Math.max(BW / 360, BH / 560), w = 360 * k, h = 560 * k;
+      const k = Math.max(BW / 360, BH / 640), w = 360 * k, h = 640 * k;
       c.drawImage(img, (BW - w) / 2, (BH - h) / 2, w, h);
     }
-    c.fillStyle = G.world.dark ? 'rgba(14,10,38,.72)' : 'rgba(30,20,48,.58)';
+    c.fillStyle = 'rgba(30,20,48,.42)';
     c.fillRect(0, 0, BW, BH);
   }
+  const loadPics = (w) => Promise.all([`bbg-${w + 1}`, `bboss-${w + 1}`].map((n) => core.loadScene(n)));
 
   // ---------- Level start ----------
   let G = null;
   async function start(w, l) {
     const world = WORLDS[w], cfg = world.levels[l], r = rec('blocks');
-    const scene = `s${w + 1}-${l + 1}`;
-    await core.loadScene(scene);
+    await loadPics(w);
+    if (WORLDS[w + 1]) loadPics(w + 1);
     const ch = CHARS[r.selected] || CHARS.pip;
     const key = `${w + 1}-${l + 1}`;
     const help = (r.streak[key] || 0) >= 3 ? 0.85 : 1; // a little quiet help after 3 losses in a row
     const lives = ch.lives || 3;
     const boss = !!cfg.bossFight;
     G = {
-      mode: 'blocks', w, l, cfg, key, ch, world, scene,
-      bossFight: boss, bossInfo: BOSSES[w], bossHp: BOSS_HP,
+      mode: 'blocks', w, l, cfg, key, ch, world,
+      bossFight: boss, bossInfo: boss ? BOSSES[w] : { shot: 'meteor' }, bossHp: cfg.goal, bossShown: cfg.goal,
       grid: new Array(COLS * ROWS).fill(null),
-      lives, maxLives: lives, score: 0, lines: 0, multi: false,
-      state: 'ready', readyT: boss ? 2.6 : 2.0, t: 0, playT: 0, shownSec: -1,
-      particles: [], shots: [], piece: null, next: null, bag: [], pieces: 0,
+      lives, maxLives: lives, score: 0, lines: 0, flown: 0, multi: false,
+      state: 'ready', readyT: boss ? 3.2 : 2.2, t: 0, playT: 0, shownSec: -1,
+      particles: [], shots: [], orbs: [], trails: [], piece: null, next: null, bag: [], pieces: 0,
       fall: 0, lockT: 0, lockMoves: 0, clearRows: null, clearT: 0,
       speed: cfg.speed * (ch.slow || 1) * help, soft: false,
-      throwEvery: boss ? BOSSES[w].every * 2.3 / DIFFICULTY / help : cfg.throwEvery / help,
-      throwT: boss ? 4 : cfg.throwEvery * 0.6, windup: 0,
-      riseT: cfg.rise, freeze: 0, small: 0, shield: !!ch.shieldStart,
-      cheer: 0, sad: 0, shake: 0, hurt: 0, winT: 0, outfit: { ...store.data.outfit },
+      throwEvery: boss ? BOSSES[w].every / help : cfg.meteors / help,
+      throwT: boss ? 5 : cfg.meteors * 0.7, windup: 0, target: null,
+      riseT: cfg.rise, freeze: 0, shield: !!ch.shieldStart,
+      cheer: 0, sad: 0, shake: 0, hurt: 0, bump: 0, winT: 0, outfit: { ...store.data.outfit },
     };
     G.readyMax = G.readyT;
     for (let k = 0; k < cfg.start; k++) addRow(ROWS - 1 - k, world.rows);
@@ -150,8 +173,9 @@ window.DinoBlocks = (core) => {
     core.setG(G);
     core.setPaused(false);
     core.hideOverlays();
+    hideTip();
     const game = $('#game');
-    game.dataset.world = String(w + 1);
+    game.dataset.world = `b${w + 1}`;
     game.classList.add('blocks');
     core.show('game');
     resize();
@@ -164,7 +188,13 @@ window.DinoBlocks = (core) => {
     const head = boss
       ? `<div class="ready-world">${world.name}</div><div class="ready-title boss">בוס: ${BOSSES[w].name}</div>`
       : `<div class="ready-world">${world.name}</div><div class="ready-title">שלב ${l + 1}</div>`;
-    b.innerHTML = `<div class="ready-card">${head}<div class="ready-goal">${goalText(cfg)}</div>${bestLine}${
+    // What's special about this level, in one or two short lines.
+    const how = [];
+    if (boss) how.push('🪨 הבוס זורק סלעים על המגדל', '💥 כל שורה שתנקו פוגעת בו');
+    else if (cfg.meteors) how.push('☄️ מטאורים נופלים! הסימן האדום מראה איפה');
+    if (cfg.rise) how.push('⬆️ שורות חדשות עולות מלמטה');
+    b.innerHTML = `<div class="ready-card">${head}<div class="ready-goal">${goalText(cfg)}</div>${
+      how.map((s) => `<div class="ready-how">${s}</div>`).join('')}${bestLine}${
       core.chalRow(cfg, (r.chal || {})[key] || 0, 0, CHALS)}<div class="ready-bar"><i style="animation-duration:${G.readyT}s"></i></div></div>`;
     b.className = 'banner';
     if (boss) sfx.boss(); else sfx.ready();
@@ -173,32 +203,44 @@ window.DinoBlocks = (core) => {
     core.applyControlMode();
     core.keepAwake();
   }
-  const goalText = (cfg) => `🧱 מנקים <bdi>${cfg.goal}</bdi> שורות`;
+  const goalText = (cfg) => (cfg.bossFight ? `💥 <bdi>${cfg.goal}</bdi> שורות מנצחות את הבוס` : `🧱 מנקים <bdi>${cfg.goal}</bdi> שורות`);
 
   // A full row with one or two holes (the starting rows, and the rows that push up from below).
   function addRow(y, kind) {
     const holes = new Set([Math.floor(Math.random() * COLS)]);
     if (Math.random() < 0.4) holes.add(Math.floor(Math.random() * COLS));
-    for (let x = 0; x < COLS; x++) G.grid[y * COLS + x] = holes.has(x) ? null : { c: ROCK[kind], k: kind };
+    for (let x = 0; x < COLS; x++) G.grid[y * COLS + x] = holes.has(x) ? null : { c: ROWKIND[kind].c, k: kind };
   }
 
   function takePiece() {
-    if (G.small > 0) { G.small--; return makePiece(SMALL[Math.floor(Math.random() * SMALL.length)]); }
     if (!G.bag.length) {
-      G.bag = [...(G.cfg.easy ? EASY_BAG : BAG)];
+      G.bag = [...BAG];
       for (let i = G.bag.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [G.bag[i], G.bag[j]] = [G.bag[j], G.bag[i]]; }
     }
-    return makePiece(G.bag.pop());
-  }
-  function makePiece(t) {
-    const s = SHAPES[t];
+    const t = G.bag.pop(), s = SHAPES[t];
     G.pieces++;
-    // Every 6th stone carries a power-up on one of its cells.
-    const types = Object.keys(POWERS);
-    const power = G.pieces % 6 === 0 ? types[Math.floor(Math.random() * types.length)] : null;
-    return { t, n: s.n, color: s.color, cells: s.cells.map((c) => [...c]), x: 0, y: 0,
-      power, powerAt: power ? Math.floor(Math.random() * s.cells.length) : -1 };
+    const kinds = Object.keys(MAGIC);
+    const magic = G.pieces > 2 && G.pieces % MAGIC_EVERY === 0 ? kinds[Math.floor(Math.random() * kinds.length)] : null;
+    return { t, n: s.n, color: s.color, cells: s.cells.map((c) => [...c]), x: 0, y: 0, rx: 0, ry: 0,
+      magic, magicAt: magic ? Math.floor(Math.random() * s.cells.length) : -1 };
   }
+
+  // ---------- Tips: short explanations the first couple of times something new shows up ----------
+  const tipEl = $('#btoast');
+  let tipTimer = 0;
+  function tip(id, text) {
+    const r = rec('blocks');
+    r.tips = r.tips || {};
+    if ((r.tips[id] || 0) >= 2) return;
+    r.tips[id] = (r.tips[id] || 0) + 1;
+    store.save();
+    tipEl.textContent = text;
+    tipEl.hidden = false;
+    tipEl.classList.remove('show'); void tipEl.offsetWidth; tipEl.classList.add('show');
+    clearTimeout(tipTimer);
+    tipTimer = setTimeout(hideTip, 3200);
+  }
+  function hideTip() { tipEl.hidden = true; clearTimeout(tipTimer); }
 
   // ---------- Board rules ----------
   const cellAt = (x, y) => (x < 0 || x >= COLS || y >= ROWS ? 'wall' : y < 0 ? null : G.grid[y * COLS + x]);
@@ -208,54 +250,75 @@ window.DinoBlocks = (core) => {
     G.next = takePiece();
     const minY = Math.min(...p.cells.map((c) => c[1]));
     p.x = Math.floor((COLS - p.n) / 2); p.y = -minY;
+    p.rx = p.x; p.ry = p.y - 0.6;
     G.fall = 0; G.lockT = 0; G.lockMoves = 0;
     if (!fits(p, p.x, p.y)) { G.piece = null; topOut(); return; }
     G.piece = p;
+    if (p.magic) tip('magic', '✨ אבן קסם! תנחיתו אותה ויקרה קסם');
   }
   function move(dx) {
     const p = G.piece;
     if (!p || !fits(p, p.x + dx, p.y)) return false;
     p.x += dx;
     touched();
-    sfx.tone(420, 0.04, 'triangle', 0.035);
+    sfx.tone(440, 0.03, 'triangle', 0.03);
+    return true;
+  }
+  function moveDown() {
+    const p = G.piece;
+    if (!p || !fits(p, p.x, p.y + 1)) return false;
+    p.y++; G.score += 1;
     return true;
   }
   function rotate() {
     const p = G.piece;
     if (!p || p.t === 'O') return;
     const cells = p.cells.map(([x, y]) => [p.n - 1 - y, x]);
-    for (const [kx, ky] of [[0, 0], [-1, 0], [1, 0], [0, -1], [-2, 0], [2, 0]]) {
+    for (const [kx, ky] of [[0, 0], [-1, 0], [1, 0], [0, -1], [-2, 0], [2, 0], [0, 1]]) {
       if (fits(p, p.x + kx, p.y + ky, cells)) {
         p.cells = cells; p.x += kx; p.y += ky;
+        p.spin = 1;
         touched();
-        sfx.tone(620, 0.05, 'triangle', 0.045);
+        sfx.tone(660, 0.05, 'triangle', 0.045);
         return;
       }
     }
   }
   // Moving or turning a stone that is sitting on something gives a little more time before it locks.
-  function touched() { if (G.lockMoves < 12) { G.lockT = 0; G.lockMoves++; } }
+  function touched() { if (G.lockMoves < 15) { G.lockT = 0; G.lockMoves++; } }
   const dropY = (p) => { let y = p.y; while (fits(p, p.x, y + 1)) y++; return y; };
-  function hardDrop() {
+  // Slam: the stone shoots straight down with a streak behind it and the board shakes.
+  function slam() {
     const p = G.piece;
     if (!p) return;
     const y = dropY(p);
-    G.score += 2 * (y - p.y);
-    p.y = y;
+    const dist = y - p.y;
+    G.score += 2 * dist;
+    if (dist > 0) {
+      const cols = [...new Set(p.cells.map(([cx]) => p.x + cx))];
+      const top = Math.min(...p.cells.map(([, cy]) => p.ry + cy));
+      G.trails.push({ cols, from: top, to: y + Math.min(...p.cells.map(([, cy]) => cy)), color: p.color, t: 0.22 });
+    }
+    p.y = y; p.ry = y; p.rx = p.x;
     for (const [cx, cy] of p.cells) dust(BX + (p.x + cx + 0.5) * CS, BY + (p.y + cy + 1) * CS);
+    G.shake = Math.max(G.shake, 0.12); G.bump = 0.15;
+    sfx.tone(110, 0.12, 'square', 0.07, 0, 55);
+    try { if (navigator.vibrate) navigator.vibrate(25); } catch (e) { /* ignore */ }
     lock();
   }
   function lock() {
     const p = G.piece;
     G.piece = null;
-    let over = false;
+    let over = false, magicAt = null;
     p.cells.forEach(([cx, cy], i) => {
       const x = p.x + cx, y = p.y + cy;
       if (y < 0) { over = true; return; }
-      G.grid[y * COLS + x] = { c: p.color, k: 'stone', power: i === p.powerAt ? p.power : null };
+      G.grid[y * COLS + x] = { c: p.color, k: 'stone' };
+      if (i === p.magicAt) magicAt = [x, y];
     });
-    sfx.tone(170, 0.09, 'square', 0.05);
+    sfx.tone(170, 0.08, 'square', 0.045);
     if (over) { topOut(); return; }
+    if (magicAt) doMagic(p.magic, magicAt[0], magicAt[1]);
     checkRows();
   }
   function fullRows() {
@@ -267,10 +330,10 @@ window.DinoBlocks = (core) => {
     }
     return rows;
   }
-  function checkRows() {
-    const rows = fullRows();
+  function checkRows(extra = []) {
+    const rows = [...new Set([...fullRows(), ...extra])].sort((a, b) => a - b);
     if (!rows.length) return false;
-    G.clearRows = rows; G.clearT = 0.3;
+    G.clearRows = rows; G.clearT = 0.28;
     return true;
   }
   const SCORES = [0, 100, 300, 500, 800];
@@ -280,8 +343,7 @@ window.DinoBlocks = (core) => {
     for (const y of rows) {
       for (let x = 0; x < COLS; x++) {
         const cell = G.grid[y * COLS + x];
-        if (cell && cell.power) power(cell.power, BX + (x + 0.5) * CS, BY + (y + 0.5) * CS);
-        burst(BX + (x + 0.5) * CS, BY + (y + 0.5) * CS, [cell ? cell.c : '#FFF', '#FFFFFF'], 3);
+        if (cell) burst(BX + (x + 0.5) * CS, BY + (y + 0.5) * CS, [cell.c, '#FFFFFF'], 3);
       }
     }
     // Drop everything above the cleared rows.
@@ -296,12 +358,28 @@ window.DinoBlocks = (core) => {
     const midY = BY + (rows.reduce((a, b) => a + b, 0) / n + 0.5) * CS;
     floatText(BX + BW / 2, midY, n >= 2 ? `${n} שורות! ✨` : 'שורה!', n >= 2 ? '#FFD23F' : '#FFFFFF');
     sfx.claim();
+    // One star per row flies up to the goal counter (or into the boss).
+    const to = goalPos();
+    rows.forEach((y, i) => {
+      G.orbs.push({ x: BX + BW / 2 + (i - (n - 1) / 2) * 30, y: BY + (y + 0.5) * CS, sx: BX + BW / 2 + (i - (n - 1) / 2) * 30,
+        sy: BY + (y + 0.5) * CS, tx: to.x, ty: to.y, t: -i * 0.08, dur: 0.55 });
+    });
+    if (G.bossFight && G.lines === n) tip('bosshit', '💥 כל שורה פוגעת בבוס! עוד קצת!');
+  }
+  // A star reached the counter / the boss.
+  function orbHit() {
+    G.flown++;
     if (G.bossFight) {
-      const hp = Math.ceil(BOSS_HP * Math.max(0, G.cfg.goal - G.lines) / G.cfg.goal);
-      if (hp < G.bossHp) { G.bossHp = hp; G.hurt = 0.6; sfx.ouch(); floatText(throwerPos().x, throwerPos().y - 30, 'אאוץ׳!', '#FF8FA3'); }
+      G.bossHp = Math.max(0, G.cfg.goal - G.flown);
+      G.hurt = 0.5;
+      sfx.ouch();
+      burst(goalPos().x, goalPos().y, ['#FFD23F', '#FFFFFF', '#FF8FA3'], 10);
+    } else {
+      G.bumpGoal = 0.35;
+      sfx.tone(988, 0.08, 'triangle', 0.07);
     }
     hud();
-    if (G.lines >= G.cfg.goal) win();
+    if (G.flown >= G.cfg.goal && G.state === 'play') win();
   }
 
   // The stack reached the top: the shield saves you, otherwise an egg breaks. Either way the bottom rows crumble away.
@@ -318,6 +396,7 @@ window.DinoBlocks = (core) => {
       try { if (navigator.vibrate) navigator.vibrate(180); } catch (e) { /* ignore */ }
       if (G.lives <= 0) { core.lose(); return; }
       floatText(BX + BW / 2, BY + 80, 'אוי! ביצה נשברה', '#FF8FA3');
+      tip('topout', '🥚 המגדל הגיע למעלה! נשברה ביצה. נקו שורות כדי שלא יגיע');
     }
     for (let y = ROWS - 7; y < ROWS; y++) {
       for (let x = 0; x < COLS; x++) {
@@ -329,66 +408,91 @@ window.DinoBlocks = (core) => {
     G.piece = null;
   }
 
-  function power(type, x, y) {
+  function doMagic(type, x, y) {
     const dur = G.ch.powerDur || 1;
-    if (type === 'bone') G.small = 3 * dur;
-    if (type === 'shield') G.shield = true;
-    if (type === 'ice') G.freeze = 6 * dur;
-    if (type === 'amber') G.score += 500;
-    floatText(x, y - 18, POWERS[type].label, '#FFFFFF');
-    burst(x, y, ['#FFD23F', '#4FC3F7', '#FFFFFF'], 10);
-    setTimeout(() => sfx.power(), 120);
+    const px = BX + (x + 0.5) * CS, py = BY + (y + 0.5) * CS;
+    if (type === 'bomb') {
+      for (let yy = y - 1; yy <= y + 1; yy++) {
+        for (let xx = x - 1; xx <= x + 1; xx++) {
+          if (xx < 0 || xx >= COLS || yy < 0 || yy >= ROWS) continue;
+          const cell = G.grid[yy * COLS + xx];
+          if (cell) burst(BX + (xx + 0.5) * CS, BY + (yy + 0.5) * CS, [cell.c, '#FFD23F', '#FF9F1C'], 4);
+          G.grid[yy * COLS + xx] = null;
+        }
+      }
+      G.shake = 0.3;
+      sfx.tone(80, 0.35, 'sawtooth', 0.09, 0, 40);
+      G.flashes = [{ x: px, y: py, r: 0, t: 0.35, c: '#FFD23F' }];
+    }
+    if (type === 'bolt') {
+      // Fill the row so it clears like any other row (and counts toward the goal).
+      for (let xx = 0; xx < COLS; xx++) if (!G.grid[y * COLS + xx]) G.grid[y * COLS + xx] = { c: '#FFF27A', k: 'bolt' };
+      G.boltRow = { y, t: 0.3 };
+      sfx.tone(1400, 0.2, 'sawtooth', 0.05, 0, 300);
+    }
+    if (type === 'freeze') { G.freeze = 8 * dur; sfx.tone(1200, 0.4, 'sine', 0.06, 0, 600); }
+    if (type === 'shield') { G.shield = true; sfx.power(); }
+    floatText(px, py - 22, MAGIC[type].label, '#FFFFFF');
+    burst(px, py, ['#FFD23F', '#4FC3F7', '#FFFFFF'], 10);
+    tip(`m-${type}`, MAGIC[type].tip);
   }
 
-  // A new row pushes the whole stack up from the bottom (vines in the jungle, the tide on the beach...).
+  // A new row pushes the whole stack up from the bottom.
   function rise() {
     const topRow = G.grid.slice(0, COLS).some(Boolean);
     G.grid = [...G.grid.slice(COLS), ...new Array(COLS).fill(null)];
     addRow(ROWS - 1, G.world.rows);
     const p = G.piece;
-    if (p && !fits(p, p.x, p.y)) { if (fits(p, p.x, p.y - 1)) p.y--; else { G.piece = null; topOut(); return; } }
+    if (p && !fits(p, p.x, p.y)) { if (fits(p, p.x, p.y - 1)) { p.y--; p.ry--; } else { G.piece = null; topOut(); return; } }
     if (topRow) { topOut(); return; }
     sfx.tone(140, 0.25, 'triangle', 0.07, 0, 220);
-    checkRows();
   }
 
-  // ---------- Rex / the boss throws rocks onto the stack ----------
-  const throwerPos = () => ({ x: VW - PAD - 52, y: TOP / 2 + 4 });
+  // ---------- The boss (or meteors) throws rocks onto the stack ----------
+  const throwerPos = () => ({ x: VW - PAD - 52, y: TOP / 2 + 2 });
+  const goalPos = () => (G.bossFight ? { x: throwerPos().x, y: throwerPos().y } : { x: VW - PAD - 50, y: TOP / 2 });
+  const columnTop = (col) => { let y = 0; while (y < ROWS && !G.grid[y * COLS + col]) y++; return y; }; // first filled row
+  function pickTarget() {
+    // Aim at a column the falling stone isn't over, so you can see it coming.
+    const p = G.piece, busy = new Set(p ? p.cells.map(([cx]) => p.x + cx) : []);
+    const free = [...Array(COLS).keys()].filter((c) => !busy.has(c));
+    return free.length ? free[Math.floor(Math.random() * free.length)] : Math.floor(Math.random() * COLS);
+  }
   function throwRock() {
-    const from = throwerPos();
-    const col = Math.floor(Math.random() * COLS);
-    G.shots.push({ col, sx: from.x - 20, sy: from.y - 10, t: 0, dur: 0.9, x: from.x, y: from.y, spin: 0 });
-    sfx.throwIt();
+    const col = G.target;
+    const tx = BX + (col + 0.5) * CS;
+    const from = G.bossFight ? { x: throwerPos().x - 22, y: throwerPos().y - 8 } : { x: tx + rand(-60, 60), y: -20 };
+    G.shots.push({ col, sx: from.x, sy: from.y, t: 0, dur: G.bossFight ? 1.0 : 1.2, x: from.x, y: from.y, spin: 0, arc: G.bossFight ? 70 : 0 });
+    if (G.bossFight) sfx.throwIt(); else sfx.tone(300, 0.5, 'sawtooth', 0.04, 0, 80);
   }
   function landRock(s) {
-    let y = 0;
-    while (y < ROWS && !G.grid[y * COLS + s.col]) y++;
-    y--; // the empty cell on top of the column
+    const y = columnTop(s.col) - 1;
     const p = G.piece;
-    const onPiece = p && p.cells.some(([cx, cy]) => p.x + cx === s.col && p.y + cy >= y - 1);
     const px = BX + (s.col + 0.5) * CS;
-    if (y < 0 || onPiece) { burst(px, BY + Math.max(0, y) * CS, core.SHOTS[G.bossInfo.shot].sparks, 8); sfx.pop(); return; }
-    G.grid[y * COLS + s.col] = { c: ROCK.rock, k: 'rock' };
-    burst(px, BY + (y + 0.5) * CS, core.SHOTS[G.bossInfo.shot].sparks, 8);
-    G.shake = 0.15;
+    const sparks = SHOTS[G.bossInfo.shot].sparks;
+    // The falling stone works like an umbrella: the rock breaks on it.
+    const onPiece = p && p.cells.some(([cx, cy]) => p.x + cx === s.col && p.y + cy <= y + 1);
+    if (y < 0 || onPiece) { burst(px, BY + Math.max(0, y) * CS, sparks, 10); sfx.pop(); return; }
+    G.grid[y * COLS + s.col] = { c: ROWKIND.rock.c, k: 'rock' };
+    burst(px, BY + (y + 0.5) * CS, sparks, 10);
+    G.shake = Math.max(G.shake, 0.15);
     sfx.tone(120, 0.15, 'square', 0.06);
     if (!G.piece && !G.clearRows) checkRows(); // otherwise the row is checked when the falling stone locks
   }
-  const shotTarget = (s) => {
-    let y = 0;
-    while (y < ROWS && !G.grid[y * COLS + s.col]) y++;
-    return { x: BX + (s.col + 0.5) * CS, y: BY + (Math.max(0, y) - 0.5) * CS };
-  };
+  const shotTarget = (s) => ({ x: BX + (s.col + 0.5) * CS, y: BY + (columnTop(s.col) - 0.5) * CS });
 
   // ---------- Update ----------
-  const held = { left: false, right: false, down: false, rep: 0 };
+  const held = { left: false, right: false, down: false, rep: 0, downRep: 0 };
   function update(dt) {
     G.t += dt;
     updateParticles(dt);
-    if (G.shake > 0) G.shake -= dt;
-    if (G.cheer > 0) G.cheer -= dt;
-    if (G.sad > 0) G.sad -= dt;
-    if (G.hurt > 0) G.hurt -= dt;
+    for (const k of ['shake', 'cheer', 'sad', 'hurt', 'bump', 'bumpGoal']) if (G[k] > 0) G[k] -= dt;
+    for (const tr of G.trails) tr.t -= dt;
+    G.trails = G.trails.filter((tr) => tr.t > 0);
+    if (G.flashes) { for (const f of G.flashes) { f.t -= dt; f.r += dt * 260; } G.flashes = G.flashes.filter((f) => f.t > 0); }
+    if (G.boltRow) { G.boltRow.t -= dt; if (G.boltRow.t <= 0) G.boltRow = null; }
+    updateOrbs(dt);
+    smooth(dt);
     if (G.state === 'ready') {
       G.readyT -= dt;
       if (G.readyT <= 0) core.startPlay();
@@ -405,10 +509,24 @@ window.DinoBlocks = (core) => {
       s.t += dt / s.dur; s.spin += dt * 8;
       const to = shotTarget(s), k = Math.min(1, s.t);
       s.x = s.sx + (to.x - s.sx) * k;
-      s.y = s.sy + (to.y - s.sy) * k - Math.sin(Math.PI * k) * 70;
+      s.y = s.sy + (to.y - s.sy) * k * k - Math.sin(Math.PI * k) * s.arc;
       if (s.t >= 1) { s.dead = true; landRock(s); if (G.state !== 'play') return; }
     }
     G.shots = G.shots.filter((s) => !s.dead);
+
+    if (G.throwEvery > 0) {
+      const slowK = G.freeze > 0 ? 0.35 : 1;
+      if (G.windup > 0) { G.windup -= dt * slowK; if (G.windup <= 0) throwRock(); }
+      else {
+        G.throwT -= dt * slowK;
+        if (G.throwT <= 0) {
+          G.throwT = G.throwEvery * rand(0.85, 1.15); G.windup = 1.0; G.target = pickTarget();
+          if (!G.bossFight) tip('meteor', '☄️ מטאור! הסימן האדום מראה איפה הוא ינחת');
+          else tip('bossrock', '🪨 הבוס זורק סלע! הסימן האדום מראה איפה');
+        }
+      }
+    }
+    if (G.cfg.rise) { G.riseT -= dt * (G.freeze > 0 ? 0.35 : 1); if (G.riseT <= 0) { G.riseT = G.cfg.rise; rise(); } }
 
     if (G.clearRows) {
       G.clearT -= dt;
@@ -417,47 +535,64 @@ window.DinoBlocks = (core) => {
     }
     if (!G.piece) { spawn(); if (G.state !== 'play' || !G.piece) return; }
 
-    if (G.freeze <= 0) {
-      if (G.throwEvery > 0) {
-        if (G.windup > 0) { G.windup -= dt; if (G.windup <= 0) throwRock(); }
-        else { G.throwT -= dt; if (G.throwT <= 0) { G.throwT = G.throwEvery * rand(0.85, 1.15); G.windup = 0.7; } }
-      }
-      if (G.cfg.rise) { G.riseT -= dt; if (G.riseT <= 0) { G.riseT = G.cfg.rise; rise(); if (!G.piece) return; } }
-    }
-
-    // Holding left/right keeps sliding after a short pause.
+    // Holding left/right keeps sliding after a short pause; holding down keeps speeding it down.
     if (held.left || held.right) {
       held.rep -= dt;
-      if (held.rep <= 0) { move(held.left ? -1 : 1); held.rep = 0.06; }
+      if (held.rep <= 0) { move(held.left ? -1 : 1); held.rep = 0.05; }
     }
 
     const p = G.piece;
-    const speed = held.down || G.soft ? Math.max(18, G.speed) : G.freeze > 0 ? 0 : G.speed;
+    const fast = held.down || G.soft;
+    const speed = fast ? Math.max(22, G.speed) : G.speed * (G.freeze > 0 ? 0.45 : 1);
     if (fits(p, p.x, p.y + 1)) {
       G.lockT = 0;
       G.fall += dt * speed;
       while (G.fall >= 1) {
         G.fall -= 1;
-        if (!fits(p, p.x, p.y + 1)) break;
+        if (!fits(p, p.x, p.y + 1)) { G.fall = 0; break; }
         p.y++;
-        if (held.down || G.soft) G.score += 1;
+        if (fast) G.score += 1;
       }
     } else {
       G.fall = 0;
       G.lockT += dt;
-      if (G.lockT > (held.down || G.soft ? 0.12 : 0.45)) lock();
+      if (G.lockT > (fast ? 0.15 : 0.5)) lock();
     }
+  }
+  // The stone glides between cells instead of jumping, so moving and falling look smooth.
+  function smooth(dt) {
+    const p = G.piece;
+    if (!p) return;
+    const k = Math.min(1, dt * 28);
+    p.rx += (p.x - p.rx) * k;
+    const ty = p.y + (fits(p, p.x, p.y + 1) ? Math.min(G.fall, 0.95) : 0);
+    p.ry = ty < p.ry ? ty : p.ry + (ty - p.ry) * Math.min(1, dt * 30);
+    if (Math.abs(p.rx - p.x) < 0.01) p.rx = p.x;
+    if (p.spin > 0) p.spin = Math.max(0, p.spin - dt * 9);
+  }
+  function updateOrbs(dt) {
+    for (const o of G.orbs) {
+      o.t += dt / o.dur;
+      if (o.t < 0) continue;
+      const k = Math.min(1, o.t), e = k * k * (3 - 2 * k);
+      o.x = o.sx + (o.tx - o.sx) * e + Math.sin(Math.PI * k) * 40;
+      o.y = o.sy + (o.ty - o.sy) * e;
+      if (Math.random() < 0.6) G.particles.push({ x: o.x, y: o.y, vx: rand(-20, 20), vy: rand(-20, 20), life: 0.3, max: 0.3, color: '#FFE98A', size: rand(2, 3.5) });
+      if (o.t >= 1) { o.dead = true; orbHit(); }
+    }
+    G.orbs = G.orbs.filter((o) => !o.dead);
   }
 
   // ---------- Win ----------
   const CONFETTI = ['#FFD23F', '#5CCB5F', '#FF8FA3', '#4FC3F7', '#8E5BD9', '#FF9F1C'];
   function win() {
     G.state = 'won';
-    G.winT = 0; G.piece = null; G.shots = [];
+    G.winT = 0; G.piece = null; G.shots = []; G.windup = 0;
     held.left = held.right = held.down = false;
+    hideTip();
     if (G.bossFight) {
       const at = throwerPos();
-      floatText(at.x - 40, at.y + 20, 'ניצחת את הבוס!', '#FFD23F');
+      floatText(at.x - 50, at.y + 30, 'ניצחת את הבוס!', '#FFD23F');
       sfx.defeat();
     }
     sfx.win();
@@ -497,7 +632,7 @@ window.DinoBlocks = (core) => {
     }
   }
   function dust(x, y) {
-    for (let i = 0; i < 2; i++) G.particles.push({ x, y, vx: rand(-40, 40), vy: rand(-50, -10), life: 0.35, max: 0.35, color: 'rgba(255,255,255,.8)', size: rand(2, 3.5) });
+    for (let i = 0; i < 3; i++) G.particles.push({ x, y, vx: rand(-60, 60), vy: rand(-60, -10), life: 0.35, max: 0.35, color: 'rgba(255,255,255,.85)', size: rand(2, 3.5) });
   }
   function floatText(x, y, text, color) { G.particles.push({ x, y, vx: 0, vy: -40, life: 1.3, max: 1.3, color, text }); }
   function updateParticles(dt) {
@@ -512,12 +647,13 @@ window.DinoBlocks = (core) => {
   // ---------- HUD ----------
   function hud() {
     $('.meter').classList.toggle('boss', G.bossFight);
-    const goal = G.cfg.goal, n = Math.min(G.lines, goal);
+    const goal = G.cfg.goal, n = Math.min(G.flown, goal);
     if (G.bossFight) {
       $('#levelName').textContent = 'בוס!';
-      $('#meterFill').style.width = `${(1 - n / goal) * 100}%`;
-      $('#meterNum').innerHTML = [...Array(BOSS_HP)].map((_, i) => `<span class="${i < G.bossHp ? 'on' : 'off'}">♥</span>`).join('')
-        + `<div class="boss-pct">🧱 <bdi>${n}</bdi> מתוך <bdi>${goal}</bdi></div>`;
+      const hearts = Math.ceil(5 * G.bossHp / goal);
+      $('#meterFill').style.width = `${G.bossHp / goal * 100}%`;
+      $('#meterNum').innerHTML = [...Array(5)].map((_, i) => `<span class="${i < hearts ? 'on' : 'off'}">♥</span>`).join('')
+        + `<div class="boss-pct">💥 <bdi>${n}</bdi> מתוך <bdi>${goal}</bdi></div>`;
       return;
     }
     $('#levelName').textContent = `שלב ${G.l + 1}`;
@@ -537,30 +673,53 @@ window.DinoBlocks = (core) => {
     rr(c, px + 5, py + CS - 10, CS - 10, 5, 2.5); c.fill();
     c.fillStyle = 'rgba(255,255,255,.42)';
     rr(c, px + 6, py + 5.5, CS - 16, 5.5, 2.75); c.fill();
-    if (kind === 'rock' || kind === 'vine') {
-      c.strokeStyle = 'rgba(43,27,61,.4)'; c.lineWidth = 1.6; c.beginPath();
-      if (kind === 'rock') { c.moveTo(px + 9, py + 14); c.lineTo(px + 15, py + 19); c.lineTo(px + 13, py + 25); c.moveTo(px + 15, py + 19); c.lineTo(px + 23, py + 17); }
-      else { c.moveTo(px + 6, py + 22); c.quadraticCurveTo(px + 16, py + 12, px + 26, py + 22); }
-      c.stroke();
-    } else if (kind === 'sand') {
-      c.fillStyle = 'rgba(160,103,63,.45)';
-      for (const [dx, dy] of [[9, 15], [20, 13], [15, 22], [24, 23]]) { c.beginPath(); c.arc(px + dx, py + dy, 1.4, 0, Math.PI * 2); c.fill(); }
-    } else if (kind === 'ice') {
-      c.strokeStyle = 'rgba(255,255,255,.9)'; c.lineWidth = 2; c.beginPath();
-      c.moveTo(px + 9, py + 24); c.lineTo(px + 15, py + 15); c.moveTo(px + 15, py + 25); c.lineTo(px + 22, py + 16); c.stroke();
+    const rk = ROWKIND[kind];
+    if (rk) {
+      c.strokeStyle = rk.mark; c.fillStyle = rk.mark; c.lineWidth = 2; c.beginPath();
+      if (kind === 'rock') { c.moveTo(px + 9, py + 14); c.lineTo(px + 15, py + 19); c.lineTo(px + 13, py + 25); c.moveTo(px + 15, py + 19); c.lineTo(px + 23, py + 17); c.stroke(); }
+      else if (kind === 'crystal') { c.moveTo(px + 10, py + 24); c.lineTo(px + 16, py + 13); c.lineTo(px + 22, py + 24); c.stroke(); }
+      else if (kind === 'candy') { c.moveTo(px + 6, py + 22); c.lineTo(px + 14, py + 14); c.moveTo(px + 14, py + 24); c.lineTo(px + 24, py + 14); c.stroke(); }
+      else if (kind === 'coral') { for (const [dx, dy] of [[11, 18], [21, 16], [16, 24]]) { c.moveTo(px + dx + 2.5, py + dy); c.arc(px + dx, py + dy, 2.5, 0, Math.PI * 2); } c.stroke(); }
+      else if (kind === 'sand') { for (const [dx, dy] of [[9, 16], [20, 14], [15, 22], [24, 23]]) { c.moveTo(px + dx + 1.5, py + dy); c.arc(px + dx, py + dy, 1.5, 0, Math.PI * 2); } c.fill(); }
+      else if (kind === 'moon') { c.ellipse(px + 13, py + 18, 4, 2.5, 0, 0, Math.PI * 2); c.moveTo(px + 26, py + 22); c.ellipse(px + 23, py + 22, 3, 2, 0, 0, Math.PI * 2); c.stroke(); }
     }
     c.globalAlpha = 1;
   }
-  function drawPower(c, type, px, py, t) {
-    const s = 22 + Math.sin(t * 5) * 1.5;
-    c.drawImage(sprite(POWERS[type].img, 24, 24), px + (CS - s) / 2, py + (CS - s) / 2, s, s);
+  // The glowing mark on a magic stone's cell.
+  function drawMagic(c, type, px, py, t) {
+    const cx = px + CS / 2, cy = py + CS / 2, pulse = 1 + Math.sin(t * 7) * 0.08;
+    c.save();
+    c.shadowColor = '#FFF27A'; c.shadowBlur = 12;
+    rr(c, px + 1.5, py + 1.5, CS - 3, CS - 3, 7);
+    c.fillStyle = '#FFFFFF'; c.fill();
+    c.restore();
+    c.lineWidth = 3; c.strokeStyle = INK; rr(c, px + 1.5, py + 1.5, CS - 3, CS - 3, 7); c.stroke();
+    c.save(); c.translate(cx, cy); c.scale(pulse, pulse);
+    c.lineWidth = 2.2; c.strokeStyle = INK; c.lineJoin = 'round';
+    if (type === 'bomb') {
+      c.fillStyle = INK; c.beginPath(); c.arc(0, 2, 8, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.moveTo(4, -4); c.quadraticCurveTo(8, -10, 10, -9); c.stroke();
+      c.fillStyle = Math.floor(t * 10) % 2 ? '#FFD23F' : '#FF6B2C'; c.beginPath(); c.arc(10, -10, 3, 0, Math.PI * 2); c.fill();
+      c.fillStyle = 'rgba(255,255,255,.6)'; c.beginPath(); c.arc(-3, -1, 2.2, 0, Math.PI * 2); c.fill();
+    } else if (type === 'bolt') {
+      c.fillStyle = '#FFD23F'; c.beginPath();
+      c.moveTo(2, -11); c.lineTo(-7, 2); c.lineTo(0, 2); c.lineTo(-3, 11); c.lineTo(7, -3); c.lineTo(0, -3); c.closePath(); c.fill(); c.stroke();
+    } else if (type === 'freeze') {
+      c.strokeStyle = '#4FC3F7'; c.lineWidth = 2.6; c.beginPath();
+      for (let i = 0; i < 3; i++) { const a = i * Math.PI / 3; c.moveTo(Math.cos(a) * -10, Math.sin(a) * -10); c.lineTo(Math.cos(a) * 10, Math.sin(a) * 10); }
+      c.stroke();
+    } else if (type === 'shield') {
+      c.fillStyle = '#7EC8FF'; c.beginPath();
+      c.moveTo(0, -11); c.lineTo(9, -7); c.quadraticCurveTo(9, 6, 0, 11); c.quadraticCurveTo(-9, 6, -9, -7); c.closePath(); c.fill(); c.stroke();
+    }
+    c.restore();
   }
-  function drawPieceAt(c, p, ox, oy, size) {
+  function drawPieceCells(c, p, ox, oy, size, ghost = false) {
     const k = size / CS;
     c.save(); c.translate(ox, oy); c.scale(k, k);
     p.cells.forEach(([x, y], i) => {
-      block(c, x * CS, y * CS, p.color, 'stone');
-      if (i === p.powerAt) drawPower(c, p.power, x * CS, y * CS, G.t);
+      if (i === p.magicAt) drawMagic(c, p.magic, x * CS, y * CS, G.t);
+      else block(c, x * CS, y * CS, p.color, 'stone', ghost ? 0.3 : 1);
     });
     c.restore();
   }
@@ -569,16 +728,17 @@ window.DinoBlocks = (core) => {
     const c = ctx;
     c.setTransform(1, 0, 0, 1, 0, 0);
     c.clearRect(0, 0, cv.width, cv.height);
-    const sx = G.shake > 0 ? rand(-4, 4) : 0, sy = G.shake > 0 ? rand(-4, 4) : 0;
+    const sh = G.shake > 0 ? G.shake * 18 : 0;
+    const sx = sh ? rand(-sh, sh) : 0, sy = (sh ? rand(-sh, sh) : 0) + (G.bump > 0 ? Math.sin(G.bump / 0.15 * Math.PI) * 3 : 0);
     c.setTransform(RES, 0, 0, RES, sx * RES, sy * RES);
 
-    // Top strip: the dino, the next stone, Rex.
+    // Top strip: the dino, the next stone, and the goal counter or the boss.
     rr(c, 2, 4, VW - 4, TOP - 12, 22);
     c.fillStyle = G.world.strip; c.fill();
     c.lineWidth = 4; c.strokeStyle = INK; c.stroke();
     drawDinoTop(c);
     drawNext(c);
-    drawThrower(c);
+    if (G.bossFight) drawBoss(c); else drawGoal(c);
 
     // Board frame + picture
     rr(c, BX - 6, BY - 6, BW + 12, BH + 12, 14);
@@ -586,7 +746,7 @@ window.DinoBlocks = (core) => {
     c.save();
     rr(c, BX, BY, BW, BH, 8); c.clip();
     if (sceneCv) c.drawImage(sceneCv, BX, BY, BW, BH);
-    c.strokeStyle = 'rgba(255,255,255,.06)'; c.lineWidth = 1;
+    c.strokeStyle = 'rgba(255,255,255,.07)'; c.lineWidth = 1;
     c.beginPath();
     for (let x = 1; x < COLS; x++) { c.moveTo(BX + x * CS, BY); c.lineTo(BX + x * CS, BY + BH); }
     for (let y = 1; y < ROWS; y++) { c.moveTo(BX, BY + y * CS); c.lineTo(BX + BW, BY + y * CS); }
@@ -600,6 +760,21 @@ window.DinoBlocks = (core) => {
       c.fillRect(BX, BY, BW, CS * 4);
     }
 
+    // Where the next rock lands: a red marker on that column.
+    if (G.state === 'play' && G.target !== null && (G.windup > 0 || G.shots.length)) {
+      const cols = new Set([...(G.windup > 0 ? [G.target] : []), ...G.shots.map((s) => s.col)]);
+      for (const col of cols) {
+        const ty = columnTop(col);
+        const a = 0.35 + 0.25 * Math.sin(G.t * 14);
+        c.fillStyle = `rgba(232,85,61,${a * 0.5})`;
+        c.fillRect(BX + col * CS + 2, BY, CS - 4, ty * CS);
+        c.strokeStyle = '#FF4F4F'; c.lineWidth = 3.5; c.lineCap = 'round';
+        const mx = BX + (col + 0.5) * CS, my = BY + (ty - 0.5) * CS;
+        c.beginPath(); c.moveTo(mx - 8, my - 8); c.lineTo(mx + 8, my + 8); c.moveTo(mx + 8, my - 8); c.lineTo(mx - 8, my + 8); c.stroke();
+        c.lineCap = 'butt';
+      }
+    }
+
     // Stack
     const flash = G.clearRows && Math.floor(G.clearT * 20) % 2 === 0;
     for (let y = 0; y < ROWS; y++) {
@@ -608,55 +783,85 @@ window.DinoBlocks = (core) => {
         const cell = G.grid[y * COLS + x];
         if (!cell) continue;
         const px = BX + x * CS, py = BY + y * CS;
-        if (clearing) {
-          const k = Math.max(0, G.clearT / 0.3);
-          block(c, px, py, flash ? '#FFFFFF' : cell.c, cell.k, 0.4 + k * 0.6);
-        } else block(c, px, py, cell.c, cell.k);
-        if (cell.power) drawPower(c, cell.power, px, py, G.t + x);
+        if (clearing) block(c, px, py, flash ? '#FFFFFF' : cell.c, cell.k, 0.4 + Math.max(0, G.clearT / 0.28) * 0.6);
+        else block(c, px, py, cell.c, cell.k);
+      }
+    }
+    if (G.boltRow) {
+      c.fillStyle = `rgba(255,242,122,${G.boltRow.t / 0.3 * 0.8})`;
+      c.fillRect(BX, BY + G.boltRow.y * CS - 4, BW, CS + 8);
+    }
+    for (const f of G.flashes || []) {
+      c.strokeStyle = `rgba(255,210,63,${f.t / 0.35})`; c.lineWidth = 8;
+      c.beginPath(); c.arc(f.x, f.y, f.r, 0, Math.PI * 2); c.stroke();
+    }
+
+    // Slam streaks
+    for (const tr of G.trails) {
+      const a = tr.t / 0.22;
+      for (const col of tr.cols) {
+        const g = c.createLinearGradient(0, BY + tr.from * CS, 0, BY + (tr.to + 1) * CS);
+        g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(1, `rgba(255,255,255,${0.55 * a})`);
+        c.fillStyle = g;
+        c.fillRect(BX + col * CS + 5, BY + tr.from * CS, CS - 10, (tr.to - tr.from + 1) * CS);
       }
     }
 
     const p = G.piece;
     if (p && G.state === 'play') {
-      // Ghost: where the stone will land.
+      // Ghost: where the stone will land if you slam it.
       const gy = dropY(p);
       if (gy > p.y) {
-        c.setLineDash([5, 4]); c.lineWidth = 2; c.strokeStyle = 'rgba(255,255,255,.65)';
-        for (const [cx, cy] of p.cells) { rr(c, BX + (p.x + cx) * CS + 4, BY + (gy + cy) * CS + 4, CS - 8, CS - 8, 6); c.stroke(); }
+        c.setLineDash([5, 4]); c.lineWidth = 2; c.strokeStyle = 'rgba(255,255,255,.7)';
+        for (const [cx, cy] of p.cells) {
+          rr(c, BX + (p.x + cx) * CS + 3, BY + (gy + cy) * CS + 3, CS - 6, CS - 6, 6);
+          c.fillStyle = 'rgba(255,255,255,.1)'; c.fill(); c.stroke();
+        }
         c.setLineDash([]);
       }
+      const ox = BX + p.rx * CS, oy = BY + p.ry * CS;
+      c.save();
+      if (p.spin > 0) {
+        // a quick little twist when it turns
+        const pc = (p.n / 2) * CS;
+        c.translate(ox + pc, oy + pc); c.rotate(-p.spin * 0.35); c.translate(-(ox + pc), -(oy + pc));
+      }
       p.cells.forEach(([cx, cy], i) => {
-        const x = p.x + cx, y = p.y + cy;
-        if (y < 0) return;
-        block(c, BX + x * CS, BY + y * CS, p.color, 'stone');
-        if (i === p.powerAt) drawPower(c, p.power, BX + x * CS, BY + y * CS, G.t);
+        if (p.ry + cy < -0.9) return;
+        const px = ox + cx * CS, py = oy + cy * CS;
+        if (i === p.magicAt) drawMagic(c, p.magic, px, py, G.t);
+        else block(c, px, py, p.color, 'stone');
       });
+      c.restore();
     }
 
-    // Night: only the area around the falling stone is lit.
-    if (G.world.dark && G.state !== 'won') {
-      const cx = p ? BX + (p.x + p.n / 2) * CS : BX + BW / 2, cy = p ? BY + (p.y + p.n / 2) * CS : BY + BH / 2;
-      const gr = c.createRadialGradient(cx, cy, 70, cx, cy, 230);
-      gr.addColorStop(0, 'rgba(8,5,26,0)'); gr.addColorStop(1, 'rgba(8,5,26,.82)');
-      c.fillStyle = gr; c.fillRect(BX, BY, BW, BH);
+    if (G.freeze > 0) {
+      c.fillStyle = 'rgba(189,235,255,.16)'; c.fillRect(BX, BY, BW, BH);
+      c.strokeStyle = 'rgba(255,255,255,.7)'; c.lineWidth = 6; rr(c, BX + 3, BY + 3, BW - 6, BH - 6, 8); c.stroke();
     }
-    if (G.freeze > 0) { c.fillStyle = 'rgba(189,235,255,.18)'; c.fillRect(BX, BY, BW, BH); }
 
     // Rising rows: a bar along the bottom fills up before the next row pushes in.
     if (G.cfg.rise && G.state === 'play') {
       const k = 1 - G.riseT / G.cfg.rise;
-      c.fillStyle = k > 0.8 && Math.floor(G.t * 8) % 2 ? '#FFD23F' : ROCK[G.world.rows];
-      c.fillRect(BX, BY + BH - 5, BW * k, 5);
+      c.fillStyle = k > 0.8 && Math.floor(G.t * 8) % 2 ? '#FFD23F' : ROWKIND[G.world.rows].c;
+      c.fillRect(BX, BY + BH - 6, BW * k, 6);
     }
     c.restore();
 
-    for (const s of G.shots) core.drawShot(c, s.x, s.y, 9, s.spin);
+    for (const s of G.shots) core.drawShot(c, s.x, s.y, G.bossFight ? 10 : 12, s.spin);
+    for (const o of G.orbs) {
+      if (o.t < 0) continue;
+      c.save(); c.translate(o.x, o.y); c.rotate(G.t * 6);
+      c.fillStyle = '#FFD23F'; c.strokeStyle = INK; c.lineWidth = 2.5; c.beginPath();
+      for (let i = 0; i < 10; i++) { const a = i * Math.PI / 5 - Math.PI / 2, r = i % 2 ? 5 : 11; c.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+      c.closePath(); c.fill(); c.stroke(); c.restore();
+    }
     drawParticles(c);
   }
 
   function drawDinoTop(c) {
     const ch = G.ch, W = ch.w || 200, H = ch.h || 200;
-    const pw = 74 * (ch.w ? 1.2 : 1), ph = pw * H / W;
+    const pw = 72 * (ch.w ? 1.2 : 1), ph = pw * H / W;
     const won = G.state === 'won';
     const hop = won && G.winT > 0.3 ? -Math.abs(Math.sin((G.winT - 0.3) * 7)) * 12 : G.cheer > 0 ? -Math.sin(G.cheer * Math.PI) * 10 : 0;
     const wob = G.sad > 0 ? Math.sin(G.sad * 25) * 3 : 0;
@@ -667,14 +872,14 @@ window.DinoBlocks = (core) => {
     core.drawDino(c, ch, G.outfit, pw, ph, G.t, sprite(ch.img, pw, ph));
     c.restore();
     if (G.shield) {
-      c.strokeStyle = 'rgba(189,235,255,0.95)'; c.lineWidth = 3;
+      c.strokeStyle = 'rgba(126,200,255,0.95)'; c.lineWidth = 3;
       c.beginPath(); c.arc(PAD + 46, TOP - 12 - ph * 0.45, 40 + Math.sin(G.t * 5) * 2, 0, Math.PI * 2); c.stroke();
     }
   }
   function drawNext(c) {
-    const cx = VW / 2 - 6, cy = TOP / 2 - 2, w = 92, h = 70;
+    const cx = VW / 2 - 4, cy = TOP / 2 - 2, w = 96, h = 72;
     rr(c, cx - w / 2, cy - h / 2, w, h, 16);
-    c.fillStyle = 'rgba(255,255,255,.9)'; c.fill();
+    c.fillStyle = 'rgba(255,255,255,.92)'; c.fill();
     c.lineWidth = 3; c.strokeStyle = INK; c.stroke();
     c.font = '700 13px Rubik, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
     c.fillStyle = INK; c.fillText('הבא', cx, cy - h / 2 + 11);
@@ -684,14 +889,27 @@ window.DinoBlocks = (core) => {
     const xs = p.cells.map((q) => q[0]), ys = p.cells.map((q) => q[1]);
     const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
     const pw = (maxX - minX + 1) * size, ph = (maxY - minY + 1) * size;
-    drawPieceAt(c, p, cx - pw / 2 - minX * size, cy + 8 - ph / 2 - minY * size, size);
+    drawPieceCells(c, p, cx - pw / 2 - minX * size, cy + 8 - ph / 2 - minY * size, size);
   }
-  function drawThrower(c) {
+  // Normal levels: how many rows are left. The stars from cleared rows fly in here.
+  function drawGoal(c) {
+    const at = goalPos(), left = Math.max(0, G.cfg.goal - G.flown);
+    const k = 1 + (G.bumpGoal > 0 ? Math.sin(G.bumpGoal / 0.35 * Math.PI) * 0.18 : 0);
+    c.save(); c.translate(at.x, at.y); c.scale(k, k);
+    c.beginPath(); c.arc(0, 0, 34, 0, Math.PI * 2);
+    c.fillStyle = '#FFFFFF'; c.fill(); c.lineWidth = 4; c.strokeStyle = INK; c.stroke();
+    c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = INK;
+    c.font = '700 30px Fredoka, Rubik, sans-serif';
+    c.fillText(String(left), 0, -3);
+    c.font = '700 11px Rubik, sans-serif';
+    c.fillText(left === 1 ? 'שורה' : 'שורות', 0, 20);
+    c.restore();
+  }
+  // Boss levels: the boss with its health bar; each cleared row hits it.
+  function drawBoss(c) {
     const at = throwerPos();
-    const boss = G.bossFight;
-    const img = boss ? `boss-${G.w + 1}` : `rex-${G.w + 1}`;
-    const w = boss ? 94 : 82, h = boss ? 98 : 75;
-    if (G.state === 'won' && boss) {
+    const img = `bboss-${G.w + 1}`, w = 92, h = 96;
+    if (G.state === 'won') {
       const t = Math.min(1, G.winT / 1.2);
       if (t >= 1) return;
       c.save(); c.globalAlpha = 1 - t * t;
@@ -700,25 +918,30 @@ window.DinoBlocks = (core) => {
       c.restore(); c.globalAlpha = 1;
       return;
     }
-    const sleepy = !G.throwEvery;
     let k = 1, ox = 0;
-    if (G.windup > 0) k = 1 + 0.08 * Math.sin((0.7 - G.windup) * 30);
-    if (G.hurt > 0) ox = Math.sin(G.hurt * 60) * 5;
+    if (G.windup > 0) k = 1 + 0.1 * Math.sin((1 - G.windup) * 30);
+    if (G.hurt > 0) ox = Math.sin(G.hurt * 60) * 6;
+    if (G.state === 'ready') k *= Math.min(1, (G.readyMax - G.readyT) / 0.5);
     c.save();
-    c.translate(at.x + ox, at.y + (boss ? -2 : 6) + Math.sin(G.t * (sleepy ? 2 : 5)) * 2);
+    c.translate(at.x + ox, at.y + 4 + Math.sin(G.t * 4) * 2);
     c.scale(k, k);
     if (G.hurt > 0 && Math.floor(G.hurt * 14) % 2 === 0) c.globalAlpha = 0.45;
     c.drawImage(sprite(img, w, h), -w / 2, -h / 2, w, h);
     c.restore(); c.globalAlpha = 1;
-    if (G.windup > 0) core.drawShot(c, at.x - 22, at.y - 10, 9 * (1 - G.windup / 0.7) + 2, G.t * 7);
-    if (sleepy && G.state === 'play') {
-      c.font = '700 16px Fredoka, sans-serif'; c.fillStyle = INK; c.textAlign = 'center';
-      c.fillText('z', at.x - 30, at.y - 26 - (G.t * 8 % 8)); c.fillText('z', at.x - 40, at.y - 38 - (G.t * 8 % 8));
-    }
+    if (G.windup > 0) core.drawShot(c, at.x - 24, at.y - 8, 10 * (1 - G.windup) + 2, G.t * 7);
     if (G.freeze > 0) {
       c.fillStyle = 'rgba(189,235,255,0.45)'; c.strokeStyle = '#FFFFFF'; c.lineWidth = 2;
-      c.beginPath(); c.arc(at.x, at.y, w * 0.48, 0, Math.PI * 2); c.fill(); c.stroke();
+      c.beginPath(); c.arc(at.x, at.y, w * 0.5, 0, Math.PI * 2); c.fill(); c.stroke();
     }
+    // health bar under the boss
+    const bw = 84, bx = at.x - bw / 2, by = TOP - 22;
+    rr(c, bx, by, bw, 12, 6); c.fillStyle = '#FFFFFF'; c.fill();
+    const f = G.bossHp / G.cfg.goal;
+    if (f > 0) { rr(c, bx, by, bw * f, 12, 6); c.fillStyle = '#E8553D'; c.fill(); }
+    rr(c, bx, by, bw, 12, 6); c.lineWidth = 3; c.strokeStyle = INK; c.stroke();
+    c.strokeStyle = 'rgba(43,27,61,.35)'; c.lineWidth = 1.5; c.beginPath();
+    for (let i = 1; i < G.cfg.goal; i++) { const x = bx + bw * i / G.cfg.goal; c.moveTo(x, by + 2); c.lineTo(x, by + 10); }
+    c.stroke();
   }
   function drawParticles(c) {
     for (const q of G.particles) {
@@ -747,13 +970,13 @@ window.DinoBlocks = (core) => {
     core.skipIntro();
     if (!playing()) return;
     sfx.init();
-    if (k === 'left' || k === 'right') { held[k] = true; held[k === 'left' ? 'right' : 'left'] = false; move(k === 'left' ? -1 : 1); held.rep = 0.17; }
+    if (k === 'left' || k === 'right') { held[k] = true; held[k === 'left' ? 'right' : 'left'] = false; move(k === 'left' ? -1 : 1); held.rep = 0.15; }
     if (k === 'down') held.down = true;
     if (k === 'rot') rotate();
-    if (k === 'drop') hardDrop();
+    if (k === 'drop') slam();
   }
   function release(k) { if (k in held) held[k] = false; }
-  // Button pad
+  // Button pad: buttons react the moment a finger touches them.
   for (const b of document.querySelectorAll('#bpad [data-k]')) {
     const k = b.dataset.k;
     b.addEventListener('pointerdown', (e) => {
@@ -765,57 +988,69 @@ window.DinoBlocks = (core) => {
     const up = () => { b.classList.remove('on'); release(k); };
     b.addEventListener('pointerup', up);
     b.addEventListener('pointercancel', up);
+    b.addEventListener('contextmenu', (e) => e.preventDefault());
   }
-  // Swipe mode: drag sideways to slide the stone, tap to turn it, flick down to drop it, drag down slowly to speed it up.
+  // Touching the board: the stone follows your finger sideways, a quick flick down slams it,
+  // dragging down slowly speeds it up, a flick up or a tap turns it. (With buttons on, a tap on the board turns it too.)
   const sw = { id: null };
   const wrap = $('#boardWrap');
+  const cellPx = () => cv.getBoundingClientRect().width / VW * CS;
   wrap.addEventListener('pointerdown', (e) => {
-    if (!G || G.mode !== 'blocks' || core.controlMode() !== 'swipe') return;
-    if (e.target.closest('button, .overlay')) return;
-    Object.assign(sw, { id: e.pointerId, x: e.clientX, y: e.clientY, ax: e.clientX, ay: e.clientY, t: e.timeStamp, moved: false, ly: e.clientY, lt: e.timeStamp, vy: 0 });
+    if (!G || G.mode !== 'blocks' || e.target.closest('button, .overlay')) return;
+    Object.assign(sw, { id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp, moved: false, done: false,
+      col: G.piece ? G.piece.x : 0, row: G.piece ? G.piece.y : 0, samples: [[e.timeStamp, e.clientX, e.clientY]] });
     try { wrap.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
   });
   wrap.addEventListener('pointermove', (e) => {
-    if (e.pointerId !== sw.id || !playing()) return;
-    const cell = cv.getBoundingClientRect().width / VW * CS * 0.9;
-    const dt = e.timeStamp - sw.lt;
-    if (dt > 0) sw.vy = (e.clientY - sw.ly) / dt;
-    sw.ly = e.clientY; sw.lt = e.timeStamp;
-    while (e.clientX - sw.ax > cell) { move(1); sw.ax += cell; sw.moved = true; }
-    while (sw.ax - e.clientX > cell) { move(-1); sw.ax -= cell; sw.moved = true; }
-    const dy = e.clientY - sw.ay;
-    if (dy > cell * 1.2 && Math.abs(e.clientX - sw.x) < dy) { G.soft = true; sw.moved = true; }
-    else if (dy < cell * 0.5) G.soft = false;
+    if (e.pointerId !== sw.id || sw.done || !playing() || !G.piece) return;
+    const swipe = core.controlMode() === 'swipe';
+    sw.samples.push([e.timeStamp, e.clientX, e.clientY]);
+    while (sw.samples.length > 2 && e.timeStamp - sw.samples[0][0] > 70) sw.samples.shift();
+    const [t0, , y0] = sw.samples[0];
+    const vy = (e.clientY - y0) / Math.max(1, e.timeStamp - t0);
+    const dx = e.clientX - sw.x, dy = e.clientY - sw.y, cp = cellPx();
+    if (Math.hypot(dx, dy) > 10) sw.moved = true;
+    if (!swipe) return;
+    // Fast flick down: slam right away, no need to lift the finger.
+    if (vy > 0.75 && dy > cp * 0.6 && dy > Math.abs(dx)) { slam(); sw.done = true; return; }
+    // Sideways: the stone follows the finger column by column.
+    const p = G.piece;
+    if (p.x !== sw.col + Math.round(dx / cp)) {
+      const want = sw.col + Math.round(dx / cp);
+      while (p.x < want && move(1));
+      while (p.x > want && move(-1));
+    }
+    // Slow drag down: the stone comes down with the finger.
+    const wantRow = sw.row + Math.floor(Math.max(0, dy) / cp);
+    if (dy > cp * 0.8 && Math.abs(dy) > Math.abs(dx)) { while (p.y < wantRow && moveDown()); G.lockT = Math.min(G.lockT, 0.25); }
   });
   const swEnd = (e) => {
     if (e.pointerId !== sw.id) return;
     sw.id = null;
-    const wasSoft = G && G.soft;
-    if (G) G.soft = false;
-    if (!playing() || e.type === 'pointercancel') return;
-    const dy = e.clientY - sw.y, dx = e.clientX - sw.x;
-    if (sw.vy > 0.9 && dy > 40) { hardDrop(); return; }
-    if (!sw.moved && !wasSoft && Math.hypot(dx, dy) < 14 && e.timeStamp - sw.t < 350) rotate();
+    if (sw.done || !playing() || e.type === 'pointercancel') return;
+    const dy = e.clientY - sw.y, dx = e.clientX - sw.x, quick = e.timeStamp - sw.t < 300;
+    const swipe = core.controlMode() === 'swipe';
+    if (!sw.moved && quick) { rotate(); return; }
+    if (swipe && quick && dy < -cellPx() && Math.abs(dy) > Math.abs(dx)) rotate(); // flick up turns
   };
   wrap.addEventListener('pointerup', swEnd);
   wrap.addEventListener('pointercancel', swEnd);
 
-  // Keyboard: arrows move, up or X turns, down drops faster, space drops.
+  // Keyboard: arrows move, up or X turns, down drops faster, space slams.
   const KEYMAP = { ArrowLeft: 'left', ArrowRight: 'right', ArrowDown: 'down', ArrowUp: 'rot', x: 'rot', X: 'rot', ' ': 'drop' };
   function key(e, down) {
     const k = KEYMAP[e.key];
     if (!k) return;
     e.preventDefault();
     if (!down) { release(k); return; }
-    if (e.repeat && (k === 'left' || k === 'right' || k === 'down')) return; // we repeat ourselves
-    if (e.repeat) return;
+    if (e.repeat) return; // we repeat held keys ourselves
     press(k);
   }
 
   return {
-    game: { logo: ['דינו', 'בלוקים!'], worlds: WORLDS, chals: CHALS, perk: 'bperk', goal: goalText, start },
+    game: { logo: ['דינו', 'בלוקים!'], worlds: WORLDS, chals: CHALS, perk: 'bperk', goal: goalText, start, bosses: BOSSES, map: MAP },
     update: (dt) => { G = core.G(); update(dt); },
     render: () => { G = core.G(); render(); },
-    resize, key,
+    resize, key, hideTip,
   };
 };
