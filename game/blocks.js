@@ -151,25 +151,26 @@ window.DinoBlocks = (core) => {
     const ch = CHARS[r.selected] || CHARS.pip;
     const key = `${w + 1}-${l + 1}`;
     const help = (r.streak[key] || 0) >= 3 ? 0.85 : 1; // a little quiet help after 3 losses in a row
-    const lives = ch.lives || 3;
+    const lives = 3;
     const boss = !!cfg.bossFight;
     G = {
-      mode: 'blocks', w, l, cfg, key, ch, world,
+      mode: 'blocks', w, l, cfg, key, ch, world, perk: ch.id, bombRows: 0, hold: null, holdUsed: false, after: null,
       bossFight: boss, bossInfo: boss ? BOSSES[w] : { shot: 'meteor' }, bossHp: cfg.goal, bossShown: cfg.goal,
       grid: new Array(COLS * ROWS).fill(null),
       lives, maxLives: lives, score: 0, lines: 0, flown: 0, multi: false,
       state: 'ready', readyT: boss ? 3.2 : 2.2, t: 0, playT: 0, shownSec: -1,
       particles: [], shots: [], orbs: [], trails: [], piece: null, next: null, bag: [], pieces: 0,
       fall: 0, lockT: 0, lockMoves: 0, clearRows: null, clearT: 0,
-      speed: cfg.speed * (ch.slow || 1) * help, soft: false,
+      speed: cfg.speed * help, soft: false,
       throwEvery: boss ? BOSSES[w].every / help : cfg.meteors / help,
       throwT: boss ? 5 : cfg.meteors * 0.7, windup: 0, target: null,
-      riseT: cfg.rise, freeze: 0, shield: !!ch.shieldStart,
+      riseT: cfg.rise, freeze: 0, shield: false,
       cheer: 0, sad: 0, shake: 0, hurt: 0, bump: 0, winT: 0, outfit: { ...store.data.outfit },
     };
     G.readyMax = G.readyT;
     for (let k = 0; k < cfg.start; k++) addRow(ROWS - 1 - k, world.rows);
     G.next = takePiece();
+    if (G.perk === 'stegi') G.after = takePiece(); // Stegi sees two stones ahead
     core.setG(G);
     core.setPaused(false);
     core.hideOverlays();
@@ -219,7 +220,8 @@ window.DinoBlocks = (core) => {
     const t = G.bag.pop(), s = SHAPES[t];
     G.pieces++;
     const kinds = Object.keys(MAGIC);
-    const magic = G.pieces > 2 && G.pieces % MAGIC_EVERY === 0 ? kinds[Math.floor(Math.random() * kinds.length)] : null;
+    const every = G.perk === 'rafi' ? 4 : MAGIC_EVERY; // Rafi gets magic stones about twice as often
+    const magic = G.pieces > 2 && G.pieces % every === 0 ? kinds[Math.floor(Math.random() * kinds.length)] : null;
     return { t, n: s.n, color: s.color, cells: s.cells.map((c) => [...c]), x: 0, y: 0, rx: 0, ry: 0,
       magic, magicAt: magic ? Math.floor(Math.random() * s.cells.length) : -1 };
   }
@@ -229,13 +231,29 @@ window.DinoBlocks = (core) => {
   const fits = (p, x, y, cells = p.cells) => cells.every(([cx, cy]) => !cellAt(x + cx, y + cy));
   function spawn() {
     const p = G.next;
-    G.next = takePiece();
+    if (G.after) { G.next = G.after; G.after = takePiece(); } else G.next = takePiece();
+    G.holdUsed = false;
+    place(p);
+  }
+  // Put a stone at the top middle of the board.
+  function place(p) {
     const minY = Math.min(...p.cells.map((c) => c[1]));
     p.x = Math.floor((COLS - p.n) / 2); p.y = -minY;
     p.rx = p.x; p.ry = p.y - 0.6;
     G.fall = 0; G.lockT = 0; G.lockMoves = 0;
     if (!fits(p, p.x, p.y)) { G.piece = null; topOut(); return; }
     G.piece = p;
+  }
+  // Petra flies off with the falling stone and keeps it for later (once per stone).
+  function hold() {
+    const p = G.piece;
+    if (G.perk !== 'petra' || !p || G.slam || G.holdUsed) return;
+    p.cells = SHAPES[p.t].cells.map((c) => [...c]); // back to how it started
+    const back = G.hold;
+    G.hold = p;
+    if (back) place(back); else spawn();
+    G.holdUsed = true;
+    sfx.tone(780, 0.08, 'triangle', 0.06, 0, 1100);
   }
   function move(dx) {
     const p = G.piece;
@@ -347,12 +365,23 @@ window.DinoBlocks = (core) => {
     const midY = BY + (rows.reduce((a, b) => a + b, 0) / n + 0.5) * CS;
     floatText(BX + BW / 2, midY, n >= 2 ? `${n} שורות! ✨` : 'שורה!', n >= 2 ? '#FFD23F' : '#FFFFFF');
     sfx.claim();
-    // One star per row flies up to the goal counter (or into the boss).
-    const to = goalPos();
-    rows.forEach((y, i) => {
-      G.orbs.push({ x: BX + BW / 2 + (i - (n - 1) / 2) * 30, y: BY + (y + 0.5) * CS, sx: BX + BW / 2 + (i - (n - 1) / 2) * 30,
-        sy: BY + (y + 0.5) * CS, tx: to.x, ty: to.y, t: -i * 0.08, dur: 0.55 });
-    });  }
+    // One star per row flies up to the goal counter (or into the boss). Rex's rows count twice: two stars each.
+    const to = goalPos(), per = G.perk === 'rex' ? 2 : 1, stars = rows.flatMap((y) => Array(per).fill(y));
+    stars.forEach((y, i) => {
+      const x = BX + BW / 2 + (i - (stars.length - 1) / 2) * 26;
+      G.orbs.push({ x, y: BY + (y + 0.5) * CS, sx: x, sy: BY + (y + 0.5) * CS, tx: to.x, ty: to.y, t: -i * 0.08, dur: 0.55 });
+    });
+    if (per > 1) floatText(BX + BW / 2, midY + 28, 'רקס: כפול!', '#FF9F1C');
+    // Anki's hammer tail: every 4 rows, the next stone comes with a bomb.
+    if (G.perk === 'anki') {
+      G.bombRows += n;
+      if (G.bombRows >= 4) {
+        G.bombRows -= 4;
+        G.next.magic = 'bomb'; G.next.magicAt = Math.floor(Math.random() * G.next.cells.length);
+        floatText(BX + 60, BY + 30, 'אנקי: פצצה!', '#FFD23F');
+      }
+    }
+  }
   // A star reached the counter / the boss.
   function orbHit() {
     G.flown++;
@@ -394,7 +423,7 @@ window.DinoBlocks = (core) => {
   }
 
   function doMagic(type, x, y) {
-    const dur = G.ch.powerDur || 1;
+    const dur = 1;
     const px = BX + (x + 0.5) * CS, py = BY + (y + 0.5) * CS;
     if (type === 'bomb') {
       for (let yy = y - 1; yy <= y + 1; yy++) {
@@ -866,20 +895,43 @@ window.DinoBlocks = (core) => {
       c.beginPath(); c.arc(PAD + 46, TOP - 12 - ph * 0.45, 40 + Math.sin(G.t * 5) * 2, 0, Math.PI * 2); c.stroke();
     }
   }
-  function drawNext(c) {
-    const cx = VW / 2 - 4, cy = TOP / 2 - 2, w = 96, h = 72;
-    rr(c, cx - w / 2, cy - h / 2, w, h, 16);
-    c.fillStyle = 'rgba(255,255,255,.92)'; c.fill();
-    c.lineWidth = 3; c.strokeStyle = INK; c.stroke();
-    c.font = '700 13px Rubik, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
-    c.fillStyle = INK; c.fillText('הבא', cx, cy - h / 2 + 11);
-    const p = G.next;
-    if (!p) return;
-    const size = 16;
+  // A small stone centred on (cx, cy).
+  function drawMini(c, p, cx, cy, size, alpha = 1) {
     const xs = p.cells.map((q) => q[0]), ys = p.cells.map((q) => q[1]);
     const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
     const pw = (maxX - minX + 1) * size, ph = (maxY - minY + 1) * size;
-    drawPieceCells(c, p, cx - pw / 2 - minX * size, cy + 8 - ph / 2 - minY * size, size);
+    c.globalAlpha = alpha;
+    drawPieceCells(c, p, cx - pw / 2 - minX * size, cy - ph / 2 - minY * size, size);
+    c.globalAlpha = 1;
+  }
+  function box(c, cx, cy, w, h, label, glow) {
+    rr(c, cx - w / 2, cy - h / 2, w, h, 16);
+    c.fillStyle = glow ? '#FFF6C9' : 'rgba(255,255,255,.92)'; c.fill();
+    c.lineWidth = 3; c.strokeStyle = INK; c.stroke();
+    c.font = '700 13px Rubik, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillStyle = INK; c.fillText(label, cx, cy - h / 2 + 11);
+  }
+  const HOLD_BOX = { cx: 114, cy: TOP / 2 - 2, w: 50, h: 72 };
+  function drawNext(c) {
+    const cy = TOP / 2 - 2;
+    if (G.perk === 'stegi') {
+      // Stegi sees two stones ahead: the next one big, the one after it smaller.
+      const cx = 168, w = 124;
+      box(c, cx, cy, w, 72, 'הבאים');
+      if (G.next) drawMini(c, G.next, cx + 24, cy + 8, 15);
+      if (G.after) drawMini(c, G.after, cx - 34, cy + 10, 10, 0.75);
+      return;
+    }
+    const cx = G.perk === 'petra' ? 190 : VW / 2 - 4;
+    box(c, cx, cy, 96, 72, 'הבא');
+    if (G.next) drawMini(c, G.next, cx, cy + 8, 16);
+    if (G.perk === 'petra') {
+      // Petra's pocket: tap it (or Petra) to put the falling stone aside and take it back later.
+      const H = HOLD_BOX, ready = !G.holdUsed && G.state === 'play';
+      box(c, H.cx, H.cy, H.w, H.h, 'שמור', ready && Math.sin(G.t * 4) > 0.6);
+      if (G.hold) drawMini(c, G.hold, H.cx, H.cy + 8, 9);
+      else { c.font = '700 22px Fredoka, sans-serif'; c.fillStyle = 'rgba(43,27,61,.35)'; c.fillText('+', H.cx, H.cy + 9); }
+    }
   }
   // Normal levels: how many rows are left. The stars from cleared rows fly in here.
   function drawGoal(c) {
@@ -964,6 +1016,7 @@ window.DinoBlocks = (core) => {
     if (k === 'down') held.down = true;
     if (k === 'rot') rotate();
     if (k === 'drop') slam();
+    if (k === 'hold') hold();
   }
   function release(k) { if (k in held) held[k] = false; }
   // Button pad: buttons react the moment a finger touches them.
@@ -1029,14 +1082,19 @@ window.DinoBlocks = (core) => {
     if (sw.done || !playing() || e.type === 'pointercancel') return;
     const dy = e.clientY - sw.y, dx = e.clientX - sw.x, quick = e.timeStamp - sw.t < 300;
     const swipe = core.controlMode() === 'swipe';
-    if (!sw.moved && quick) { rotate(); return; }
+    if (!sw.moved && quick) {
+      // Petra: a tap on her or on her pocket puts the stone aside.
+      const r = cv.getBoundingClientRect(), lx = (e.clientX - r.left) / r.width * VW, ly = (e.clientY - r.top) / r.height * VH;
+      if (G.perk === 'petra' && ly < TOP && lx < HOLD_BOX.cx + HOLD_BOX.w / 2 + 4) { hold(); return; }
+      rotate(); return;
+    }
     if (swipe && quick && dy < -cellPx() * 1.5 && Math.abs(dy) > Math.abs(dx) * 1.5) rotate(); // flick up turns
   };
   wrap.addEventListener('pointerup', swEnd);
   wrap.addEventListener('pointercancel', swEnd);
 
   // Keyboard: arrows move, up or X turns, down drops faster, space slams.
-  const KEYMAP = { ArrowLeft: 'left', ArrowRight: 'right', ArrowDown: 'down', ArrowUp: 'rot', x: 'rot', X: 'rot', ' ': 'drop' };
+  const KEYMAP = { ArrowLeft: 'left', ArrowRight: 'right', ArrowDown: 'down', ArrowUp: 'rot', x: 'rot', X: 'rot', ' ': 'drop', c: 'hold', C: 'hold' };
   function key(e, down) {
     const k = KEYMAP[e.key];
     if (!k) return;
