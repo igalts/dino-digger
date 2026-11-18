@@ -1411,9 +1411,18 @@
   }
   $('#shopBtn').addEventListener('click', () => { sfx.init(); sfx.tap(); openShop(); });
   $('#shopBack').addEventListener('click', () => { sfx.tap(); shop.trying = null; show('title'); });
-  $('#shopPrev').addEventListener('click', () => shopCycle(-1));
-  $('#shopNext').addEventListener('click', () => shopCycle(1));
-  $('#shopHero').addEventListener('click', () => shopCycle(1));
+  // The dino in the wardrobe slides too: drag him sideways (or use the arrows) to change dino.
+  const openChars = () => CHAR_ORDER.filter((id) => store.data.unlocked.includes(id));
+  const heroSlide = attachSlide({
+    areas: [$('.shop-stage')],
+    el: $('#shopHero'),
+    ignore: (e) => !!e.target.closest('button'),
+    canGo: () => openChars().length > 1,
+    apply: (step) => shopCycle(step),
+  });
+  $('#shopPrev').addEventListener('click', () => heroSlide.go(-1));
+  $('#shopNext').addEventListener('click', () => heroSlide.go(1));
+  $('#shopHero').addEventListener('click', () => { if (!slidRecently()) heroSlide.go(1); });
   // Swipeable pages (shop tabs, map worlds). The page follows the finger; let go far or fast enough
   // and it slides out while the next one slides in. RTL: the next page is to the left, so a finger
   // moving right (dir +1) brings it in.
@@ -1777,7 +1786,7 @@
 
   // Debug hook for testing in a desktop browser.
   window.__dino = {
-    get G() { return G; }, startLevel, store, input,
+    get G() { return G; }, startLevel, store, input, shop,
     tick(n = 1, dt = 1 / 60) { for (let i = 0; i < n; i++) update(dt); render(); },
   };
 })();
