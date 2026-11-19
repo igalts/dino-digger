@@ -18,15 +18,15 @@ W, H = 360, 780
 # Keep NODES / PRIZE in sync with MAP_LAYOUTS in game/game.js.
 LAYOUTS = [
     # volcano: zig-zag up the hill
-    dict(nodes=[(95, 625), (262, 530), (100, 420), (262, 305), (150, 195)], prize=(262, 120), entry=[(40, 820), (62, 720)]),
+    dict(nodes=[(95, 605), (262, 530), (100, 420), (262, 305), (150, 195)], prize=(262, 120), entry=[(40, 820), (62, 720)]),
     # jungle: along the bottom, up the right bank over the river, back left, up the left side
-    dict(nodes=[(85, 640), (255, 615), (285, 410), (115, 365), (110, 215)], prize=(265, 125), entry=[(-40, 700), (10, 680)]),
+    dict(nodes=[(85, 605), (255, 560), (285, 410), (115, 365), (110, 215)], prize=(265, 125), entry=[(-40, 700), (10, 680)]),
     # beach: hopping between little islands
-    dict(nodes=[(250, 650), (95, 560), (255, 455), (90, 335), (245, 225)], prize=(95, 120), entry=[(330, 820), (300, 730)]),
+    dict(nodes=[(250, 605), (95, 525), (255, 455), (90, 335), (245, 225)], prize=(95, 120), entry=[(330, 820), (300, 730)]),
     # ice: around the frozen lake, then up to the peak
-    dict(nodes=[(180, 640), (295, 480), (190, 325), (65, 455), (95, 220)], prize=(265, 120), entry=[(190, 820), (185, 730)]),
+    dict(nodes=[(180, 605), (295, 480), (190, 325), (65, 455), (95, 220)], prize=(265, 120), entry=[(190, 820), (185, 730)]),
     # night: straight up the lantern avenue to the castle
-    dict(nodes=[(180, 655), (215, 545), (150, 435), (210, 325), (165, 215)], prize=(285, 125), entry=[(180, 830), (180, 740)]),
+    dict(nodes=[(180, 605), (215, 510), (150, 435), (210, 325), (165, 215)], prize=(285, 125), entry=[(180, 830), (180, 740)]),
 ]
 
 

@@ -69,7 +69,7 @@ def _spiral():
 
 
 def _u_turns():
-    rows = [660, 500, 340, 180]
+    rows = [605, 465, 325, 185]
     lx, rx = 118, 242
     pts = _line([(rx + 40, 830), (rx + 40, rows[0] + 40)])
     pts += _round_corners([(rx + 40, rows[0] + 40), (rx + 40, rows[0]), (lx, rows[0])], 30)[1:]
@@ -94,18 +94,27 @@ def _orbits():
     return pts
 
 
+# Where along each road the 5 level spots sit. Level 1 is at y≈605 on every map, so the world
+# switcher at the bottom of the screen never covers it; the road below it is the way in.
+F = [
+    (0.223, 0.377, 0.532, 0.686, 0.84),
+    (0.178, 0.344, 0.509, 0.675, 0.84),
+    (0.213, 0.379, 0.546, 0.713, 0.88),
+    (0.222, 0.377, 0.531, 0.686, 0.84),
+    (0.274, 0.415, 0.557, 0.698, 0.84),
+]
 LAYOUTS = [
     # crystal cave: a sharp lightning zigzag up the cave
-    _shape(_round_corners([(180, 830), (180, 700), (60, 610), (300, 480), (60, 350), (300, 225), (130, 115)], 22)),
+    _shape(_round_corners([(180, 830), (180, 700), (60, 610), (300, 480), (60, 350), (300, 225), (130, 115)], 22), fracs=F[0]),
     # candy land: a lollipop swirl into the middle
-    _shape(_spiral()),
+    _shape(_spiral(), fracs=F[1]),
     # under the sea: wide U-turns, back and forth
-    _shape(_u_turns()),
+    _shape(_u_turns(), fracs=F[2]),
     # desert: up the steps of a pyramid
-    _shape(_round_corners([(60, 830), (60, 700), (145, 700), (145, 605), (230, 605), (230, 510), (310, 510),
-                           (310, 410), (90, 410), (90, 330)], 16), fracs=(0.15, 0.3, 0.47, 0.64, 0.82)),
+    _shape(_round_corners([(60, 830), (60, 600), (150, 600), (150, 505), (240, 505), (240, 410), (310, 410),
+                           (310, 310), (90, 310), (90, 230)], 16), fracs=F[3]),
     # space: orbit arcs around the planets
-    _shape(_orbits(), fracs=(0.14, 0.3, 0.46, 0.64, 0.82)),
+    _shape(_orbits(), fracs=F[4]),
 ]
 
 

@@ -148,10 +148,9 @@ img { -webkit-user-drag: none; }
 #map[data-world="4"] { background: #EEF6FF; }
 #map[data-world="5"] { background: #1A3A30; }
 .map-stage {
-  /* Leave room at the bottom for the world switcher so it never covers level 1 */
-  --nav-room: calc(env(safe-area-inset-bottom, 0px) + 84px);
-  position: absolute; left: 50%; top: calc((100% - var(--nav-room)) / 2); transform: translate(-50%, -50%);
-  height: min(100% - var(--nav-room), calc(100vw * 780 / 360)); aspect-ratio: 360 / 780;
+  /* Full height; the roads start high enough that the world switcher never covers level 1 */
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  height: min(100%, calc(100vw * 780 / 360)); aspect-ratio: 360 / 780;
   container-type: inline-size;
 }
 .map-bg { position: absolute; inset: 0; width: 100%; height: 100%; }
