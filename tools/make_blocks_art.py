@@ -86,8 +86,8 @@ def _u_turns():
 
 
 def _orbits():
-    pts = _line([(180, 830), (180, 740)])
-    for i, (y0, y1) in enumerate(((740, 560), (560, 380), (380, 200))):
+    pts = _line([(180, 830), (180, 710)])
+    for i, (y0, y1) in enumerate(((710, 545), (545, 375), (375, 200))):
         cy, r = (y0 + y1) / 2, (y0 - y1) / 2
         pts += _arc(180, cy, r, 90, -90 if i % 2 == 0 else 270)[1:]
     pts += _line([(180, 200), (180, 115)])[1:]
@@ -102,10 +102,10 @@ LAYOUTS = [
     # under the sea: wide U-turns, back and forth
     _shape(_u_turns()),
     # desert: up the steps of a pyramid
-    _shape(_round_corners([(60, 830), (60, 720), (145, 720), (145, 620), (230, 620), (230, 520), (310, 520),
-                           (310, 410), (90, 410), (90, 330)], 16)),
+    _shape(_round_corners([(60, 830), (60, 700), (145, 700), (145, 605), (230, 605), (230, 510), (310, 510),
+                           (310, 410), (90, 410), (90, 330)], 16), fracs=(0.15, 0.3, 0.47, 0.64, 0.82)),
     # space: orbit arcs around the planets
-    _shape(_orbits()),
+    _shape(_orbits(), fracs=(0.14, 0.3, 0.46, 0.64, 0.82)),
 ]
 
 
