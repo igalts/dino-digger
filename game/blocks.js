@@ -29,6 +29,8 @@ window.DinoBlocks = (core) => {
   // Rafi's little stone: a single square he flies in every 5 stones. It fits into any hole.
   SHAPES.P = { n: 1, cells: [[0, 0]], color: '#FFE38A', kind: 'gold' };
   const RAFI_EVERY = 5;
+  // Rex's fire breath: 6 cleared rows fill it; then a tap on Rex burns the top 2 stones off every column.
+  const FIRE_ROWS = 6, FIRE_BURN = 2, FIRE_TIME = 0.9;
   // Rows that are already on the board (or push up from below) look like the world they're in.
   const ROWKIND = {
     crystal: { c: '#9C8ADB', mark: '#E3D6FF' },
@@ -176,7 +178,7 @@ window.DinoBlocks = (core) => {
       speed: cfg.speed * help, soft: false,
       throwEvery: boss ? BOSSES[w].every / help : cfg.meteors / help,
       throwT: boss ? 5 : cfg.meteors * 0.7, windup: 0, windupMax: 1, targets: [], throws: 0, special: null, storm: 0,
-      bossIn: false, bossPopped: false,
+      bossIn: false, bossPopped: false, fire: 0, flame: 0, burnt: null,
       riseT: cfg.rise, freeze: 0, extraRows: null, qAnim: 0, bounces: [],
       cheer: 0, sad: 0, shake: 0, hurt: 0, bump: 0, winT: 0, outfit: { ...store.data.outfit },
     };
@@ -417,13 +419,17 @@ window.DinoBlocks = (core) => {
     const midY = BY + (rows.reduce((a, b) => a + b, 0) / n + 0.5) * CS;
     floatText(BX + BW / 2, midY, n >= 2 ? `${n} שורות! ✨` : 'שורה!', n >= 2 ? '#FFD23F' : '#FFFFFF');
     sfx.claim();
-    // One star per row flies up to the goal counter (or into the boss). Rex's rows count twice: two stars each.
-    const to = goalPos(), per = G.perk === 'rex' ? 2 : 1, stars = rows.flatMap((y) => Array(per).fill(y));
-    stars.forEach((y, i) => {
-      const x = BX + BW / 2 + (i - (stars.length - 1) / 2) * 26;
+    // One star per row flies up to the goal counter (or into the boss).
+    const to = goalPos();
+    rows.forEach((y, i) => {
+      const x = BX + BW / 2 + (i - (rows.length - 1) / 2) * 26;
       G.orbs.push({ x, y: BY + (y + 0.5) * CS, sx: x, sy: BY + (y + 0.5) * CS, tx: to.x, ty: to.y, t: -i * 0.08, dur: 0.55 });
     });
-    if (per > 1) floatText(BX + BW / 2, midY + 28, 'רקס: כפול!', '#FF9F1C');
+    // Rex's fire: every cleared row heats it up; when it's full, tap Rex to breathe fire.
+    if (G.perk === 'rex' && G.fire < FIRE_ROWS) {
+      G.fire = Math.min(FIRE_ROWS, G.fire + n);
+      if (G.fire >= FIRE_ROWS) { floatText(BX + BW / 2, BY + 30, 'רקס: לחצו עליי!', '#FF9F1C'); sfx.power(); }
+    }
     // Anki's hammer tail: every 4 rows, the next stone comes with a bomb.
     if (G.perk === 'anki') {
       G.bombRows += n;
@@ -503,6 +509,42 @@ window.DinoBlocks = (core) => {
     }
     floatText(px, py - 22, MAGIC[type].label, '#FFFFFF');
     burst(px, py, ['#FFD23F', '#4FC3F7', '#FFFFFF'], 10);  }
+
+  // Rex breathes fire: a wall of flame sweeps across the board (left to right) and the top 2 stones
+  // of every column burn away as it passes, so the tower ends up lower and flatter.
+  function breathe() {
+    if (G.perk !== 'rex' || G.state !== 'play' || G.fire < FIRE_ROWS || G.flame > 0) return;
+    G.fire = 0;
+    G.flame = FIRE_TIME;
+    G.burnt = new Array(COLS).fill(false);
+    G.shake = 0.35; G.cheer = 1;
+    sfx.tone(90, 0.8, 'sawtooth', 0.09, 0, 40); sfx.tone(300, 0.6, 'sawtooth', 0.04, 0.05, 120);
+    floatText(BX + BW / 2, BY + 40, 'רקס: אש!', '#FF9F1C');
+    try { if (navigator.vibrate) navigator.vibrate([60, 40, 60]); } catch (e) { /* ignore */ }
+  }
+  const flameX = () => clamp(1 - G.flame / FIRE_TIME, 0, 1) * (COLS + 1) - 0.5; // the flame front, in columns
+  function updateFlame(dt) {
+    if (!(G.flame > 0)) return;
+    G.flame -= dt;
+    const front = flameX();
+    for (let x = 0; x < COLS; x++) {
+      if (G.burnt[x] || x > front) continue;
+      G.burnt[x] = true;
+      let burnt = 0;
+      for (let y = 0; y < ROWS && burnt < FIRE_BURN; y++) {
+        const cell = G.grid[y * COLS + x];
+        if (!cell) continue;
+        burst(BX + (x + 0.5) * CS, BY + (y + 0.5) * CS, ['#FF6B2C', '#FFD23F', '#FF9F1C', cell.c], 6);
+        G.grid[y * COLS + x] = null;
+        burnt++;
+      }
+    }
+    for (let i = 0; i < 3; i++) {
+      G.particles.push({ x: BX + (front + 0.5) * CS + rand(-10, 10), y: BY + rand(0, BH), vx: rand(-30, 30), vy: rand(-140, -60),
+        life: 0.5, max: 0.5, color: ['#FF6B2C', '#FFD23F', '#FF9F1C'][i], size: rand(3, 6) });
+    }
+    if (G.flame <= 0) { G.flame = 0; G.burnt = null; if (!G.piece && !G.clearRows) checkRows(); }
+  }
 
   // A new row pushes the whole stack up from the bottom.
   function rise() {
@@ -668,6 +710,7 @@ window.DinoBlocks = (core) => {
         if (G.throwT <= 0) windUp();
       }
     }
+    updateFlame(dt);
     if (G.storm > 0) {
       G.storm -= dt;
       // sand blowing across
@@ -1023,6 +1066,7 @@ window.DinoBlocks = (core) => {
       c.restore();
     }
 
+    if (G.flame > 0) drawFlameWall(c);
     if (G.freeze > 0) {
       c.fillStyle = 'rgba(189,235,255,.16)'; c.fillRect(BX, BY, BW, BH);
       c.strokeStyle = 'rgba(255,255,255,.7)'; c.lineWidth = 6; rr(c, BX + 3, BY + 3, BW - 6, BH - 6, 8); c.stroke();
@@ -1123,7 +1167,7 @@ window.DinoBlocks = (core) => {
       }
       return;
     }
-    const side = G.perk === 'petra' || G.perk === 'anki' || G.perk === 'rafi'; // these have a little box of their own on the left
+    const side = ['petra', 'anki', 'rafi', 'rex'].includes(G.perk); // these have a little box of their own on the left
     const cx = side ? 190 : VW / 2 - 4;
     box(c, cx, cy, 96, 72, 'הבא');
     const k = queueK(), e = 1 - (1 - k) ** 3;
@@ -1138,6 +1182,46 @@ window.DinoBlocks = (core) => {
     }
     if (G.perk === 'anki') drawBombMeter(c, H);
     if (G.perk === 'rafi') drawRafiMeter(c, H);
+    if (G.perk === 'rex') drawFireMeter(c, H);
+  }
+  // Rex's fire: a warm glow over the burnt part and a wall of flame tongues at the front.
+  function drawFlameWall(c) {
+    const fx = BX + (flameX() + 0.5) * CS, a = Math.min(1, G.flame / 0.2);
+    const g = c.createLinearGradient(fx - CS * 4, 0, fx + CS * 0.6, 0);
+    g.addColorStop(0, 'rgba(255,107,44,0)'); g.addColorStop(1, `rgba(255,159,28,${0.45 * a})`);
+    c.fillStyle = g; c.fillRect(Math.max(BX, fx - CS * 4), BY, Math.min(CS * 4.6, fx + CS * 0.6 - BX), BH);
+    c.save(); c.globalAlpha = a;
+    for (let i = 0; i < 9; i++) {
+      const y = BY + BH - i * (BH / 8), h = 30 + Math.sin(G.t * 20 + i * 1.7) * 10, w = 16 + (i % 3) * 4;
+      for (const [col, k] of [['#FF6B2C', 1], ['#FFD23F', 0.55]]) {
+        c.fillStyle = col; c.beginPath();
+        c.moveTo(fx - w * k, y); c.quadraticCurveTo(fx - w * k, y - h * k * 0.6, fx + Math.sin(G.t * 15 + i) * 4, y - h * k);
+        c.quadraticCurveTo(fx + w * k, y - h * k * 0.6, fx + w * k, y); c.closePath(); c.fill();
+      }
+    }
+    c.restore();
+  }
+  // Rex: a flame and 6 dots; each cleared row fills a dot, all 6 and Rex is ready (tap him).
+  function drawFireMeter(c, H) {
+    const full = G.fire >= FIRE_ROWS;
+    box(c, H.cx, H.cy, H.w, H.h, full ? 'לחצו!' : 'אש', full && Math.floor(G.t * 8) % 2 === 0);
+    c.save(); c.translate(H.cx, H.cy + 6);
+    const k = 0.9 + (full ? Math.sin(G.t * 18) * 0.12 : 0);
+    c.scale(k, k);
+    c.lineWidth = 2.4; c.strokeStyle = INK; c.lineJoin = 'round';
+    for (const [col, s] of [['#FF6B2C', 1], ['#FFD23F', 0.55]]) {
+      c.fillStyle = full || col === '#FF6B2C' ? col : '#FFE9A8';
+      c.beginPath(); c.moveTo(-10 * s, 8 * s); c.quadraticCurveTo(-13 * s, -4 * s, -2 * s, -16 * s);
+      c.quadraticCurveTo(0, -6 * s, 5 * s, -9 * s); c.quadraticCurveTo(13 * s, 0, 10 * s, 8 * s); c.quadraticCurveTo(0, 14 * s, -10 * s, 8 * s);
+      c.closePath(); c.fill(); if (s === 1) c.stroke();
+    }
+    c.restore();
+    for (let i = 0; i < FIRE_ROWS; i++) {
+      const dx = H.cx + (i - 2.5) * 7.6, dy = H.cy + 27;
+      c.beginPath(); c.arc(dx, dy, 3, 0, Math.PI * 2);
+      c.fillStyle = i < G.fire ? '#FF6B2C' : 'rgba(43,27,61,.15)'; c.fill();
+      c.lineWidth = 1.4; c.strokeStyle = INK; c.stroke();
+    }
   }
   // Pharaoh's sandstorm: a sand cloud covers the "next" box (and the dino's own box).
   function drawStorm(c, cy) {
@@ -1308,7 +1392,7 @@ window.DinoBlocks = (core) => {
     if (k === 'down') held.down = true;
     if (k === 'rot') rotate();
     if (k === 'drop') slam();
-    if (k === 'hold') hold();
+    if (k === 'hold') { if (G.perk === 'rex') breathe(); else hold(); }
   }
   function release(k) { if (k in held) held[k] = false; }
   // Button pad: buttons react the moment a finger touches them.
@@ -1375,9 +1459,11 @@ window.DinoBlocks = (core) => {
     const dy = e.clientY - sw.y, dx = e.clientX - sw.x, quick = e.timeStamp - sw.t < 300;
     const swipe = core.controlMode() === 'swipe';
     if (!sw.moved && quick) {
-      // Petra: a tap on her or on her pocket puts the stone aside.
+      // Petra: a tap on her or on her pocket puts the stone aside. Rex: a tap on him or his fire meter breathes fire.
       const r = cv.getBoundingClientRect(), lx = (e.clientX - r.left) / r.width * VW, ly = (e.clientY - r.top) / r.height * VH;
-      if (G.perk === 'petra' && ly < TOP && lx < HOLD_BOX.cx + HOLD_BOX.w / 2 + 4) { hold(); return; }
+      const onDinoBox = ly < TOP && lx < HOLD_BOX.cx + HOLD_BOX.w / 2 + 4;
+      if (G.perk === 'petra' && onDinoBox) { hold(); return; }
+      if (G.perk === 'rex' && onDinoBox) { breathe(); return; }
       rotate(); return;
     }
     if (swipe && quick && dy < -cellPx() * 1.5 && Math.abs(dy) > Math.abs(dx) * 1.5) rotate(); // flick up turns
