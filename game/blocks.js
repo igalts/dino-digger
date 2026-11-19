@@ -396,9 +396,13 @@ window.DinoBlocks = (core) => {
   }
   const SCORES = [0, 100, 300, 500, 800];
   function finishClear() {
-    const rows = G.clearRows;
+    const all = G.clearRows;
     G.clearRows = null;
-    for (const y of rows) {
+    // Rows a bomb blew away without being full disappear, but they don't count (no star, no boss hit).
+    const blast = G.blastRows || [];
+    G.blastRows = null;
+    const rows = all.filter((y) => !blast.includes(y) || G.grid.slice(y * COLS, y * COLS + COLS).every(Boolean));
+    for (const y of all) {
       for (let x = 0; x < COLS; x++) {
         const cell = G.grid[y * COLS + x];
         if (cell) burst(BX + (x + 0.5) * CS, BY + (y + 0.5) * CS, [cell.c, '#FFFFFF'], 3);
@@ -408,7 +412,7 @@ window.DinoBlocks = (core) => {
     const keep = [];
     for (let y = 0; y < ROWS; y++) {
       const row = G.grid.slice(y * COLS, y * COLS + COLS);
-      if (!rows.includes(y)) { keep.push(row); continue; }
+      if (!all.includes(y)) { keep.push(row); continue; }
       const left = row.map((cell) => (cell && cell.k === 'hard' ? { c: cell.c, k: 'cracked' } : null));
       if (left.some(Boolean)) {
         keep.push(left);
@@ -418,6 +422,7 @@ window.DinoBlocks = (core) => {
     }
     G.grid = [...new Array((ROWS - keep.length) * COLS).fill(null), ...keep.flat()];
     const n = rows.length;
+    if (!n) return; // only bomb debris went away
     G.lines += n;
     G.score += SCORES[Math.min(4, n)];
     if (n >= 2) G.multi = true;
@@ -498,6 +503,7 @@ window.DinoBlocks = (core) => {
       // The blast sweeps sideways: the row it lands in and the row under it clear like full rows
       // (and count toward the goal), so it never leaves holes behind.
       G.extraRows = [y, y + 1].filter((yy) => yy < ROWS && G.grid.slice(yy * COLS, yy * COLS + COLS).some(Boolean));
+      G.blastRows = G.extraRows;
       for (const yy of G.extraRows) {
         for (let xx = 0; xx < COLS; xx++) {
           const cell = G.grid[yy * COLS + xx];
