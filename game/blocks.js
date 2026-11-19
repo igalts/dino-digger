@@ -56,19 +56,21 @@ window.DinoBlocks = (core) => {
   const L = (goal, speed, o = {}) => ({ goal, speed, start: 0, rise: 0, meteors: 0, ...o });
   const WORLDS = [
     { name: 'מערת הקריסטלים', unlock: 'stegi', rows: 'crystal', strip: '#C9BCF5', bg: 'bbg-1', game: '#2A1F5C',
-      levels: [L(4, 0.75), L(5, 0.85), L(6, 0.9, { start: 2 }), L(7, 0.95, { start: 3 }), L(8, 0.9)] },
+      levels: [L(4, 0.7), L(5, 0.8), L(6, 0.9, { start: 2 }), L(7, 1.0, { start: 3 }), L(8, 0.9)] },
     { name: 'ארץ הממתקים', unlock: 'petra', rows: 'candy', strip: '#FFD6EC', bg: 'bbg-2', game: '#7A2E58',
-      levels: [L(6, 1.0, { start: 3 }), L(7, 1.05, { start: 4 }), L(7, 1.1, { start: 4 }), L(8, 1.15, { start: 5 }), L(9, 1.0, { start: 3 })] },
+      levels: [L(7, 1.1, { start: 3 }), L(8, 1.2, { start: 4 }), L(9, 1.3, { start: 4 }), L(10, 1.4, { start: 5 }), L(10, 1.25, { start: 3 })] },
     { name: 'מתחת לים', unlock: 'anki', rows: 'coral', strip: '#A6E4FF', bg: 'bbg-3', game: '#103A72',
-      levels: [L(7, 1.1, { rise: 24 }), L(8, 1.15, { rise: 21 }), L(8, 1.2, { start: 2, rise: 20 }), L(9, 1.25, { start: 3, rise: 18 }),
-        L(10, 1.1, { rise: 26 })] },
+      levels: [L(9, 1.5, { rise: 22 }), L(10, 1.6, { rise: 20 }), L(11, 1.75, { start: 2, rise: 18 }), L(12, 1.9, { start: 3, rise: 16 }),
+        L(12, 1.65, { rise: 22 })] },
     { name: 'מדבר הפירמידות', unlock: 'rafi', rows: 'sand', strip: '#FFE3A8', bg: 'bbg-4', game: '#7A4A18',
-      levels: [L(8, 1.3, { start: 3 }), L(8, 1.4, { start: 4 }), L(9, 1.45, { start: 4, rise: 24 }), L(10, 1.5, { start: 5, rise: 22 }),
-        L(10, 1.3, { start: 3 })] },
+      levels: [L(11, 2.0, { start: 3 }), L(12, 2.2, { start: 4, rise: 22 }), L(13, 2.35, { start: 4, rise: 19 }), L(14, 2.5, { start: 5, rise: 16 }),
+        L(14, 2.2, { start: 3, rise: 24 })] },
     { name: 'החלל', unlock: 'rex', rows: 'moon', strip: '#B8AEDB', bg: 'bbg-5', game: '#0E0A2E',
-      levels: [L(8, 1.4, { meteors: 14 }), L(9, 1.45, { meteors: 12, start: 2 }), L(9, 1.5, { meteors: 12, rise: 24 }),
-        L(10, 1.55, { meteors: 10, start: 3 }), L(11, 1.35, { start: 2 })] },
+      levels: [L(13, 2.6, { meteors: 11 }), L(14, 2.8, { meteors: 10, start: 2, rise: 22 }), L(15, 3.0, { meteors: 9, start: 3, rise: 19 }),
+        L(16, 3.2, { meteors: 8, start: 4, rise: 16 }), L(16, 2.9, { start: 3, rise: 22 })] },
   ];
+  // Within a level the stones also speed up a little with every row you clear (3% per row).
+  const RAMP = 0.03;
   WORLDS.forEach((wd) => { wd.levels[wd.levels.length - 1].bossFight = true; });
   // One boss per world. It throws something every `every` seconds; every row you clear hits it once.
   // Every second throw is the boss's own special attack:
@@ -78,11 +80,11 @@ window.DinoBlocks = (core) => {
   //   storm - a sandstorm: the "next" box is hidden for a while
   //   rain  - a meteor shower: three rocks at once
   const BOSSES = [
-    { name: 'מלך הקריסטלים', shot: 'crystal', every: 9.5, special: 'hard',   label: 'קריסטל קשה!', how: '💎 קריסטל קשה: צריך לנקות את השורה שלו פעמיים' },
+    { name: 'מלך הקריסטלים', shot: 'crystal', every: 10, special: 'hard',   label: 'קריסטל קשה!', how: '💎 קריסטל קשה: צריך לנקות את השורה שלו פעמיים' },
     { name: 'רקס הסוכריות',  shot: 'candy',   every: 9,   special: 'splash', label: 'מטר סוכריות!', how: '🍬 מטר סוכריות: שלוש סוכריות בבת אחת' },
-    { name: 'מלך הים',       shot: 'bubble',  every: 8.5, special: 'wave',   label: 'גל!',          how: '🌊 גל: מרים שורה חדשה מלמטה' },
-    { name: 'פרעה רקס',      shot: 'sandball', every: 8,  special: 'storm',  label: 'סופת חול!',    how: '🌪️ סופת חול: מסתירה את האבן הבאה' },
-    { name: 'רקס החלל',      shot: 'star',    every: 7.5, special: 'rain',   label: 'גשם מטאורים!', how: '☄️ גשם מטאורים: שלושה סלעים בבת אחת' },
+    { name: 'מלך הים',       shot: 'bubble',  every: 8, special: 'wave',   label: 'גל!',          how: '🌊 גל: מרים שורה חדשה מלמטה' },
+    { name: 'פרעה רקס',      shot: 'sandball', every: 7,  special: 'storm',  label: 'סופת חול!',    how: '🌪️ סופת חול: מסתירה את האבן הבאה' },
+    { name: 'רקס החלל',      shot: 'star',    every: 6, special: 'rain',   label: 'גשם מטאורים!', how: '☄️ גשם מטאורים: שלושה סלעים בבת אחת' },
   ];
   Object.assign(SHOTS, {
     crystal:  { fill: '#7EE0FF', core: '#E6FBFF', sparks: ['#7EE0FF', '#E08CFF'] },
@@ -741,7 +743,8 @@ window.DinoBlocks = (core) => {
 
     const p = G.piece;
     const fast = held.down || G.soft;
-    const speed = fast ? Math.max(22, G.speed) : G.speed * (G.freeze > 0 ? 0.45 : 1);
+    const base = G.speed * (1 + RAMP * G.flown);
+    const speed = fast ? Math.max(22, base) : base * (G.freeze > 0 ? 0.45 : 1);
     if (fits(p, p.x, p.y + 1)) {
       G.lockT = 0;
       G.fall += dt * speed;
