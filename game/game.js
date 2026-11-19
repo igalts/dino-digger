@@ -1243,7 +1243,7 @@
   const input = { dir: null, id: null, ax: 0, ay: 0, padId: null };
   const gameEl = $('#game');
   const MODES = ['pad', 'swipe'];
-  const controlMode = () => (MODES.includes(store.data.controlMode) ? store.data.controlMode : 'pad');
+  const controlMode = () => (MODES.includes(store.data.controlMode) ? store.data.controlMode : 'swipe');
 
   function applyControlMode() {
     const m = controlMode(), isBlocks = !!(G && G.mode === 'blocks');
@@ -1865,7 +1865,7 @@
   $('#resetNo').addEventListener('click', () => { sfx.tap(); settingsStep(false); });
   $('#resetYes').addEventListener('click', () => {
     const { muted, controlMode } = store.data;
-    store.data = { stars: {}, best: {}, unlocked: ['pip'], selected: 'pip', streak: {}, muted, controlMode, ctrl3: 1,
+    store.data = { stars: {}, best: {}, unlocked: ['pip'], selected: 'pip', streak: {}, muted, controlMode, ctrl4: 1,
       gems: 0, owned: [], outfit: {}, chal: {}, times: {}, blocks: freshRecords() };
     store.save();
     G = null;
@@ -1969,8 +1969,8 @@
 
   // ---------- Boot ----------
   store.load();
-  // Arrows are the default again. Everyone is moved back to arrows once (ctrl3 not set); swipe stays in the pause menu.
-  if (!store.data.ctrl3) { store.data.controlMode = 'pad'; store.data.ctrl3 = 1; delete store.data.ctrl2; store.save(); }
+  // Swipe is the default in both games. Everyone is moved to swipe once (ctrl4 not set); arrows stay in the pause menu.
+  if (!store.data.ctrl4) { store.data.controlMode = 'swipe'; store.data.ctrl4 = 1; delete store.data.ctrl3; delete store.data.ctrl2; store.save(); }
   if (store.data.game === 'blocks') GAME = 'blocks';
   loadImages().then(() => {
     show('hub');
