@@ -516,6 +516,51 @@ def btitle_bg():
             f'<g stroke="{INK}" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">{body}</g></svg>')
 
 
+def hub_bg():
+    """The game picker (דינו-גיים): a sunset fair. Party flags on top, sun rays, and two hills that meet in the
+    middle - the jungle of the dig game on the left, the crystals of the blocks game on the right."""
+    rnd = random.Random(11)
+    rays = "".join(
+        f'<path d="M180 470 L{180 + 900 * math.cos(math.radians(a - 4)):.0f} {470 + 900 * math.sin(math.radians(a - 4)):.0f} '
+        f'L{180 + 900 * math.cos(math.radians(a + 4)):.0f} {470 + 900 * math.sin(math.radians(a + 4)):.0f} Z" fill="#FFFFFF" opacity=".1" stroke="none"/>'
+        for a in range(-180, 1, 20))
+    flag_cols = ("#FF6B7A", "#FFD23F", "#4FC3F7", "#5CCB5F", "#B07CE8", "#FF9F1C")
+
+    def bunting(y0, sag, n, seed):
+        out = f'<path d="M-10 {y0} Q180 {y0 + sag} 370 {y0}" fill="none" stroke-width="3"/>'
+        for i in range(n):
+            t = (i + 0.5) / n
+            x = -10 + 380 * t
+            y = (1 - t) ** 2 * y0 + 2 * (1 - t) * t * (y0 + sag) + t ** 2 * y0
+            out += f'<path d="M{x - 11:.0f} {y:.0f} L{x + 11:.0f} {y:.0f} L{x:.0f} {y + 24:.0f} Z" fill="{flag_cols[(i + seed) % 6]}" stroke-width="3"/>'
+        return out
+
+    confetti = "".join(
+        f'<rect x="{rnd.uniform(0, 350):.0f}" y="{rnd.uniform(140, 420):.0f}" width="9" height="5" rx="2" fill="{flag_cols[i % 6]}" '
+        f'stroke="none" transform="rotate({rnd.randrange(180)} {rnd.uniform(0, 350):.0f} {rnd.uniform(140, 420):.0f})"/>' for i in range(28))
+    sun = ('<circle cx="180" cy="520" r="120" fill="#FFE38A" stroke="none" opacity=".55"/>'
+           '<circle cx="180" cy="520" r="92" fill="#FFD23F"/>')
+    left_hill = '<path d="M-10 560 Q90 500 200 600 L200 790 L-10 790 Z" fill="#5CCB5F"/>'
+    right_hill = '<path d="M160 610 Q270 490 370 545 L370 790 L160 790 Z" fill="#8E7FD0"/>'
+    front = '<path d="M-10 690 Q180 650 370 690 L370 790 L-10 790 Z" fill="#FFB86B"/>'
+    blocks = ""
+    for (x, y, c, a) in ((290, 610, "#4FC3F7", 8), (318, 640, "#FFD23F", -6), (262, 646, "#FF6B7A", 4)):
+        blocks += (f'<g transform="rotate({a} {x + 14} {y + 14})"><rect x="{x}" y="{y}" width="28" height="28" rx="7" fill="{c}" stroke-width="3.5"/>'
+                   f'<rect x="{x + 5}" y="{y + 5}" width="14" height="5" rx="2.5" fill="#FFFFFF" opacity=".45" stroke="none"/></g>')
+    body = (rays + sun + bunting(40, 50, 11, 0) + bunting(96, 40, 9, 3) + confetti +
+            ms.cloud(60, 230, 0.7, "#FFF0F7") + ms.cloud(290, 300, 0.55, "#FFF0F7") +
+            left_hill + right_hill +
+            ms.mushroom(40, 600, 0.8, "#FF6B7A", "#FFE3E8") + ms.mushroom(120, 590, 0.55, "#FFD23F", "#FFF6C9") +
+            crystal(250, 600, 0.75, "#7EE0FF", "#E6FBFF") + crystal(330, 580, 0.6, "#E08CFF", "#FBE3FF") +
+            front + blocks +
+            '<ellipse cx="80" cy="730" rx="20" ry="25" fill="#FFF4C9"/><path d="M66 724 l6 5 l6 -6 l6 6 l6 -5" fill="none" stroke-width="3"/>')
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" preserveAspectRatio="xMidYMax slice">'
+            '<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3B1E6E"/>'
+            f'<stop offset="0.45" stop-color="#E8558F"/><stop offset="0.75" stop-color="#FFB86B"/></linearGradient>{ms.DEFS}</defs>'
+            f'<rect width="{W}" height="{H}" fill="url(#sky)"/>'
+            f'<g stroke="{INK}" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">{body}</g></svg>')
+
+
 # ---------------------------------------------------------------- bosses: the big rex in each new world's colours
 BASE = ("#E8553D", "#B83B2E", "#FFB15C", "#6B2A5E")
 BOSSES = {
@@ -549,8 +594,10 @@ def main():
             f.write(fn())
     with open(os.path.join(OUT, "btitle-bg.svg"), "w", encoding="utf8") as f:
         f.write(btitle_bg())
+    with open(os.path.join(OUT, "hub-bg.svg"), "w", encoding="utf8") as f:
+        f.write(hub_bg())
     bosses()
-    print("wrote bmap-1..5, bbg-1..5, btitle-bg, bboss-1..5")
+    print("wrote bmap-1..5, bbg-1..5, btitle-bg, hub-bg, bboss-1..5")
 
 
 if __name__ == "__main__":

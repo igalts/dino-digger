@@ -55,6 +55,10 @@ img { -webkit-user-drag: none; }
 .btn.danger { background: var(--lava); color: var(--paper); }
 
 /* Hub: pick a game */
+/* The picker has its own look: a sunset fair, not the dig game's jungle */
+#hub { background: #3B1E6E url("assets/hub-bg.svg") center bottom / cover no-repeat; }
+#hub .hub-logo { color: #FFD23F; transform: rotate(-3deg); }
+#hub .hub-logo span { color: #FF8FC8; }
 .hub-inner { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: space-evenly; padding: 70px 16px 20px; gap: 10px; }
 .hub-logo { font-size: clamp(54px, 17vw, 92px); }
 .hub-hero { height: min(36vw, 160px); }
@@ -100,7 +104,7 @@ img { -webkit-user-drag: none; }
 #title[data-game="blocks"] .title-badge { background: #E6F0FF; }
 #title[data-game="dig"] .title-badge { background: #FFF4C9; }
 #title[data-game="blocks"] #playBtn { background: #4FC3F7; }
-#title .title-inner { position: relative; z-index: 1; }
+#title .title-inner { position: relative; z-index: 1; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 84px); } /* room for the corner button */
 @media (max-height: 760px) { #title .hero { height: min(34vw, 150px); } .title-badge { width: 80px; } }
 .title-rain { display: none; position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
 #title[data-game="blocks"] .title-rain { display: block; }
