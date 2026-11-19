@@ -248,6 +248,34 @@ def map_night():
     return wrap(body, ("#140E36", "#3E3A8C"))
 
 
+def dig_ground():
+    """Under the grass: the dig game's dirt, cut open. A green field already claimed, the yellow trail
+    (marching) closing the next one, and treasures buried in the dirt: an egg, gems and fossil bones."""
+    dirt = (layer(628, "#A0673F", 51, 10) + layer(690, "#8E5A36", 52, 14) + layer(750, "#7A4C2E", 53, 10))
+    pebbles = "".join(f'<ellipse cx="{x}" cy="{y}" rx="{r}" ry="{r * .7:.1f}" fill="#6B4026" stroke="none" opacity=".6"/>'
+                      for x, y, r in ((40, 650, 4), (120, 700, 3), (300, 668, 4), (230, 760, 3.5), (340, 730, 3), (180, 655, 2.5)))
+    claimed = ('<path d="M14 642 H128 V700 H78 V786 H14 Z" fill="#5CCB5F"/>'
+               '<path d="M22 650 h20 M30 668 h26 M90 660 h24 M24 700 h18 M30 740 h24" fill="none" stroke="#3FA244" stroke-width="3"/>')
+    trail = ('<path class="trail" d="M128 642 H232 V722 H128 V700" fill="none" stroke="#FFD23F" stroke-width="6" '
+             'stroke-dasharray="14 12" stroke-linecap="round"/>'
+             '<circle cx="128" cy="700" r="9" fill="#FFD23F" stroke-width="4"/>')
+    egg = ('<ellipse cx="300" cy="712" rx="17" ry="22" fill="#FFF4C9"/>'
+           '<path d="M287 708 l5 5 l5 -6 l5 6 l5 -5" fill="none" stroke-width="3"/>'
+           '<circle cx="306" cy="700" r="3" fill="#FF8FA3" stroke="none"/>')
+
+    def gem(x, y, c):
+        return (f'<path d="M{x} {y - 10} L{x + 9} {y} L{x} {y + 10} L{x - 9} {y} Z" fill="{c}" stroke-width="3"/>'
+                f'<path class="glint" d="M{x - 3} {y - 4} L{x} {y - 7}" fill="none" stroke="#FFFFFF" stroke-width="2.5"/>')
+
+    def bone(x, y, a):
+        return (f'<g transform="rotate({a} {x} {y})"><path d="M{x - 16} {y} H{x + 16}" fill="none" stroke-width="11"/>'
+                f'<path d="M{x - 16} {y} H{x + 16}" fill="none" stroke="#FFF4E0" stroke-width="5"/>'
+                f'<circle cx="{x - 18}" cy="{y - 4}" r="5" fill="#FFF4E0" stroke-width="3"/><circle cx="{x - 18}" cy="{y + 4}" r="5" fill="#FFF4E0" stroke-width="3"/>'
+                f'<circle cx="{x + 18}" cy="{y - 4}" r="5" fill="#FFF4E0" stroke-width="3"/><circle cx="{x + 18}" cy="{y + 4}" r="5" fill="#FFF4E0" stroke-width="3"/></g>')
+    return (dirt + pebbles + claimed + trail + egg + gem(180, 686, "#4FC3F7") + gem(270, 764, "#FF6FA8") + gem(338, 676, "#FFD23F") +
+            bone(176, 756, -12) + bone(330, 770, 20))
+
+
 def title_bg():
     """Title screen: one landscape mixing all five worlds. The middle stays calm for the logo and buttons."""
     sky = ('<defs><linearGradient id="tsky" x1="0" y1="0" x2="0" y2="1">'
@@ -260,27 +288,24 @@ def title_bg():
                         (300, 18, 2), (340, 48, 1.6), (90, 96, 1.4), (230, 104, 1.2), (330, 120, 1.3), (150, 130, 1.2)))
     snowy = ('<path d="M190 420 L270 250 L310 310 L350 230 L400 330 L400 440 L190 440 Z" fill="#D6D0EE"/>'
              '<path d="M270 250 L290 290 L276 284 L262 298 L252 276 Z M350 230 L370 268 L356 262 L342 276 Z" fill="#FFFFFF" stroke-width="4"/>')
-    sea = ('<path d="M230 640 Q300 628 370 636 L370 790 L230 790 Z" fill="#2FA7E0"/>'
-           '<path d="M240 660 q8 -6 16 0 q8 6 16 0 M300 690 q8 -6 16 0 q8 6 16 0 M260 730 q8 -6 16 0 q8 6 16 0" fill="none" stroke="#FFFFFF" stroke-width="3"/>'
-           '<path d="M180 700 Q250 660 300 690 Q340 712 370 700 L370 790 L160 790 Z" fill="#FFD98A"/>')
     body = (star_field + ms.moon(44, 128, 22) + ms.shooting_star(300, 40, 60) + ms.sun(316, 250, 26) +
             ms.cloud(150, 230, 0.55) +
             ms.volcano(110, 450, 260, 200, erupt=True, color="#6E5486") + snowy +
             layer(440, "#B9DE8E", 41, 24) + layer(520, "#8ED16E", 42, 30) +
             ms.fly("petra", 250, 330, 0.32, flip=True, colors=ms.PETRA_ORANGE) + ms.fly("petra", 80, 200, 0.24, colors=ms.PETRA_TEAL) +
             ms.pine(330, 520, 0.6) + ms.pine(300, 540, 0.45) +
-            layer(600, "#6FC25A", 43, 26) + sea + layer(700, "#4CB85A", 44, 22) +
-            '<path d="M140 760 Q180 700 230 720 L250 790 L120 790 Z" fill="#4CB85A" stroke="none"/>' +
+            layer(600, "#6FC25A", 43, 18) + dig_ground() +
             ms.trunk(10, 44) + ms.vine(52, 300, 6) +
             "".join(f'<circle cx="{x}" cy="{y}" r="{r}" fill="#2B1B3D" stroke-width="10"/>' for x, y, r in ((0, 280, 54), (54, 300, 40), (20, 340, 36))) +
             "".join(f'<circle cx="{x}" cy="{y}" r="{r}" fill="{c}" stroke="none"/>' for x, y, r, c in
                     ((0, 280, 54, "#2F8F3A"), (54, 300, 40, "#3FA244"), (20, 340, 36, "#2F8F3A"))) +
-            ms.palm(345, 760, 0.85, flip=True) + ms.starfish(250, 755, 10) + ms.shell(205, 770, 0.9) +
-            ms.mushroom(70, 700, 0.8, "#39C1B5", "#C9F2EE", glow="#5CF2E0") + ms.mushroom(30, 760, 0.6, "#A884E8", "#E3D6FF", glow="#C9A8FF") +
-            ms.fern(120, 760, 0.8, "#2F8F3A") +
-            "".join(ms.firefly(x, y) for x, y in ((100, 650), (30, 610), (140, 700))) +
-            ms.flowers([(160, 560), (230, 600), (110, 610), (200, 680)]))
+            ms.palm(345, 640, 0.7, flip=True) +
+            ms.mushroom(70, 612, 0.7, "#39C1B5", "#C9F2EE", glow="#5CF2E0") + ms.mushroom(30, 618, 0.5, "#A884E8", "#E3D6FF", glow="#C9A8FF") +
+            ms.fern(270, 618, 0.7, "#2F8F3A") +
+            ms.flowers([(160, 560), (230, 590), (110, 590), (200, 600)]))
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" preserveAspectRatio="xMidYMax slice">'
+            '<style>.trail{animation:march 1.1s linear infinite}@keyframes march{to{stroke-dashoffset:-26}}'
+            '.glint{animation:glint 1.6s ease-in-out infinite}@keyframes glint{50%{opacity:.25}}</style>'
             f'<defs>{ms.DEFS}</defs>'
             f'<g stroke="{INK}" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">{sky}{body}</g></svg>')
 
