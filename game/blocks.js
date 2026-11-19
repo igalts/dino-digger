@@ -1153,7 +1153,9 @@ window.DinoBlocks = (core) => {
 
   function drawDinoTop(c) {
     const ch = G.ch, W = ch.w || 200, H = ch.h || 200;
-    const pw = 72 * (ch.w ? 1.2 : 1), ph = pw * H / W;
+    // tall dinos (Rex) are scaled down a little so their head never sticks out of the top, even mid-hop
+    const pw0 = 72 * (ch.w ? 1.2 : 1), k = Math.min(1, 70 / (pw0 * H / W));
+    const pw = Math.round(pw0 * k), ph = Math.round(pw0 * k * H / W);
     const won = G.state === 'won';
     const hop = won && G.winT > 0.3 ? -Math.abs(Math.sin((G.winT - 0.3) * 7)) * 12 : G.cheer > 0 ? -Math.sin(G.cheer * Math.PI) * 10 : 0;
     const wob = G.sad > 0 ? Math.sin(G.sad * 25) * 3 : 0;
