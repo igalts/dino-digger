@@ -20,7 +20,7 @@
     petra: { name: 'פטרה', img: 'petra', perk: 'הכי מהירה', bperk: 'שומרת אבן בצד (לחצו עליה)', speed: 1.3 },
     anki:  { name: 'אנקי', img: 'anki',  perk: '4 ביצים במקום 3', bperk: 'זנב פטיש: פצצה כל 4 שורות', lives: 4 },
     rafi:  { name: 'רפטי', img: 'rafi',  perk: 'הפתעות נמשכות כפול', bperk: 'כל 5 אבנים מביא אבן קטנה לחורים', powerDur: 2 },
-    rex:   { name: 'רקס',  img: 'magma-rex', perk: 'מגן וגם מהירות', bperk: 'נושף אש! כל 6 שורות לחצו עליו', shieldStart: true, speed: 1.15, faceLeft: true, w: 240, h: 220 },
+    rex:   { name: 'רקס',  img: 'magma-rex', perk: 'מגן וגם מהירות', bperk: 'רעידת אדמה! כל 6 שורות לחצו עליו', shieldStart: true, speed: 1.15, faceLeft: true, w: 240, h: 220 },
   };
   const CHAR_ORDER = ['pip', 'stegi', 'petra', 'anki', 'rafi', 'rex'];
   CHAR_ORDER.forEach((id) => { CHARS[id].id = id; });
@@ -1774,7 +1774,7 @@
     dpad: '<path d="M12 3 H20 V12 H29 V20 H20 V29 H12 V20 H3 V12 H12 Z" fill="#FFD23F"/><circle cx="16" cy="16" r="2.5" fill="#2B1B3D" stroke="none"/>',
     claim: '<path d="M3 24 V12 Q3 6 9 6 H18 V24 Z" fill="#5CCB5F"/><path d="M18 6 H28 V24 H18" fill="none" stroke="#FFD23F" stroke-width="3" stroke-dasharray="3 3"/><circle cx="18" cy="24" r="3.5" fill="#FFD23F"/>',
     pocket: '<path d="M7 11 H25 L23 27 Q16 30 9 27 Z" fill="#FF8FA3"/><path d="M11 11 Q11 4 16 4 Q21 4 21 11" fill="none" stroke-width="3"/><rect x="11" y="15" width="10" height="7" rx="2" fill="#B07CE8" stroke-width="2"/>',
-    fire: '<path d="M16 3 Q24 11 23 18 Q27 15 26 11 Q30 17 28 22 Q25 30 16 30 Q7 30 5 22 Q4 16 9 11 Q9 16 12 17 Q10 9 16 3 Z" fill="#FF6B2C"/><path d="M16 15 Q21 20 20 24 Q19 28 16 28 Q12 28 12 24 Q12 20 16 15 Z" fill="#FFD23F" stroke="none"/>',
+    quake: '<path d="M3 14 H29 V26 Q16 29 3 26 Z" fill="#C79A6B"/><path d="M3 10 H29 V14 H3 Z" fill="#7CC55A"/><path d="M15 10 L19 16 L14 20 L18 27" fill="none" stroke-width="2.5"/><circle cx="8" cy="5" r="2.8" fill="#A88A6E" stroke-width="2"/><circle cx="24" cy="6" r="2.2" fill="#A88A6E" stroke-width="2"/>',
   };
   function controlsHelp() {
     const blocksGame = G && G.mode === 'blocks', mode = controlMode(), perk = G && G.perk;
@@ -1783,7 +1783,7 @@
       if (blocksGame) {
         rows.push([['←', '→'], 'מזיזים את האבן הצידה'], [['↓'], 'האבן יורדת מהר'], [['↑', 'X'], 'מסובבים את האבן'], [['רווח'], 'הפלה! האבן נופלת מיד למטה']);
         if (perk === 'petra') rows.push([['C'], 'פטרה שומרת אבן בכיס, ושוב C מוציא אותה']);
-        if (perk === 'rex') rows.push([['C'], 'כשהאש מלאה, רקס נושף אש']);
+        if (perk === 'rex') rows.push([['C'], 'כשהרעידה מלאה, רקס רוקע והאבנים נופלות לחורים']);
       } else {
         rows.push([['←', '↑', '↓', '→'], 'מזיזים את הדינו'], ['claim', 'יוצאים מהדשא לחפור, וחוזרים אליו כדי לסגור שטח']);
       }
@@ -1799,7 +1799,7 @@
           ['flickUp', 'נגיעה או החלקה למעלה: מסובבים']);
       }
       if (perk === 'petra') rows.push(['pocket', 'נוגעים בפטרה או בכיס כדי לשמור אבן, ושוב כדי להוציא']);
-      if (perk === 'rex') rows.push(['fire', 'כשהאש מלאה, נוגעים ברקס והוא נושף אש']);
+      if (perk === 'rex') rows.push(['quake', 'כשהרעידה מלאה, נוגעים ברקס והאבנים נופלות לחורים']);
     } else if (mode === 'pad') {
       rows.push(['dpad', 'לוחצים על החיצים כדי להזיז את הדינו'], ['claim', 'יוצאים מהדשא לחפור, וחוזרים אליו כדי לסגור שטח']);
     } else {

@@ -30,7 +30,7 @@ window.DinoBlocks = (core) => {
   SHAPES.P = { n: 1, cells: [[0, 0]], color: '#FFE38A', kind: 'gold' };
   const RAFI_EVERY = 5;
   // Rex's fire breath: 6 cleared rows fill it; then a tap on Rex burns the top 2 stones off every column.
-  const FIRE_ROWS = 6, FIRE_BURN = 2, FIRE_TIME = 0.9;
+  const QUAKE_ROWS = 6, QUAKE_SHAKE = 0.6, QUAKE_FALL = 0.35; // Rex: rows to charge, shaking time, fall time
   // Rows that are already on the board (or push up from below) look like the world they're in.
   const ROWKIND = {
     crystal: { c: '#9C8ADB', mark: '#E3D6FF' },
@@ -184,7 +184,7 @@ window.DinoBlocks = (core) => {
       speed: cfg.speed * help, soft: false,
       throwEvery: boss ? BOSSES[w].every / help : cfg.meteors / help,
       throwT: boss ? 5 : cfg.meteors * 0.7, windup: 0, windupMax: 1, targets: [], throws: 0, special: null, storm: 0,
-      bossIn: false, bossPopped: false, fire: 0, flame: 0, burnt: null,
+      bossIn: false, bossPopped: false, fire: 0, quake: 0, dropT: 0, drops: null,
       riseT: cfg.rise, freeze: 0, extraRows: null, qAnim: 0, bounces: [],
       cheer: 0, sad: 0, shake: 0, hurt: 0, bump: 0, winT: 0, outfit: { ...store.data.outfit },
     };
@@ -438,10 +438,11 @@ window.DinoBlocks = (core) => {
     });
     // These stars finish the level: hold the board still (no next stone, no rocks) until they land.
     if (G.flown + G.orbs.length >= G.cfg.goal) { G.ending = true; G.shots = []; G.windup = 0; G.special = null; }
-    // Rex's fire: every cleared row heats it up; when it's full, tap Rex to breathe fire.
-    if (G.perk === 'rex' && G.fire < FIRE_ROWS) {
-      G.fire = Math.min(FIRE_ROWS, G.fire + n);
-      if (G.fire >= FIRE_ROWS) { floatText(BX + BW / 2, BY + 30, 'רקס: לחצו עליי!', '#FF9F1C'); sfx.power(); }
+    // Rex's quake: every cleared row charges it; when it's full, tap Rex to stomp.
+    const fromQuake = G.quakeRows; G.quakeRows = false;
+    if (G.perk === 'rex' && G.fire < QUAKE_ROWS && !fromQuake) {
+      G.fire = Math.min(QUAKE_ROWS, G.fire + n);
+      if (G.fire >= QUAKE_ROWS) { floatText(BX + BW / 2, BY + 30, 'רקס: לחצו עליי!', '#FFB347'); sfx.power(); }
     }
     // Anki's hammer tail: every 4 rows, the next stone comes with a bomb.
     if (G.perk === 'anki') {
@@ -531,40 +532,58 @@ window.DinoBlocks = (core) => {
     floatText(px, py - 22, MAGIC[type].label, '#FFFFFF');
     burst(px, py, ['#FFD23F', '#4FC3F7', '#FFFFFF'], 10);  }
 
-  // Rex breathes fire: a wall of flame sweeps across the board (left to right) and the top 2 stones
-  // of every column burn away as it passes, so the tower ends up lower and flatter.
+  // Rex stomps: an earthquake. The board shakes, then every stone drops straight down its column
+  // into the holes under it. Rows that end up full clear (and count) like any other row.
   function breathe() {
-    if (G.perk !== 'rex' || G.state !== 'play' || G.fire < FIRE_ROWS || G.flame > 0) return;
+    if (G.perk !== 'rex' || G.state !== 'play' || G.ending || G.fire < QUAKE_ROWS || G.quake > 0 || G.dropT > 0 || G.clearRows) return;
     G.fire = 0;
-    G.flame = FIRE_TIME;
-    G.burnt = new Array(COLS).fill(false);
-    G.shake = 0.35; G.cheer = 1;
-    sfx.tone(90, 0.8, 'sawtooth', 0.09, 0, 40); sfx.tone(300, 0.6, 'sawtooth', 0.04, 0.05, 120);
-    floatText(BX + BW / 2, BY + 40, 'רקס: אש!', '#FF9F1C');
-    try { if (navigator.vibrate) navigator.vibrate([60, 40, 60]); } catch (e) { /* ignore */ }
+    G.quake = QUAKE_SHAKE;
+    G.cheer = 1; G.bump = 0.3;
+    sfx.tone(55, 0.9, 'sawtooth', 0.1, 0, 35); sfx.tone(80, 0.7, 'square', 0.05, 0.08, 45);
+    floatText(BX + BW / 2, BY + 40, 'רקס: רעידת אדמה!', '#FFB347');
+    try { if (navigator.vibrate) navigator.vibrate([90, 40, 90, 40, 120]); } catch (e) { /* ignore */ }
   }
-  const flameX = () => clamp(1 - G.flame / FIRE_TIME, 0, 1) * (COLS + 1) - 0.5; // the flame front, in columns
-  function updateFlame(dt) {
-    if (!(G.flame > 0)) return;
-    G.flame -= dt;
-    const front = flameX();
+  // Returns true while the quake holds the game still (no falling stone meanwhile).
+  function updateQuake(dt) {
+    if (G.quake > 0) {
+      G.quake -= dt;
+      G.shake = Math.max(G.shake, 0.12);
+      if (Math.random() < 0.7) {
+        G.particles.push({ x: BX + rand(0, BW), y: BY + BH - rand(0, 10), vx: rand(-40, 40), vy: rand(-120, -40),
+          life: 0.6, max: 0.6, color: Math.random() < 0.5 ? '#C79A6B' : '#E8D3B0', size: rand(2, 4.5) });
+      }
+      if (G.quake <= 0) { G.quake = 0; settle(); }
+      return true;
+    }
+    if (G.dropT > 0) {
+      G.dropT -= dt;
+      if (G.dropT <= 0) {
+        G.dropT = 0; G.drops = null;
+        G.shake = Math.max(G.shake, 0.2);
+        sfx.tone(110, 0.15, 'square', 0.08, 0, 55);
+        G.quakeRows = checkRows(); // rows the quake fills count, but don't charge the next quake
+      }
+      return true;
+    }
+    return false;
+  }
+  function settle() {
+    G.drops = new Array(ROWS * COLS).fill(0);
+    let moved = 0;
     for (let x = 0; x < COLS; x++) {
-      if (G.burnt[x] || x > front) continue;
-      G.burnt[x] = true;
-      let burnt = 0;
-      for (let y = 0; y < ROWS && burnt < FIRE_BURN; y++) {
+      let to = ROWS - 1;
+      for (let y = ROWS - 1; y >= 0; y--) {
         const cell = G.grid[y * COLS + x];
         if (!cell) continue;
-        burst(BX + (x + 0.5) * CS, BY + (y + 0.5) * CS, ['#FF6B2C', '#FFD23F', '#FF9F1C', cell.c], 6);
-        G.grid[y * COLS + x] = null;
-        burnt++;
+        if (y !== to) { G.grid[to * COLS + x] = cell; G.grid[y * COLS + x] = null; G.drops[to * COLS + x] = to - y; moved++; }
+        to--;
       }
     }
-    for (let i = 0; i < 3; i++) {
-      G.particles.push({ x: BX + (front + 0.5) * CS + rand(-10, 10), y: BY + rand(0, BH), vx: rand(-30, 30), vy: rand(-140, -60),
-        life: 0.5, max: 0.5, color: ['#FF6B2C', '#FFD23F', '#FF9F1C'][i], size: rand(3, 6) });
-    }
-    if (G.flame <= 0) { G.flame = 0; G.burnt = null; if (!G.piece && !G.clearRows) checkRows(); }
+    G.dropT = QUAKE_FALL;
+    // the stone in the air never ends up inside the settled stack
+    const p = G.piece;
+    if (p) while (!fits(p, p.x, p.y) && p.y > -4) { p.y--; p.ry = p.y; }
+    if (!moved) floatText(BX + BW / 2, BY + 70, 'אין חורים!', '#FFFFFF');
   }
 
   // A new row pushes the whole stack up from the bottom.
@@ -731,7 +750,7 @@ window.DinoBlocks = (core) => {
         if (G.throwT <= 0) windUp();
       }
     }
-    updateFlame(dt);
+    if (updateQuake(dt)) return;
     if (G.storm > 0) {
       G.storm -= dt;
       // sand blowing across
@@ -1023,12 +1042,15 @@ window.DinoBlocks = (core) => {
 
     // Stack
     const flash = G.clearRows && Math.floor(G.clearT * 20) % 2 === 0;
+    const fallK = G.drops ? 1 - Math.pow(1 - G.dropT / QUAKE_FALL, 2) : 0; // Rex's quake: stones still on their way down
+    const jig = G.quake > 0 ? 2.5 : 0;
     for (let y = 0; y < ROWS; y++) {
       const clearing = G.clearRows && G.clearRows.includes(y);
       for (let x = 0; x < COLS; x++) {
         const cell = G.grid[y * COLS + x];
         if (!cell) continue;
-        const px = BX + x * CS, py = BY + y * CS;
+        const px = BX + x * CS + (jig ? rand(-jig, jig) : 0);
+        const py = BY + (y - (G.drops ? G.drops[y * COLS + x] * fallK : 0)) * CS + (jig ? rand(-jig, jig) : 0);
         if (clearing) block(c, px, py, flash ? '#FFFFFF' : cell.c, cell.k, 0.4 + Math.max(0, G.clearT / 0.28) * 0.6);
         else block(c, px, py, cell.c, cell.k);
       }
@@ -1088,7 +1110,7 @@ window.DinoBlocks = (core) => {
       c.restore();
     }
 
-    if (G.flame > 0) drawFlameWall(c);
+    if (G.quake > 0) drawQuake(c);
     if (G.freeze > 0) {
       c.fillStyle = 'rgba(189,235,255,.16)'; c.fillRect(BX, BY, BW, BH);
       c.strokeStyle = 'rgba(255,255,255,.7)'; c.lineWidth = 6; rr(c, BX + 3, BY + 3, BW - 6, BH - 6, 8); c.stroke();
@@ -1204,44 +1226,44 @@ window.DinoBlocks = (core) => {
     }
     if (G.perk === 'anki') drawBombMeter(c, H);
     if (G.perk === 'rafi') drawRafiMeter(c, H);
-    if (G.perk === 'rex') drawFireMeter(c, H);
+    if (G.perk === 'rex') drawQuakeMeter(c, H);
   }
-  // Rex's fire: a warm glow over the burnt part and a wall of flame tongues at the front.
-  function drawFlameWall(c) {
-    const fx = BX + (flameX() + 0.5) * CS, a = Math.min(1, G.flame / 0.2);
-    const g = c.createLinearGradient(fx - CS * 4, 0, fx + CS * 0.6, 0);
-    g.addColorStop(0, 'rgba(255,107,44,0)'); g.addColorStop(1, `rgba(255,159,28,${0.45 * a})`);
-    c.fillStyle = g; c.fillRect(Math.max(BX, fx - CS * 4), BY, Math.min(CS * 4.6, fx + CS * 0.6 - BX), BH);
+  // Rex's quake: the ground cracks open under the board while it shakes.
+  function drawQuake(c) {
+    const a = Math.min(1, G.quake / 0.15, (QUAKE_SHAKE - G.quake) / 0.1);
     c.save(); c.globalAlpha = a;
-    for (let i = 0; i < 9; i++) {
-      const y = BY + BH - i * (BH / 8), h = 30 + Math.sin(G.t * 20 + i * 1.7) * 10, w = 16 + (i % 3) * 4;
-      for (const [col, k] of [['#FF6B2C', 1], ['#FFD23F', 0.55]]) {
-        c.fillStyle = col; c.beginPath();
-        c.moveTo(fx - w * k, y); c.quadraticCurveTo(fx - w * k, y - h * k * 0.6, fx + Math.sin(G.t * 15 + i) * 4, y - h * k);
-        c.quadraticCurveTo(fx + w * k, y - h * k * 0.6, fx + w * k, y); c.closePath(); c.fill();
-      }
-    }
+    c.fillStyle = 'rgba(199,154,107,.18)'; c.fillRect(BX, BY, BW, BH);
+    c.strokeStyle = INK; c.lineWidth = 4; c.lineJoin = 'round'; c.lineCap = 'round';
+    const k = 1 - G.quake / QUAKE_SHAKE; // the crack grows up the board
+    c.beginPath();
+    let x = BX + BW * 0.5, y = BY + BH;
+    c.moveTo(x, y);
+    for (let i = 1; i <= 7 && i / 7 <= k + 0.15; i++) { x = BX + BW * (0.5 + (i % 2 ? -0.12 : 0.1) * (1 + (i % 3) * 0.3)); y = BY + BH - i * BH * 0.09; c.lineTo(x, y); }
+    c.stroke();
+    c.strokeStyle = '#8B5A2B'; c.lineWidth = 1.6; c.stroke();
     c.restore();
   }
-  // Rex: a flame and 6 dots; each cleared row fills a dot, all 6 and Rex is ready (tap him).
-  function drawFireMeter(c, H) {
-    const full = G.fire >= FIRE_ROWS;
-    box(c, H.cx, H.cy, H.w, H.h, full ? 'לחצו!' : 'אש', full && Math.floor(G.t * 8) % 2 === 0);
-    c.save(); c.translate(H.cx, H.cy + 6);
-    const k = 0.9 + (full ? Math.sin(G.t * 18) * 0.12 : 0);
-    c.scale(k, k);
+  // Rex: cracked ground and 6 dots; each cleared row fills a dot, all 6 and Rex is ready (tap him).
+  function drawQuakeMeter(c, H) {
+    const full = G.fire >= QUAKE_ROWS;
+    box(c, H.cx, H.cy, H.w, H.h, full ? 'לחצו!' : 'רעידה', full && Math.floor(G.t * 8) % 2 === 0);
+    c.save(); c.translate(H.cx + (full ? Math.sin(G.t * 40) * 1.5 : 0), H.cy + 6);
     c.lineWidth = 2.4; c.strokeStyle = INK; c.lineJoin = 'round';
-    for (const [col, s] of [['#FF6B2C', 1], ['#FFD23F', 0.55]]) {
-      c.fillStyle = full || col === '#FF6B2C' ? col : '#FFE9A8';
-      c.beginPath(); c.moveTo(-10 * s, 8 * s); c.quadraticCurveTo(-13 * s, -4 * s, -2 * s, -16 * s);
-      c.quadraticCurveTo(0, -6 * s, 5 * s, -9 * s); c.quadraticCurveTo(13 * s, 0, 10 * s, 8 * s); c.quadraticCurveTo(0, 14 * s, -10 * s, 8 * s);
-      c.closePath(); c.fill(); if (s === 1) c.stroke();
-    }
+    // a chunk of ground with a crack, and two little rocks hopping off it when it's ready
+    c.fillStyle = full ? '#C79A6B' : '#E3CFB0';
+    c.beginPath(); c.moveTo(-15, -2); c.lineTo(15, -2); c.lineTo(13, 10); c.lineTo(-13, 10); c.closePath(); c.fill(); c.stroke();
+    c.fillStyle = full ? '#7CC55A' : '#BFE3A8';
+    c.beginPath(); c.moveTo(-15, -2); c.lineTo(15, -2); c.lineTo(15, -6); c.lineTo(-15, -6); c.closePath(); c.fill(); c.stroke();
+    c.beginPath(); c.moveTo(-1, -6); c.lineTo(3, 0); c.lineTo(-2, 4); c.lineTo(2, 10); c.stroke();
+    const hop = full ? Math.abs(Math.sin(G.t * 9)) * 5 : 0;
+    c.fillStyle = '#A88A6E';
+    c.beginPath(); c.arc(-8, -11 - hop, 3, 0, Math.PI * 2); c.fill(); c.stroke();
+    c.beginPath(); c.arc(9, -10 - (full ? Math.abs(Math.cos(G.t * 9)) * 5 : 0), 2.4, 0, Math.PI * 2); c.fill(); c.stroke();
     c.restore();
-    for (let i = 0; i < FIRE_ROWS; i++) {
+    for (let i = 0; i < QUAKE_ROWS; i++) {
       const dx = H.cx + (i - 2.5) * 7.6, dy = H.cy + 27;
       c.beginPath(); c.arc(dx, dy, 3, 0, Math.PI * 2);
-      c.fillStyle = i < G.fire ? '#FF6B2C' : 'rgba(43,27,61,.15)'; c.fill();
+      c.fillStyle = i < G.fire ? '#C47A3A' : 'rgba(43,27,61,.15)'; c.fill();
       c.lineWidth = 1.4; c.strokeStyle = INK; c.stroke();
     }
   }
