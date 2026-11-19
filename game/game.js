@@ -419,7 +419,8 @@
     const ch = CHARS[chId] || CHARS.pip;
     const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
     const cw = cv.clientWidth || 200, chh = cv.clientHeight || 200;
-    if (cv.width !== Math.round(cw * dpr)) { cv.width = Math.round(cw * dpr); cv.height = Math.round(chh * dpr); }
+    // resize when either side changes (the layout can make it taller without making it wider)
+    if (cv.width !== Math.round(cw * dpr) || cv.height !== Math.round(chh * dpr)) { cv.width = Math.round(cw * dpr); cv.height = Math.round(chh * dpr); }
     const c = cv.getContext('2d');
     c.setTransform(1, 0, 0, 1, 0, 0);
     c.clearRect(0, 0, cv.width, cv.height);
