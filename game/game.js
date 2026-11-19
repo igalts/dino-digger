@@ -1487,7 +1487,7 @@
   // moving right (dir +1) brings it in.
   let lastSlideAt = 0; // taps right after a slide are the finger lift, not a real tap
   const slidRecently = () => performance.now() - lastSlideAt < 400;
-  function attachSlide({ areas, el, canGo, apply, ignore }) {
+  function attachSlide({ areas, el, canGo, apply, ignore, peek = 0 }) {
     let sw = null, busy = false;
     const width = () => el.getBoundingClientRect().width || innerWidth;
     // never wait forever: a backgrounded page can pause animations
@@ -1495,7 +1495,27 @@
     async function go(step, from = 0) {
       if (busy || !canGo(step)) return;
       busy = true;
-      const dir = step > 0 ? 1 : -1, w = width() * 0.9;
+      const dir = step > 0 ? 1 : -1;
+      if (peek) {
+        // Carousel: the neighbour is already drawn beside us. Glide over to it, then swap the
+        // content and jump back in the same frame, so nothing visibly changes.
+        const to = dir * width() * peek;
+        const ms = Math.max(140, 320 * Math.abs(to - from) / Math.abs(to));
+        const a = el.animate([{ translate: `${from}px 0` }, { translate: `${to}px 0` }],
+          { duration: ms, easing: 'cubic-bezier(.2,.7,.3,1)', fill: 'forwards' });
+        el.style.translate = '';
+        el.classList.add('sliding');
+        try {
+          await done(a, ms);
+          await apply(step);
+        } finally {
+          a.cancel();
+          el.classList.remove('sliding');
+          busy = false;
+        }
+        return;
+      }
+      const w = width() * 0.9;
       const outMs = Math.max(90, 190 * (1 - Math.abs(from) / w));
       const out = el.animate([{ translate: `${from}px 0` }, { translate: `${dir * w}px 0` }],
         { duration: outMs, easing: 'cubic-bezier(.5,0,.9,.6)', fill: 'forwards' });
@@ -1515,7 +1535,9 @@
     }
     const snapBack = (from) => {
       el.style.translate = '';
-      if (from) el.animate([{ translate: `${from}px 0` }, { translate: '0px 0' }], { duration: 240, easing: 'cubic-bezier(.15,.85,.3,1)' });
+      if (!from) { el.classList.remove('sliding'); return; }
+      const a = el.animate([{ translate: `${from}px 0` }, { translate: '0px 0' }], { duration: 240, easing: 'cubic-bezier(.15,.85,.3,1)' });
+      done(a, 240).then(() => { if (!busy) el.classList.remove('sliding'); });
     };
     for (const area of areas) {
       area.addEventListener('pointerdown', (e) => {
@@ -1526,7 +1548,7 @@
         if (!sw || e.pointerId !== sw.id) return;
         const dx = e.clientX - sw.x, dy = e.clientY - sw.y;
         if (!sw.track) {
-          if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.3) sw.track = true;
+          if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.3) { sw.track = true; el.classList.add('sliding'); }
           else { if (Math.abs(dy) > 12) sw = null; return; }
         }
         lastSlideAt = performance.now();
@@ -1599,16 +1621,38 @@
   GAMES.dig.bosses = BOSSES;
   GAMES.dig.map = { img: (w) => `assets/map-${w + 1}.svg`, boss: (w) => `assets/boss-${w + 1}.svg`, layouts: MAP_LAYOUTS };
 
+  // The worlds on both sides are drawn next to the map ahead of time (a carousel), so sliding
+  // only moves pictures that are already painted: no redraw mid-slide.
+  const mapPeeks = [-1, 1].map((step) => {
+    const pk = document.createElement('div');
+    pk.className = `map-peek ${step > 0 ? 'next' : 'prev'}`;
+    pk.setAttribute('aria-hidden', 'true');
+    pk.innerHTML = '<img class="map-bg" alt=""><div class="levels"></div><img class="map-prize" alt="">';
+    $('#mapStage').appendChild(pk);
+    return { step, el: pk };
+  });
   function buildMap() {
-    const WORLDS = worldsNow(), r = rec(), CHALS = curGame().chals, MAP = curGame().map, BOSSES = curGame().bosses;
-    const w = currentMapWorld();
-    const world = WORLDS[w];
+    const WORLDS = worldsNow(), w = currentMapWorld();
     $('#map').dataset.game = GAME;
     $('#map').dataset.world = String(w + 1);
-    $('#mapBg').src = MAP.img(w);
+    paintWorld($('#mapStage'), w, true);
+    requestAnimationFrame(() => $('#mapStage').classList.toggle('narrow', $('#mapStage').getBoundingClientRect().width < innerWidth * 0.9));
+    for (const pk of mapPeeks) {
+      const n = w + pk.step, has = n >= 0 && n < WORLDS.length;
+      pk.el.hidden = !has;
+      if (has) paintWorld(pk.el, n, false);
+    }
+  }
+  function paintWorld(root, w, live) {
+    const WORLDS = worldsNow(), r = rec(), CHALS = curGame().chals, MAP = curGame().map, BOSSES = curGame().bosses;
+    const world = WORLDS[w];
+    const bg = root.querySelector(':scope > .map-bg');
+    const src = MAP.img(w);
+    if (bg.getAttribute('src') !== src) bg.src = src;
     const prize = CHARS[world.unlock];
-    const prizeImg = $('#mapPrize');
-    prizeImg.src = `assets/${prize.img}.svg`;
+    const prizeImg = root.querySelector(':scope > .map-prize');
+    const psrc = `assets/${prize.img}.svg`;
+    if (prizeImg.getAttribute('src') !== psrc) prizeImg.src = psrc;
     prizeImg.classList.toggle('locked', !r.unlocked.includes(world.unlock));
     const layout = MAP.layouts[w];
     prizeImg.style.left = `${layout.prize[0] / 360 * 100}%`;
@@ -1616,13 +1660,15 @@
     // The prize looks toward the middle of the map.
     const lookRight = layout.prize[0] < 180;
     prizeImg.style.transform = `translate(-50%, -50%)${prize.faceLeft === lookRight ? ' scaleX(-1)' : ''}`;
-    $('#worldName').textContent = world.name;
-    $('#worldNum').textContent = `עולם ${w + 1} מתוך ${WORLDS.length}`;
-    $('#prevWorld').disabled = w === 0;
-    $('#nextWorld').disabled = w === WORLDS.length - 1;
-    $('#worldLocked').hidden = worldOpen(w);
-    $('#worldLocked').textContent = `מסיימים את עולם ${w} כדי לפתוח`;
-    const box = $('#levels');
+    if (live) {
+      $('#worldName').textContent = world.name;
+      $('#worldNum').textContent = `עולם ${w + 1} מתוך ${WORLDS.length}`;
+      $('#prevWorld').disabled = w === 0;
+      $('#nextWorld').disabled = w === WORLDS.length - 1;
+      $('#worldLocked').hidden = worldOpen(w);
+      $('#worldLocked').textContent = `מסיימים את עולם ${w} כדי לפתוח`;
+    }
+    const box = root.querySelector(':scope > .levels');
     box.innerHTML = '';
     world.levels.forEach((lvl, i) => {
       const stars = r.stars[`${w + 1}-${i + 1}`] || 0;
@@ -1640,10 +1686,12 @@
       const timeTag = best && open ? `<span class="best-time">⏱ ${fmtTime(best)} ${marks}</span>` : '';
       b.innerHTML = `${face}${lvl.bossFight ? 'בוס' : i + 1}<span class="st">${[0, 1, 2].map((k) => `<span class="${k < stars ? 'on' : 'off'}">★</span>`).join('')}</span>${timeTag}`;
       b.disabled = !open;
-      b.addEventListener('click', () => {
-        if (slidRecently()) return; // the finger lift after a slide
-        sfx.init(); sfx.tap(); showLevelInfo(w, i);
-      });
+      if (live) {
+        b.addEventListener('click', () => {
+          if (slidRecently()) return; // the finger lift after a slide
+          sfx.init(); sfx.tap(); showLevelInfo(w, i);
+        });
+      } else b.tabIndex = -1;
       box.appendChild(b);
     });
   }
@@ -1688,12 +1736,10 @@
   const mapSlide = attachSlide({
     areas: [$('#map')],
     el: $('#mapStage'),
+    peek: 1.06, // the next world waits one map-width (plus a small gap) to the side
     ignore: (e) => !$('#levelInfo').hidden || !!e.target.closest('.overlay, .world-nav, .map-head, .home-btn'),
     canGo: (step) => { const w = currentMapWorld() + step; return w >= 0 && w < WORLDS.length; },
-    apply: async (step) => {
-      rec().mapWorld = currentMapWorld() + step; store.save(); sfx.tap(); buildMap();
-      await Promise.race([$('#mapBg').decode().catch(() => {}), new Promise((r) => setTimeout(r, 250))]);
-    },
+    apply: (step) => { rec().mapWorld = currentMapWorld() + step; store.save(); sfx.tap(); buildMap(); },
   });
   function pageWorld(delta) { preloadMaps(); mapSlide.go(delta); }
   $('#map').addEventListener('pointerdown', preloadMaps);
