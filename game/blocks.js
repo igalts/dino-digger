@@ -475,26 +475,33 @@ window.DinoBlocks = (core) => {
     try { if (navigator.vibrate) navigator.vibrate(180); } catch (e) { /* ignore */ }
     if (G.lives <= 0) { core.lose(); return; }
     floatText(BX + BW / 2, BY + 80, 'אוי! ביצה נשברה', '#FF8FA3');
-    for (let y = ROWS - 7; y < ROWS; y++) {
+    // A real fresh start: everything crumbles except the bottom 4 rows (the fullest ones, easy to finish),
+    // then a few calm seconds: stones fall slowly and the boss holds its rocks.
+    const KEEP = 4;
+    for (let y = 0; y < ROWS - KEEP; y++) {
       for (let x = 0; x < COLS; x++) {
         const cell = G.grid[y * COLS + x];
         if (cell) burst(BX + (x + 0.5) * CS, BY + (y + 0.5) * CS, [cell.c, '#FFFFFF'], 2);
       }
     }
-    G.grid = [...new Array(7 * COLS).fill(null), ...G.grid.slice(0, (ROWS - 7) * COLS)];
+    G.grid = [...new Array((ROWS - KEEP) * COLS).fill(null), ...G.grid.slice((ROWS - KEEP) * COLS)];
     G.piece = null;
+    G.freeze = Math.max(G.freeze, 5);
+    G.shots = []; G.windup = 0; G.special = null;
+    if (G.throwEvery > 0) G.throwT = Math.max(G.throwT, G.throwEvery);
   }
 
   function doMagic(type, x, y) {
     const dur = 1;
     const px = BX + (x + 0.5) * CS, py = BY + (y + 0.5) * CS;
     if (type === 'bomb') {
-      for (let yy = y - 1; yy <= y + 1; yy++) {
-        for (let xx = x - 1; xx <= x + 1; xx++) {
-          if (xx < 0 || xx >= COLS || yy < 0 || yy >= ROWS) continue;
+      // The blast sweeps sideways: the row it lands in and the row under it clear like full rows
+      // (and count toward the goal), so it never leaves holes behind.
+      G.extraRows = [y, y + 1].filter((yy) => yy < ROWS && G.grid.slice(yy * COLS, yy * COLS + COLS).some(Boolean));
+      for (const yy of G.extraRows) {
+        for (let xx = 0; xx < COLS; xx++) {
           const cell = G.grid[yy * COLS + xx];
-          if (cell) burst(BX + (xx + 0.5) * CS, BY + (yy + 0.5) * CS, [cell.c, '#FFD23F', '#FF9F1C'], 4);
-          G.grid[yy * COLS + xx] = null;
+          if (cell) burst(BX + (xx + 0.5) * CS, BY + (yy + 0.5) * CS, [cell.c, '#FFD23F', '#FF9F1C'], 3);
         }
       }
       G.shake = 0.3;
