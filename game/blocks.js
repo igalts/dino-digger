@@ -179,7 +179,7 @@ window.DinoBlocks = (core) => {
       grid: new Array(COLS * ROWS).fill(null),
       lives, maxLives: lives, score: 0, lines: 0, flown: 0, multi: false,
       state: 'ready', readyT: boss ? 3.2 : 2.2, t: 0, playT: 0, shownSec: -1,
-      particles: [], shots: [], orbs: [], trails: [], piece: null, next: null, bag: [], pieces: 0,
+      particles: [], shots: [], orbs: [], trails: [], piece: null, next: null, bag: [], pieces: 0, ending: false,
       fall: 0, lockT: 0, lockMoves: 0, clearRows: null, clearT: 0,
       speed: cfg.speed * help, soft: false,
       throwEvery: boss ? BOSSES[w].every / help : cfg.meteors / help,
@@ -431,6 +431,8 @@ window.DinoBlocks = (core) => {
       const x = BX + BW / 2 + (i - (rows.length - 1) / 2) * 26;
       G.orbs.push({ x, y: BY + (y + 0.5) * CS, sx: x, sy: BY + (y + 0.5) * CS, tx: to.x, ty: to.y, t: -i * 0.08, dur: 0.55 });
     });
+    // These stars finish the level: hold the board still (no next stone, no rocks) until they land.
+    if (G.flown + G.orbs.length >= G.cfg.goal) { G.ending = true; G.shots = []; G.windup = 0; G.special = null; }
     // Rex's fire: every cleared row heats it up; when it's full, tap Rex to breathe fire.
     if (G.perk === 'rex' && G.fire < FIRE_ROWS) {
       G.fire = Math.min(FIRE_ROWS, G.fire + n);
@@ -692,7 +694,7 @@ window.DinoBlocks = (core) => {
       return;
     }
     if (G.state === 'won') { updateWin(dt); return; }
-    if (G.state !== 'play') return;
+    if (G.state !== 'play' || G.ending) return;
     G.playT += dt;
     if (Math.floor(G.playT) !== G.shownSec) { G.shownSec = Math.floor(G.playT); $('#timerNum').textContent = core.fmtTime(G.playT); }
     if (G.freeze > 0) G.freeze -= dt;
