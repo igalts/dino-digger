@@ -1424,7 +1424,7 @@
     for (const t of document.querySelectorAll('.shop-tabs .tab')) t.classList.toggle('on', t.dataset.slot === shop.slot);
     const grid = $('#shopGrid');
     grid.innerHTML = '';
-    for (const it of OUT.ITEMS.filter((i) => i.slot === shop.slot)) {
+    for (const it of OUT.ITEMS.filter((i) => i.slot === shop.slot).sort((a, b) => a.price - b.price)) {
       const owned = d.owned.includes(it.id), worn = d.outfit[it.slot] === it.id;
       const b = document.createElement('button');
       b.className = `item${owned ? ' owned' : ''}${worn ? ' worn' : ''}${shop.trying === it.id ? ' trying' : ''}${

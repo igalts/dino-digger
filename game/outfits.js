@@ -120,7 +120,106 @@
       { d: C(-25, -27, 3) + C(0, -33, 3) + C(25, -27, 3), fill: '#FFFFFF', sw: 2.5 },
     ] },
 
+    { id: 'beanie', name: 'כובע צמר', slot: 'head', price: 6, at: 'head', rot: -6, box: [-24, -42, 48, 46], parts: [
+      { d: 'M-22 0 Q-22 -30 0 -30 Q22 -30 22 0 Z', fill: '#4FC3F7' },
+      { d: 'M-18 -14 Q0 -20 18 -14', stroke: '#FFFFFF', sw: 3 },
+      { d: 'M-23 -7 L23 -7 L23 2 L-23 2 Z', fill: '#2A7FC0', sw: 3.5 },
+      { d: C(0, -34, 7), fill: '#FFD23F', sw: 3 },
+    ] },
+    { id: 'daisy', name: 'פרח על הראש', slot: 'head', price: 6, at: 'head', rot: 10, box: [-22, -40, 44, 44], parts: [
+      { d: 'M0 -12 L0 2', stroke: '#3FA34A', sw: 4 },
+      { d: C(12, -22, 7) + C(-12, -22, 7) + C(6, -32, 7) + C(-6, -32, 7) + C(6, -12, 7) + C(-6, -12, 7), fill: '#FFFFFF', sw: 3 },
+      { d: C(0, -22, 7), fill: '#FFD23F', sw: 3 },
+    ] },
+    { id: 'antenna', name: 'אנטנות חייזר', slot: 'head', price: 10, at: 'head', anim: 'wobble', box: [-22, -42, 44, 46], parts: [
+      { d: 'M-10 -4 Q-18 -20 -14 -30 M10 -4 Q18 -20 14 -30', sw: 3.5 },
+      { d: 'M-20 0 Q0 -12 20 0', sw: 9 },
+      { d: 'M-20 0 Q0 -12 20 0', stroke: '#5CCB5F', sw: 4.5 },
+      { d: C(-14, -34, 5.5) + C(14, -34, 5.5), fill: '#FF6FA8', sw: 3 },
+      { d: C(-16, -36, 1.6) + C(12, -36, 1.6), fill: '#FFFFFF', sw: 0 },
+    ] },
+    { id: 'graduate', name: 'כובע סיום', slot: 'head', price: 14, at: 'head', box: [-32, -32, 64, 48], parts: [
+      { d: 'M-16 0 L-16 -14 Q0 -8 16 -14 L16 0 Q0 5 -16 0 Z', fill: '#3A2A4D' },
+      { d: 'M-30 -18 L0 -30 L30 -18 L0 -6 Z', fill: '#3A2A4D' },
+      { d: C(0, -18, 2.5), fill: '#FFD23F', sw: 2 },
+      { d: 'M0 -18 Q16 -16 22 -8 L22 6', stroke: '#FFD23F', sw: 3 },
+      { d: 'M19 6 L25 6 L24 14 L20 14 Z', fill: '#FFD23F', sw: 2 },
+    ] },
+    { id: 'witch', name: 'כובע קוסם', slot: 'head', price: 15, at: 'head', box: [-36, -60, 72, 66], parts: [
+      { d: E(0, -2, 34, 7), fill: '#5E3A9E' },
+      { d: 'M-18 -4 Q-10 -30 4 -52 Q9 -60 18 -55 Q7 -44 9 -30 Q12 -14 18 -4 Z', fill: '#8E5BD9' },
+      { d: 'M-17 -11 Q0 -15 17 -11 L18 -4 Q0 -8 -18 -4 Z', fill: '#FFD23F', sw: 3 },
+      { d: S(2, -30, 6), fill: '#FFD23F', sw: 1.5 },
+      { d: C(-6, -42, 1.8) + C(10, -20, 1.6), fill: '#FFF6C9', sw: 0 },
+    ] },
+    { id: 'sombrero', name: 'סומבררו', slot: 'head', price: 18, at: 'head', box: [-42, -36, 84, 42], parts: [
+      { d: E(0, -4, 40, 9), fill: '#F2C36E' },
+      { d: 'M-34 -4 L-28 0 L-22 -4 L-16 0 M16 0 L22 -4 L28 0 L34 -4', stroke: '#5CCB5F', sw: 3 },
+      { d: 'M-15 -7 Q-16 -32 0 -33 Q16 -32 15 -7 Z', fill: '#F2C36E' },
+      { d: 'M-15 -12 L15 -12 L15 -6 L-15 -6 Z', fill: '#E8553D', sw: 3 },
+      { d: C(-8, -9, 1.6) + C(0, -9, 1.6) + C(8, -9, 1.6), fill: '#FFD23F', sw: 0 },
+    ] },
+    { id: 'tophat', name: 'כובע צילינדר', slot: 'head', price: 22, at: 'head', rot: -5, box: [-30, -50, 60, 54], parts: [
+      { d: 'M-17 -4 L-15 -46 L15 -46 L17 -4 Z', fill: '#3A2A4D' },
+      { d: 'M-16 -14 L16 -14 L16 -5 L-16 -5 Z', fill: '#E8553D', sw: 3 },
+      { d: E(0, -2, 28, 5), fill: '#3A2A4D' },
+      { d: 'M-9 -40 L-10 -20', stroke: '#6B5A80', sw: 3 },
+      { d: 'M18 -10 Q26 -18 22 -26 Q16 -20 18 -10 Z', fill: '#5CCB5F', sw: 2.5 },
+    ] },
+    { id: 'halo', name: 'הילת מלאך', slot: 'head', price: 30, at: 'head', anim: 'bob', box: [-28, -46, 60, 26], parts: [
+      { d: E(0, -30, 22, 6), sw: 9 },
+      { d: E(0, -30, 22, 6), stroke: '#FFD23F', sw: 5 },
+      { d: 'M-12 -34 Q-4 -36 4 -36', stroke: '#FFFFFF', sw: 2.5 },
+      { d: S(27, -40, 5), fill: '#FFF6C9', sw: 1.5 },
+    ] },
+
     // ---------- Face ----------
+    { id: 'blush', name: 'לחיים ורודות', slot: 'face', price: 4, at: 'eye', box: [-18, 8, 30, 22], parts: [
+      { d: E(-4, 19, 10, 6), fill: '#FF8FA3', sw: 0, alpha: 0.75 },
+      { d: C(-9, 18, 1.4) + C(-3, 21, 1.4) + C(2, 17, 1.4), fill: '#C2566B', sw: 0 },
+    ] },
+    { id: 'tongue', name: 'לשון בחוץ', slot: 'face', price: 5, at: 'mouth', box: [-4, -2, 24, 22], parts: [
+      { d: 'M-2 0 Q2 16 10 17 Q18 15 15 0 Z', fill: '#FF6F91', sw: 3 },
+      { d: 'M7 3 L8 12', stroke: '#D94F6E', sw: 2 },
+    ] },
+    { id: 'lips', name: 'שפתיים אדומות', slot: 'face', price: 6, at: 'mouth', box: [-16, -10, 32, 20], parts: [
+      { d: 'M-14 0 Q-7 -8 0 -3 Q7 -8 14 0 Q7 9 0 7 Q-7 9 -14 0 Z', fill: '#FF4F6E', sw: 3 },
+      { d: 'M-12 0 Q0 2 12 0', sw: 2.5 },
+      { d: 'M-7 -4 Q-4 -6 -1 -4', stroke: '#FFFFFF', sw: 2 },
+    ] },
+    { id: 'bubblegum', name: 'בועת מסטיק', slot: 'face', price: 8, at: 'mouth', anim: 'bob', box: [-2, -16, 34, 32], parts: [
+      { d: C(15, 0, 14), fill: '#FF9EC0', sw: 3.5, alpha: 0.92 },
+      { d: 'M8 -7 Q11 -10 16 -10', stroke: '#FFFFFF', sw: 3 },
+    ] },
+    { id: 'goggles', name: 'משקפי שחייה', slot: 'face', price: 9, at: 'eye', box: [-38, -14, 52, 28], parts: [
+      { d: 'M-10 -2 L-36 0', sw: 10 },
+      { d: 'M-10 -2 L-36 0', stroke: '#FF9F1C', sw: 5 },
+      { d: C(0, 0, 11), fill: '#7EE0FF', sw: 0, alpha: 0.7 },
+      { d: C(0, 0, 11), sw: 9 },
+      { d: C(0, 0, 11), stroke: '#FF9F1C', sw: 4.5 },
+      { d: 'M-5 -5 L0 -7', stroke: '#FFFFFF', sw: 2.5 },
+    ] },
+    { id: 'stars', name: 'משקפי כוכב', slot: 'face', price: 10, at: 'eye', box: [-36, -16, 72, 32], parts: [
+      { d: 'M-12 -4 L-34 -2', sw: 4 },
+      { d: S(0, 0, 14), fill: '#FFD23F' },
+      { d: 'M11 -5 L17 -5', sw: 4 },
+      { d: S(25, 0, 10), fill: '#FFD23F' },
+      { d: C(0, 1, 4.5) + C(25, 1, 3.5), fill: '#FF9F1C', sw: 0 },
+    ] },
+    { id: 'rose', name: 'ורד בפה', slot: 'face', price: 12, at: 'mouth', box: [-4, -18, 48, 26], parts: [
+      { d: 'M0 2 L30 -4', sw: 8 },
+      { d: 'M0 2 L30 -4', stroke: '#3FA34A', sw: 4 },
+      { d: 'M14 -1 Q16 -12 24 -10 Q20 -2 14 -1 Z', fill: '#5CCB5F', sw: 2.5 },
+      { d: C(35, -6, 8), fill: '#E8253D', sw: 3 },
+      { d: 'M32 -6 Q35 -10 38 -6 Q35 -2 32 -6', stroke: '#B81C2E', sw: 2 },
+    ] },
+    { id: 'vr', name: 'משקפי חלל', slot: 'face', price: 14, at: 'eye', box: [-40, -14, 72, 28], parts: [
+      { d: 'M-18 -2 L-38 0', sw: 6 },
+      { d: 'M-14 -12 L26 -12 Q30 -12 30 -8 L30 8 Q30 12 26 12 L-14 12 Q-18 12 -18 8 L-18 -8 Q-18 -12 -14 -12 Z', fill: '#3A2A4D' },
+      { d: 'M-12 -7 L24 -7 L24 6 L-12 6 Z', fill: '#4FC3F7', sw: 2.5 },
+      { d: 'M-8 -3 L-2 -3 M6 2 L18 2', stroke: '#FFFFFF', sw: 2.5 },
+      { d: C(14, -3, 1.8), fill: '#FF6FA8', sw: 0 },
+    ] },
     { id: 'mustache', name: 'שפם ענק', slot: 'face', price: 5, at: 'mouth', box: [-34, -12, 68, 22], parts: [
       { d: 'M0 -2 Q-8 -10 -17 -4 Q-25 4 -32 -6 Q-28 10 -15 7 Q-6 5 0 3 Q6 5 15 7 Q28 10 32 -6 Q25 4 17 -4 Q8 -10 0 -2 Z', fill: '#5A3825', sw: 3 },
     ] },
@@ -274,6 +373,55 @@
       { d: 'M0 0 Q-30 0 -44 12 Q-48 22 -36 22 Q-16 20 0 0 Z', fill: '#B39DFF' },
       { d: C(-32, -34, 6) + C(-30, 12, 4), fill: '#FFD23F', sw: 2.5 },
       { d: C(-16, -16, 3.5), fill: '#FFFFFF', sw: 2 },
+    ] },
+    { id: 'tailbow', name: 'סרט לזנב', slot: 'body', price: 5, at: 'tail', box: [-19, -13, 38, 26], parts: [
+      { d: 'M0 0 L-15 -10 Q-18 0 -15 10 Z', fill: '#FF8FC8' },
+      { d: 'M0 0 L15 -10 Q18 0 15 10 Z', fill: '#FF8FC8' },
+      { d: C(0, 0, 4.5), fill: '#E85C9E', sw: 3 },
+    ] },
+    { id: 'tie', name: 'עניבה', slot: 'body', price: 6, at: 'neck', box: [-10, -6, 20, 44], parts: [
+      { d: 'M-4 4 L4 4 L8 28 L0 36 L-8 28 Z', fill: '#4FC3F7' },
+      { d: 'M-5 12 L5 16 M-6 22 L6 26', stroke: '#2A7FC0', sw: 3 },
+      { d: 'M-6 -4 L6 -4 L4 5 L-4 5 Z', fill: '#4FC3F7', sw: 3 },
+    ] },
+    { id: 'pearls', name: 'שרשרת פנינים', slot: 'body', price: 8, at: 'neck', box: [-20, -8, 40, 20], parts: [
+      { d: C(-15, -3, 3.8) + C(-10, 4, 3.8) + C(-3, 8, 3.8) + C(4, 8, 3.8) + C(11, 4, 3.8) + C(16, -3, 3.8), fill: '#FFFFFF', sw: 2 },
+      { d: C(-11, 3, 1.2) + C(3, 7, 1.2), fill: '#E3D6FF', sw: 0 },
+    ] },
+    { id: 'lei', name: 'שרשרת פרחים', slot: 'body', price: 10, at: 'neck', box: [-22, -11, 44, 26], parts: [
+      { d: C(-16, -4, 6), fill: '#FF6FA8', sw: 2.5 },
+      { d: C(16, -4, 6), fill: '#FFD23F', sw: 2.5 },
+      { d: C(-9, 5, 6), fill: '#FFD23F', sw: 2.5 },
+      { d: C(9, 5, 6), fill: '#4FC3F7', sw: 2.5 },
+      { d: C(0, 9, 6), fill: '#FF6FA8', sw: 2.5 },
+      { d: C(-16, -4, 1.8) + C(16, -4, 1.8) + C(-9, 5, 1.8) + C(9, 5, 1.8) + C(0, 9, 1.8), fill: '#FFFFFF', sw: 0 },
+    ] },
+    { id: 'emblem', name: 'סמל גיבור', slot: 'body', price: 12, at: 'neck', box: [-20, -4, 40, 32], parts: [
+      { d: 'M-14 -2 L14 -2 L19 6 L0 27 L-19 6 Z', fill: '#FFD23F' },
+      { d: S(0, 9, 7.5), fill: '#E8253D', sw: 2 },
+    ] },
+    { id: 'turtle', name: 'שריון צב', slot: 'body', price: 18, at: 'back', box: [-32, -30, 64, 44], parts: [
+      { d: 'M-28 10 Q-28 -26 0 -28 Q28 -26 28 10 Z', fill: '#5CCB5F' },
+      { d: 'M-14 -6 L-27 -6 M14 -6 L27 -6 M-8 6 L-12 10 M8 6 L12 10 M-8 -18 L-12 -25 M8 -18 L12 -25', stroke: '#2F8A33', sw: 3 },
+      { d: 'M-8 -18 L8 -18 L14 -6 L8 6 L-8 6 L-14 -6 Z', fill: '#3FA34A', sw: 3 },
+      { d: 'M-31 10 L31 10', stroke: '#C98A55', sw: 7 },
+      { d: 'M-18 -16 Q-12 -22 -4 -24', stroke: '#9BE29D', sw: 3 },
+    ] },
+    { id: 'jetpack', name: 'ג\'טפק', slot: 'body', price: 25, at: 'back', scale: 1.2, box: [-20, -30, 40, 62], parts: [
+      { d: 'M-16 10 Q-10 44 -4 10 Z', fill: '#FF9F1C', sw: 2.5, anim: 'flicker', pivot: [-10, 12] },
+      { d: 'M4 10 Q10 44 16 10 Z', fill: '#FF9F1C', sw: 2.5, anim: 'flicker', pivot: [10, 12] },
+      { d: 'M-12 12 Q-10 30 -8 12 Z M8 12 Q10 30 12 12 Z', fill: '#FFD23F', sw: 0, anim: 'flicker', pivot: [0, 12] },
+      { d: 'M-18 -22 Q-18 -28 -10 -28 Q-2 -28 -2 -22 L-2 12 L-18 12 Z', fill: '#B0BEC5' },
+      { d: 'M2 -22 Q2 -28 10 -28 Q18 -28 18 -22 L18 12 L2 12 Z', fill: '#B0BEC5' },
+      { d: 'M-18 -8 L-2 -8 M2 -8 L18 -8', stroke: '#E8553D', sw: 4 },
+      { d: 'M-14 -20 L-14 -12 M6 -20 L6 -12', stroke: '#FFFFFF', sw: 2.5 },
+    ] },
+    { id: 'umbrella', name: 'מטרייה', slot: 'body', price: 30, at: 'tail', behind: true, anim: 'bob', box: [-38, -108, 76, 118], parts: [
+      { d: 'M0 4 L0 -68', sw: 4.5 },
+      { d: 'M0 4 Q0 10 -6 10', sw: 4.5 },
+      { d: 'M-36 -66 Q-34 -100 0 -102 Q34 -100 36 -66 Q27 -74 18 -66 Q9 -74 0 -66 Q-9 -74 -18 -66 Q-27 -74 -36 -66 Z', fill: '#4FC3F7' },
+      { d: 'M-18 -66 Q-14 -90 0 -102 Q14 -90 18 -66 Q9 -74 0 -66 Q-9 -74 -18 -66 Z', fill: '#FFD23F', sw: 3 },
+      { d: 'M0 -102 L0 -108', sw: 4 },
     ] },
   ];
   const BY_ID = {};
