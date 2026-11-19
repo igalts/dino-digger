@@ -30,7 +30,7 @@ window.DinoBlocks = (core) => {
   SHAPES.P = { n: 1, cells: [[0, 0]], color: '#FFE38A', kind: 'gold' };
   const RAFI_EVERY = 5;
   // Rex's fire breath: 6 cleared rows fill it; then a tap on Rex burns the top 2 stones off every column.
-  const QUAKE_ROWS = 6, QUAKE_SHAKE = 0.6, QUAKE_FALL = 0.35; // Rex: rows to charge, shaking time, fall time
+  const QUAKE_ROWS = 5, QUAKE_SHAKE = 0.6, QUAKE_FALL = 0.35; // Rex: rows to charge, shaking time, fall time
   // Rows that are already on the board (or push up from below) look like the world they're in.
   const ROWKIND = {
     crystal: { c: '#9C8ADB', mark: '#E3D6FF' },
@@ -1243,7 +1243,7 @@ window.DinoBlocks = (core) => {
     c.strokeStyle = '#8B5A2B'; c.lineWidth = 1.6; c.stroke();
     c.restore();
   }
-  // Rex: cracked ground and 6 dots; each cleared row fills a dot, all 6 and Rex is ready (tap him).
+  // Rex: cracked ground and 5 dots; each cleared row fills a dot, all 5 and Rex is ready (tap him).
   function drawQuakeMeter(c, H) {
     const full = G.fire >= QUAKE_ROWS;
     box(c, H.cx, H.cy, H.w, H.h, full ? 'לחצו!' : 'רעידה', full && Math.floor(G.t * 8) % 2 === 0);
@@ -1261,7 +1261,7 @@ window.DinoBlocks = (core) => {
     c.beginPath(); c.arc(9, -10 - (full ? Math.abs(Math.cos(G.t * 9)) * 5 : 0), 2.4, 0, Math.PI * 2); c.fill(); c.stroke();
     c.restore();
     for (let i = 0; i < QUAKE_ROWS; i++) {
-      const dx = H.cx + (i - 2.5) * 7.6, dy = H.cy + 27;
+      const dx = H.cx + (i - (QUAKE_ROWS - 1) / 2) * 7.6, dy = H.cy + 27;
       c.beginPath(); c.arc(dx, dy, 3, 0, Math.PI * 2);
       c.fillStyle = i < G.fire ? '#C47A3A' : 'rgba(43,27,61,.15)'; c.fill();
       c.lineWidth = 1.4; c.strokeStyle = INK; c.stroke();
