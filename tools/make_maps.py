@@ -251,9 +251,9 @@ def map_night():
 def dig_ground():
     """Under the grass: the dig game's dirt, cut open. A green field already claimed, the yellow trail
     (marching) closing the next one, and treasures buried in the dirt: an egg, gems and fossil bones."""
-    dirt = (layer(628, "#A0673F", 51, 10) + layer(690, "#8E5A36", 52, 14) + layer(750, "#7A4C2E", 53, 10))
+    dirt = (layer(640, "#A0673F", 51, 8) + layer(720, "#8E5A36", 52, 10))
     pebbles = "".join(f'<ellipse cx="{x}" cy="{y}" rx="{r}" ry="{r * .7:.1f}" fill="#6B4026" stroke="none" opacity=".6"/>'
-                      for x, y, r in ((40, 650, 4), (120, 700, 3), (300, 668, 4), (230, 760, 3.5), (340, 730, 3), (180, 655, 2.5)))
+                      for x, y, r in ((120, 700, 3), (230, 760, 3.5), (340, 740, 3)))
     egg = ('<ellipse cx="300" cy="712" rx="17" ry="22" fill="#FFF4C9"/>'
            '<path d="M287 708 l5 5 l5 -6 l5 6 l5 -5" fill="none" stroke-width="3"/>'
            '<circle cx="306" cy="700" r="3" fill="#FF8FA3" stroke="none"/>')
@@ -267,8 +267,7 @@ def dig_ground():
                 f'<path d="M{x - 16} {y} H{x + 16}" fill="none" stroke="#FFF4E0" stroke-width="5"/>'
                 f'<circle cx="{x - 18}" cy="{y - 4}" r="5" fill="#FFF4E0" stroke-width="3"/><circle cx="{x - 18}" cy="{y + 4}" r="5" fill="#FFF4E0" stroke-width="3"/>'
                 f'<circle cx="{x + 18}" cy="{y - 4}" r="5" fill="#FFF4E0" stroke-width="3"/><circle cx="{x + 18}" cy="{y + 4}" r="5" fill="#FFF4E0" stroke-width="3"/></g>')
-    return (dirt + pebbles + egg + gem(180, 686, "#4FC3F7") + gem(270, 764, "#FF6FA8") + gem(338, 676, "#FFD23F") +
-            bone(176, 756, -12) + bone(330, 770, 20))
+    return dirt + pebbles + egg + gem(190, 700, "#4FC3F7") + bone(60, 752, -12)
 
 
 def dig_mesa():
@@ -286,30 +285,22 @@ def dig_mesa():
 
 
 def title_bg():
-    """Title screen: one landscape mixing all five worlds. The middle stays calm for the logo and buttons."""
+    """Title screen of the dig game, kept calm: a soft morning sky, one faraway volcano, gentle hills,
+    a dirt hill on the right with the claimed field and the marching trail, and dirt at the very bottom."""
     sky = ('<defs><linearGradient id="tsky" x1="0" y1="0" x2="0" y2="1">'
-           '<stop offset="0" stop-color="#1E1A5C"/><stop offset="0.22" stop-color="#4C6BC8"/>'
-           '<stop offset="0.45" stop-color="#8FD3FA"/><stop offset="0.62" stop-color="#D6F3FF"/></linearGradient></defs>'
+           '<stop offset="0" stop-color="#6FC8F5"/><stop offset="0.35" stop-color="#B8E8FF"/>'
+           '<stop offset="0.55" stop-color="#FFF1C6"/></linearGradient></defs>'
            f'<rect width="{W}" height="{H}" fill="url(#tsky)" stroke="none"/>')
-    star_field = "".join(
-        f'<circle cx="{x}" cy="{y}" r="{r}" fill="#FFF6C9" stroke="none" opacity="{1 - y / 190:.2f}"/>'
-        for x, y, r in ((20, 20, 2), (70, 44, 1.6), (120, 16, 2.2), (170, 52, 1.4), (210, 24, 1.8), (250, 60, 1.5),
-                        (300, 18, 2), (340, 48, 1.6), (90, 96, 1.4), (230, 104, 1.2), (330, 120, 1.3), (150, 130, 1.2)))
-    body = (star_field + ms.moon(44, 128, 22) + ms.shooting_star(300, 40, 60) + ms.sun(316, 250, 26) +
-            ms.cloud(150, 230, 0.55) +
-            ms.volcano(110, 450, 260, 200, erupt=True, color="#6E5486") + dig_mesa() +
-            layer(440, "#B9DE8E", 41, 24) + layer(520, "#8ED16E", 42, 30) +
-            ms.fly("petra", 80, 200, 0.24, colors=ms.PETRA_TEAL) +
-            ms.pine(330, 520, 0.6) + ms.pine(300, 540, 0.45) +
-            layer(600, "#6FC25A", 43, 18) + dig_ground() +
-            ms.trunk(10, 44) + ms.vine(52, 300, 6) +
-            "".join(f'<circle cx="{x}" cy="{y}" r="{r}" fill="#2B1B3D" stroke-width="10"/>' for x, y, r in ((0, 280, 54), (54, 300, 40), (20, 340, 36))) +
-            "".join(f'<circle cx="{x}" cy="{y}" r="{r}" fill="{c}" stroke="none"/>' for x, y, r, c in
-                    ((0, 280, 54, "#2F8F3A"), (54, 300, 40, "#3FA244"), (20, 340, 36, "#2F8F3A"))) +
-            ms.palm(345, 640, 0.7, flip=True) +
-            ms.mushroom(70, 612, 0.7, "#39C1B5", "#C9F2EE", glow="#5CF2E0") + ms.mushroom(30, 618, 0.5, "#A884E8", "#E3D6FF", glow="#C9A8FF") +
-            ms.fern(270, 618, 0.7, "#2F8F3A") +
-            ms.flowers([(160, 560), (230, 590), (110, 590), (200, 600)]))
+    sun = ('<circle cx="300" cy="96" r="46" fill="#FFF6C9" stroke="none" opacity=".6"/>'
+           '<circle cx="300" cy="96" r="30" fill="#FFD23F"/>')
+    far_volcano = ('<path d="M-20 420 L40 330 Q60 312 80 330 L150 420 Z" fill="#B7A6D6" stroke-width="4"/>'
+                   '<path d="M44 326 Q60 316 76 326 L70 340 Q60 334 50 340 Z" fill="#FF9F1C" stroke-width="3"/>'
+                   '<circle cx="66" cy="296" r="11" fill="#FFFFFF" stroke="none" opacity=".85"/>'
+                   '<circle cx="80" cy="276" r="8" fill="#FFFFFF" stroke="none" opacity=".7"/>')
+    body = (sun + ms.cloud(70, 120, 0.6) + ms.cloud(200, 236, 0.45) +
+            far_volcano + dig_mesa() +
+            layer(440, "#B9E59A", 41, 16) + layer(530, "#8ED16E", 42, 20) + layer(610, "#6FC25A", 43, 14) +
+            dig_ground())
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" preserveAspectRatio="xMidYMax slice">'
             '<style>.trail{animation:march 1.1s linear infinite}@keyframes march{to{stroke-dashoffset:-26}}'
             '.glint{animation:glint 1.6s ease-in-out infinite}@keyframes glint{50%{opacity:.25}}</style>'
