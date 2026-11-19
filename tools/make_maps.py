@@ -254,11 +254,6 @@ def dig_ground():
     dirt = (layer(628, "#A0673F", 51, 10) + layer(690, "#8E5A36", 52, 14) + layer(750, "#7A4C2E", 53, 10))
     pebbles = "".join(f'<ellipse cx="{x}" cy="{y}" rx="{r}" ry="{r * .7:.1f}" fill="#6B4026" stroke="none" opacity=".6"/>'
                       for x, y, r in ((40, 650, 4), (120, 700, 3), (300, 668, 4), (230, 760, 3.5), (340, 730, 3), (180, 655, 2.5)))
-    claimed = ('<path d="M14 642 H128 V700 H78 V786 H14 Z" fill="#5CCB5F"/>'
-               '<path d="M22 650 h20 M30 668 h26 M90 660 h24 M24 700 h18 M30 740 h24" fill="none" stroke="#3FA244" stroke-width="3"/>')
-    trail = ('<path class="trail" d="M128 642 H232 V722 H128 V700" fill="none" stroke="#FFD23F" stroke-width="6" '
-             'stroke-dasharray="14 12" stroke-linecap="round"/>'
-             '<circle cx="128" cy="700" r="9" fill="#FFD23F" stroke-width="4"/>')
     egg = ('<ellipse cx="300" cy="712" rx="17" ry="22" fill="#FFF4C9"/>'
            '<path d="M287 708 l5 5 l5 -6 l5 6 l5 -5" fill="none" stroke-width="3"/>'
            '<circle cx="306" cy="700" r="3" fill="#FF8FA3" stroke="none"/>')
@@ -272,8 +267,22 @@ def dig_ground():
                 f'<path d="M{x - 16} {y} H{x + 16}" fill="none" stroke="#FFF4E0" stroke-width="5"/>'
                 f'<circle cx="{x - 18}" cy="{y - 4}" r="5" fill="#FFF4E0" stroke-width="3"/><circle cx="{x - 18}" cy="{y + 4}" r="5" fill="#FFF4E0" stroke-width="3"/>'
                 f'<circle cx="{x + 18}" cy="{y - 4}" r="5" fill="#FFF4E0" stroke-width="3"/><circle cx="{x + 18}" cy="{y + 4}" r="5" fill="#FFF4E0" stroke-width="3"/></g>')
-    return (dirt + pebbles + claimed + trail + egg + gem(180, 686, "#4FC3F7") + gem(270, 764, "#FF6FA8") + gem(338, 676, "#FFD23F") +
+    return (dirt + pebbles + egg + gem(180, 686, "#4FC3F7") + gem(270, 764, "#FF6FA8") + gem(338, 676, "#FFD23F") +
             bone(176, 756, -12) + bone(330, 770, 20))
+
+
+def dig_mesa():
+    """A flat dirt hill on the right, where the sky is quiet: a green field already claimed on it, and the
+    yellow trail marching around the next one."""
+    hill = '<path d="M180 440 L215 318 Q220 300 240 300 L340 300 Q360 300 366 318 L400 440 Z" fill="#A0673F"/>'
+    claimed = ('<path d="M232 316 H292 V352 H262 V390 H226 Z" fill="#5CCB5F" stroke-width="4"/>'
+               '<path d="M238 326 h14 M244 342 h16 M234 370 h14 M270 324 h14" fill="none" stroke="#3FA244" stroke-width="3"/>')
+    trail = ('<path class="trail" d="M292 316 H346 V404 H262 V390" fill="none" stroke="#FFD23F" stroke-width="5" '
+             'stroke-dasharray="12 10" stroke-linecap="round"/>'
+             '<circle cx="262" cy="390" r="7" fill="#FFD23F" stroke-width="3.5"/>')
+    specks = "".join(f'<ellipse cx="{x}" cy="{y}" rx="{r}" ry="{r * .7:.1f}" fill="#6B4026" stroke="none" opacity=".6"/>'
+                     for x, y, r in ((310, 340, 3.5), (320, 380, 3), (210, 420, 3), (360, 420, 3.5), (300, 425, 2.5)))
+    return hill + specks + claimed + trail
 
 
 def title_bg():
@@ -286,13 +295,11 @@ def title_bg():
         f'<circle cx="{x}" cy="{y}" r="{r}" fill="#FFF6C9" stroke="none" opacity="{1 - y / 190:.2f}"/>'
         for x, y, r in ((20, 20, 2), (70, 44, 1.6), (120, 16, 2.2), (170, 52, 1.4), (210, 24, 1.8), (250, 60, 1.5),
                         (300, 18, 2), (340, 48, 1.6), (90, 96, 1.4), (230, 104, 1.2), (330, 120, 1.3), (150, 130, 1.2)))
-    snowy = ('<path d="M190 420 L270 250 L310 310 L350 230 L400 330 L400 440 L190 440 Z" fill="#D6D0EE"/>'
-             '<path d="M270 250 L290 290 L276 284 L262 298 L252 276 Z M350 230 L370 268 L356 262 L342 276 Z" fill="#FFFFFF" stroke-width="4"/>')
     body = (star_field + ms.moon(44, 128, 22) + ms.shooting_star(300, 40, 60) + ms.sun(316, 250, 26) +
             ms.cloud(150, 230, 0.55) +
-            ms.volcano(110, 450, 260, 200, erupt=True, color="#6E5486") + snowy +
+            ms.volcano(110, 450, 260, 200, erupt=True, color="#6E5486") + dig_mesa() +
             layer(440, "#B9DE8E", 41, 24) + layer(520, "#8ED16E", 42, 30) +
-            ms.fly("petra", 250, 330, 0.32, flip=True, colors=ms.PETRA_ORANGE) + ms.fly("petra", 80, 200, 0.24, colors=ms.PETRA_TEAL) +
+            ms.fly("petra", 80, 200, 0.24, colors=ms.PETRA_TEAL) +
             ms.pine(330, 520, 0.6) + ms.pine(300, 540, 0.45) +
             layer(600, "#6FC25A", 43, 18) + dig_ground() +
             ms.trunk(10, 44) + ms.vine(52, 300, 6) +
