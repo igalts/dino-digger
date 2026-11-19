@@ -244,7 +244,12 @@ window.DinoBlocks = (core) => {
 
   // ---------- Board rules ----------
   const cellAt = (x, y) => (x < 0 || x >= COLS || y >= ROWS ? 'wall' : y < 0 ? null : G.grid[y * COLS + x]);
-  const fits = (p, x, y, cells = p.cells) => cells.every(([cx, cy]) => !cellAt(x + cx, y + cy));
+  // Rafi's little stone goes right through other stones and lands in the lowest hole of its column.
+  // It can't slide into a column whose lowest hole is above it.
+  const lowestHole = (x) => { for (let y = ROWS - 1; y >= 0; y--) if (!G.grid[y * COLS + x]) return y; return -1; };
+  const fits = (p, x, y, cells = p.cells) => (p.t === 'P'
+    ? x >= 0 && x < COLS && y <= lowestHole(x)
+    : cells.every(([cx, cy]) => !cellAt(x + cx, y + cy)));
   function spawn() {
     const p = G.next;
     if (G.after) { G.next = G.after; G.after = takePiece(); } else G.next = takePiece();
@@ -252,7 +257,7 @@ window.DinoBlocks = (core) => {
     G.holdUsed = false;
     place(p);
     if (p.t === 'P' && G.piece) {
-      floatText(BX + BW / 2, BY + 60, 'רפי: אבן לחור!', '#FFE38A');
+      floatText(BX + BW / 2, BY + 60, 'רפטי: עוברת דרך אבנים!', '#FFE38A');
       sfx.tone(880, 0.1, 'triangle', 0.06, 0, 1320);
     }
   }
@@ -1008,7 +1013,12 @@ window.DinoBlocks = (core) => {
         if (p.ry + cy < -0.9) return;
         const px = ox + cx * CS, py = oy + cy * CS;
         if (i === p.magicAt) drawMagic(c, p.magic, px, py, G.t);
-        else block(c, px, py, p.color, p.kind || 'stone');
+        else if (p.t === 'P') {
+          // glows, so you can see it while it goes through other stones
+          c.save(); c.shadowColor = '#FFF27A'; c.shadowBlur = 14 + Math.sin(G.t * 8) * 5;
+          block(c, px, py, p.color, p.kind);
+          c.restore();
+        } else block(c, px, py, p.color, p.kind || 'stone');
       });
       c.restore();
     }
@@ -1148,7 +1158,7 @@ window.DinoBlocks = (core) => {
   // Rafi: 5 dots, one for each stone; when they're full his little stone is next.
   function drawRafiMeter(c, H) {
     const full = G.next && G.next.t === 'P';
-    box(c, H.cx, H.cy, H.w, H.h, 'רפי', full && Math.floor(G.t * 10) % 2 === 0);
+    box(c, H.cx, H.cy, H.w, H.h, 'רפטי', full && Math.floor(G.t * 10) % 2 === 0);
     const k = 0.7 * (1 + (full ? Math.sin(G.t * 20) * 0.1 : 0));
     c.save(); c.translate(H.cx, H.cy + 4); c.scale(k, k);
     block(c, -CS / 2, -CS / 2, SHAPES.P.color, 'gold');
