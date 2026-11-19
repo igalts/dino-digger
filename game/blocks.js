@@ -55,7 +55,9 @@ window.DinoBlocks = (core) => {
   // rise: seconds between new rows pushing up from below. meteors: seconds between meteors (space).
   // SPEED_K tunes every level's fall speed at once (0.85 = 15% slower than the numbers below).
   const SPEED_K = 0.85;
-  const L = (goal, speed, o = {}) => ({ goal, speed: Math.round(speed * SPEED_K * 100) / 100, start: 0, rise: 0, meteors: 0, ...o });
+  // GOAL_K does the same for the rows needed to finish (0.85 = 15% fewer, rounded).
+  const GOAL_K = 0.85;
+  const L = (goal, speed, o = {}) => ({ goal: Math.max(3, Math.round(goal * GOAL_K)), speed: Math.round(speed * SPEED_K * 100) / 100, start: 0, rise: 0, meteors: 0, ...o });
   const WORLDS = [
     { name: 'מערת הקריסטלים', unlock: 'stegi', rows: 'crystal', strip: '#C9BCF5', bg: 'bbg-1', game: '#2A1F5C',
       levels: [L(4, 0.7), L(5, 0.8), L(6, 0.9, { start: 2 }), L(7, 1.0, { start: 3 }), L(8, 0.9)] },
