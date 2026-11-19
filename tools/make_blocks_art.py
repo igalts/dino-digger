@@ -18,18 +18,96 @@ OUT = ms.OUT
 INK = ms.INK
 W, H = 360, 780
 
+def _line(pts, step=2.0):
+    out = [pts[0]]
+    for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
+        n = max(1, int(math.hypot(x1 - x0, y1 - y0) / step))
+        out += [(x0 + (x1 - x0) * k / n, y0 + (y1 - y0) * k / n) for k in range(1, n + 1)]
+    return out
+
+
+def _arc(cx, cy, r, a0, a1, n=60):
+    return [(cx + r * math.cos(math.radians(a0 + (a1 - a0) * k / n)),
+             cy + r * math.sin(math.radians(a0 + (a1 - a0) * k / n))) for k in range(n + 1)]
+
+
+def _round_corners(pts, r=26):
+    """A polyline whose sharp corners are rounded off a little."""
+    out = [pts[0]]
+    for a, b, c in zip(pts, pts[1:], pts[2:]):
+        la, lc = math.hypot(a[0] - b[0], a[1] - b[1]), math.hypot(c[0] - b[0], c[1] - b[1])
+        p = (b[0] + (a[0] - b[0]) * r / la, b[1] + (a[1] - b[1]) * r / la)
+        q = (b[0] + (c[0] - b[0]) * r / lc, b[1] + (c[1] - b[1]) * r / lc)
+        out.append(p)
+        out += [((1 - t) ** 2 * p[0] + 2 * (1 - t) * t * b[0] + t ** 2 * q[0],
+                 (1 - t) ** 2 * p[1] + 2 * (1 - t) * t * b[1] + t ** 2 * q[1]) for t in (k / 12 for k in range(1, 13))]
+    out.append(pts[-1])
+    return _line(out)
+
+
+def _shape(path, fracs=(0.1, 0.28, 0.46, 0.64, 0.82)):
+    """Level spots at fractions of the road's length; the prize at its end."""
+    lens = [0.0]
+    for (x0, y0), (x1, y1) in zip(path, path[1:]):
+        lens.append(lens[-1] + math.hypot(x1 - x0, y1 - y0))
+    nodes = []
+    for f in fracs:
+        i = min(range(len(lens)), key=lambda k: abs(lens[k] - f * lens[-1]))
+        nodes.append((round(path[i][0]), round(path[i][1])))
+    end = path[-1]
+    return dict(path=path, nodes=nodes, prize=(round(end[0]), round(end[1])))
+
+
+def _spiral():
+    pts = _line([(180, 830), (180, 600)])
+    for k in range(1, 241):  # 1.6 turns inward around the middle
+        t = k / 240
+        a = math.radians(90 - 576 * t)
+        r = 165 - 120 * t
+        pts.append((180 + r * math.cos(a) * 0.95, 435 + r * math.sin(a)))
+    return pts
+
+
+def _u_turns():
+    rows = [660, 500, 340, 180]
+    lx, rx = 118, 242
+    pts = _line([(rx + 40, 830), (rx + 40, rows[0] + 40)])
+    pts += _round_corners([(rx + 40, rows[0] + 40), (rx + 40, rows[0]), (lx, rows[0])], 30)[1:]
+    for i in range(len(rows) - 1):
+        cy = (rows[i] + rows[i + 1]) / 2
+        r = (rows[i] - rows[i + 1]) / 2
+        if i % 2 == 0:  # turning on the left side
+            pts += _arc(lx, cy, r, 90, 270)[1:]
+            pts += _line([(lx, rows[i + 1]), (rx, rows[i + 1])])[1:]
+        else:
+            pts += _arc(rx, cy, r, 90, -90)[1:]
+            pts += _line([(rx, rows[i + 1]), (lx, rows[i + 1])])[1:]
+    return pts
+
+
+def _orbits():
+    pts = _line([(180, 830), (180, 740)])
+    for i, (y0, y1) in enumerate(((740, 560), (560, 380), (380, 200))):
+        cy, r = (y0 + y1) / 2, (y0 - y1) / 2
+        pts += _arc(180, cy, r, 90, -90 if i % 2 == 0 else 270)[1:]
+    pts += _line([(180, 200), (180, 115)])[1:]
+    return pts
+
+
 LAYOUTS = [
-    # crystal cave: up through the cave in a zig-zag
-    dict(nodes=[(180, 650), (85, 540), (255, 450), (105, 335), (235, 225)], prize=(100, 118), entry=[(180, 830), (180, 745)]),
-    # candy land: a swirly road
-    dict(nodes=[(80, 640), (270, 585), (150, 470), (280, 335), (95, 255)], prize=(255, 118), entry=[(-40, 700), (10, 672)]),
-    # under the sea: down in the deep, up to the light
-    dict(nodes=[(265, 660), (95, 585), (205, 455), (80, 335), (255, 240)], prize=(110, 118), entry=[(330, 830), (300, 742)]),
-    # desert: past the pyramids
-    dict(nodes=[(100, 652), (255, 560), (105, 440), (262, 330), (150, 215)], prize=(275, 112), entry=[(40, 830), (60, 742)]),
-    # space: hopping between planets
-    dict(nodes=[(180, 662), (292, 520), (160, 420), (62, 300), (222, 210)], prize=(292, 112), entry=[(180, 830), (180, 752)]),
+    # crystal cave: a sharp lightning zigzag up the cave
+    _shape(_round_corners([(180, 830), (180, 700), (60, 610), (300, 480), (60, 350), (300, 225), (130, 115)], 22)),
+    # candy land: a lollipop swirl into the middle
+    _shape(_spiral()),
+    # under the sea: wide U-turns, back and forth
+    _shape(_u_turns()),
+    # desert: up the steps of a pyramid
+    _shape(_round_corners([(60, 830), (60, 720), (145, 720), (145, 620), (230, 620), (230, 520), (310, 520),
+                           (310, 410), (90, 410), (90, 330)], 16)),
+    # space: orbit arcs around the planets
+    _shape(_orbits()),
 ]
+
 
 
 # ---------------------------------------------------------------- props
@@ -190,6 +268,95 @@ def road_paved(L, color, edge, dash):
     return mm.road(L, color, edge, dash)
 
 
+# ---------------------------------------------------------------- roads: one of a kind per world
+def road_samples(L, step):
+    """Points evenly spaced along the road, each as (x, y, angle in degrees)."""
+    dense = L["path"]
+    out, run = [], step / 2
+    for (x0, y0), (x1, y1) in zip(dense, dense[1:]):
+        seg = math.hypot(x1 - x0, y1 - y0)
+        run += seg
+        if run >= step:
+            run -= step
+            out.append((x1, y1, math.degrees(math.atan2(y1 - y0, x1 - x0))))
+    return out
+
+
+def road_line(L, *strokes):
+    d = "M" + " L".join(f"{x:.1f} {y:.1f}" for x, y in L["path"])
+    return "".join(f'<path d="{d}" fill="none" stroke="{c}" stroke-width="{w}" stroke-linejoin="round"{extra}/>'
+                   for c, w, extra in strokes)
+
+
+def road_crystal(L):
+    # a glowing path of gem tiles
+    cols = [("#7EE0FF", "#E6FBFF"), ("#E08CFF", "#FBE3FF"), ("#7EE0C3", "#E3FFF5"), ("#FFD23F", "#FFF6C9")]
+    out = road_line(L, ("#C9A8FF", 60, ' opacity=".22" stroke-linecap="round"'), (INK, 36, ""), ("#3A2E7A", 30, ""))
+    for i, (x, y, a) in enumerate(road_samples(L, 21)):
+        c, lt = cols[i % 4]
+        out += (f'<g transform="translate({x:.1f} {y:.1f}) rotate({a:.0f})">'
+                f'<path d="M-9 0 L-5 -11 L5 -11 L9 0 L5 11 L-5 11 Z" fill="{c}" stroke-width="2.5"/>'
+                f'<path d="M-5 -7 L0 -9 L-2 -2 Z" fill="{lt}" stroke="none"/></g>')
+    return out + mm.pads(L)
+
+
+def road_candy(L):
+    # a candy-cane road: red and white stripes, with sprinkles
+    out = road_line(L, (INK, 38, ""), ("#FFFFFF", 30, ""), ("#FF4F6E", 30, ' stroke-dasharray="10 10" stroke-linecap="butt"'))
+    spr = ["#FFD23F", "#7EE0C3", "#8FD3FF", "#B07CE8"]
+    for i, (x, y, a) in enumerate(road_samples(L, 46)):
+        side = 26 if i % 2 else -26
+        r = math.radians(a + 90)
+        sx, sy = x + math.cos(r) * side, y + math.sin(r) * side
+        out += (f'<rect x="{sx - 6:.1f}" y="{sy - 2.5:.1f}" width="12" height="5" rx="2.5" fill="{spr[i % 4]}" '
+                f'stroke-width="2" transform="rotate({(i * 47) % 180} {sx:.1f} {sy:.1f})"/>')
+    return out + mm.pads(L)
+
+
+def road_sea(L):
+    # stepping stones across the sea floor, with a trail of bubbles between them
+    out = road_line(L, ("#BFF0FF", 30, ' opacity=".28" stroke-linecap="round"'))
+    stones = ["#F2D49B", "#E8C384", "#F7E2B5"]
+    for i, (x, y, a) in enumerate(road_samples(L, 30)):
+        out += (f'<g transform="translate({x:.1f} {y:.1f}) rotate({a:.0f})">'
+                f'<ellipse cx="0" cy="2" rx="15" ry="12" fill="{INK}" opacity=".25" stroke="none"/>'
+                f'<ellipse cx="0" cy="0" rx="14" ry="11.5" fill="{stones[i % 3]}" stroke-width="3"/>'
+                f'<ellipse cx="-4" cy="-4" rx="4" ry="2.5" fill="#FFFFFF" opacity=".55" stroke="none"/></g>')
+    for i, (x, y, a) in enumerate(road_samples(L, 30)[:-1]):
+        r = math.radians(a)
+        bx, by = x + math.cos(r) * 15, y + math.sin(r) * 15
+        out += f'<circle cx="{bx:.1f}" cy="{by:.1f}" r="{2.5 + (i % 2)}" fill="#E6FBFF" stroke="#2A7FC0" stroke-width="1.5"/>'
+    return out + mm.pads(L)
+
+
+def road_desert(L):
+    # an old road of sandstone blocks, laid in two rows like a pyramid wall
+    out = road_line(L, (INK, 38, ""), ("#B8864A", 31, ""))
+    for i, (x, y, a) in enumerate(road_samples(L, 7)):
+        if i % 2:
+            off, fill = 6.5, "#F2CF8A"
+        else:
+            off, fill = -6.5, "#EAC07A"
+        out += (f'<g transform="translate({x:.1f} {y:.1f}) rotate({a:.0f})">'
+                f'<rect x="-6.5" y="{off - 6:.1f}" width="13" height="12" rx="2" fill="{fill}" stroke="#9C6B34" stroke-width="2"/></g>')
+    return out + mm.pads(L)
+
+
+def road_space(L):
+    # a neon light-beam road with a dotted centre line and twinkles beside it
+    out = road_line(L, ("#7EE0FF", 54, ' opacity=".16" stroke-linecap="round"'), (INK, 38, ""),
+                    ("#7EE0FF", 31, ""), ("#1A1450", 24, ""),
+                    ("#FFF27A", 4, ' stroke-dasharray="8 12" stroke-linecap="round"'))
+    for i, (x, y, a) in enumerate(road_samples(L, 52)):
+        side = 30 if i % 2 else -30
+        r = math.radians(a + 90)
+        sx, sy = x + math.cos(r) * side, y + math.sin(r) * side
+        out += (f'<path d="M{sx:.1f} {sy - 6:.1f} L{sx + 1.6:.1f} {sy - 1.6:.1f} L{sx + 6:.1f} {sy:.1f} L{sx + 1.6:.1f} {sy + 1.6:.1f} '
+                f'L{sx:.1f} {sy + 6:.1f} L{sx - 1.6:.1f} {sy + 1.6:.1f} L{sx - 6:.1f} {sy:.1f} L{sx - 1.6:.1f} {sy - 1.6:.1f} Z" '
+                f'fill="#FFF6C9" stroke="none"/>')
+    return out + mm.pads(L)
+
+
 # ---------------------------------------------------------------- maps
 def wrap(body, sky):
     return mm.wrap(body, sky)
@@ -203,9 +370,9 @@ def map_crystal():
             glow(60, 380, 60, "#7EE0FF") + glow(300, 560, 70, "#E08CFF") + glow(300, 250, 50, "#7EE0C3") +
             crystal(40, 420, 1.0, "#7EE0FF", "#E6FBFF") + crystal(300, 600, 1.1, "#E08CFF", "#FBE3FF") +
             crystal(320, 300, 0.8, "#7EE0C3", "#E3FFF5") + crystal(30, 760, 1.2, "#B07CE8") + crystal(310, 770, 0.9, "#7EE0FF", "#E6FBFF") +
-            crystal(175, 170, 0.7, "#FFD23F", "#FFF6C9") +
-            road_paved(L, "#8E7FD0", "#6E5FB8", "#E3D6FF") +
-            crystal(200, 560, 0.5, "#FF8FC8", "#FFE3F0") + crystal(40, 610, 0.55, "#7EE0C3", "#E3FFF5") +
+            crystal(290, 150, 0.6, "#FFD23F", "#FFF6C9") +
+            road_crystal(L) +
+            crystal(110, 500, 0.5, "#FF8FC8", "#FFE3F0") + crystal(270, 700, 0.55, "#7EE0C3", "#E3FFF5") +
             ms.mushroom(330, 420, 0.7, "#39C1B5", "#C9F2EE", glow="#5CF2E0") + ms.mushroom(30, 280, 0.6, "#A884E8", "#E3D6FF", glow="#C9A8FF") +
             "".join(ms.firefly(x, y) for x, y in ((140, 300), (330, 680), (50, 520), (240, 760), (300, 160))))
     return wrap(body, ("#2A1F5C", "#4A3A8E"))
@@ -218,11 +385,11 @@ def map_candy():
     body = (ms.cloud(40, 110, 0.7, "#FFF0F7") + ms.cloud(250, 70, 0.6, "#FFF0F7") +
             mm.layer(220, "#FFD6EC", 201, 30) + mm.layer(330, "#FFC2DD", 202, 26) + river +
             mm.layer(470, "#FFB0D2", 203, 30) + mm.layer(610, "#FF9EC7", 204, 26) + mm.layer(710, "#FF8FBF", 205, 18) +
-            road_paved(L, "#FFFFFF", "#FFC2DD", "#FF4F6E") +
-            lollipop(320, 470, 0.8) + lollipop(30, 360, 0.7, "#7EE0C3") + lollipop(205, 330, 0.55, "#FFD23F") +
-            candycane(320, 760, 0.9) + candycane(20, 600, 0.7, flip=True) +
-            cupcake(200, 600, 0.7) + cupcake(330, 230, 0.6, "#FFFFFF", "#FF9EC0") + cupcake(30, 780, 0.8, "#FFF0A8", "#B07CE8") +
-            gumdrops([(130, 700), (260, 690), (60, 520), (330, 640), (170, 380), (40, 230)]))
+            road_candy(L) +
+            lollipop(300, 720, 0.8) + lollipop(300, 262, 0.6, "#7EE0C3") + lollipop(60, 262, 0.55, "#FFD23F") +
+            candycane(335, 775, 0.8) + candycane(40, 720, 0.7, flip=True) +
+            cupcake(180, 215, 0.6, "#FFFFFF", "#FF9EC0") + cupcake(105, 785, 0.7, "#FFF0A8", "#B07CE8") +
+            gumdrops([(130, 690), (250, 690), (335, 600), (115, 235), (245, 235), (25, 600)]))
     return wrap(body, ("#FF9EC7", "#FFE3F0"))
 
 
@@ -231,12 +398,12 @@ def map_sea():
     rays = "".join(f'<path d="M{x} -10 L{x + 40} -10 L{x + 120} 600 L{x + 60} 600 Z" fill="#FFFFFF" opacity=".07" stroke="none"/>' for x in (20, 140, 260))
     sand = '<path d="M-10 790 L-10 720 Q90 690 180 712 Q270 734 370 700 L370 790 Z" fill="#F2D49B"/>'
     body = (rays + bubbles(301, 24) +
-            ms.fish(300, 170, "#FFD23F", flip=True, s=0.8) + ms.fish(50, 250, "#FF8FA3", s=0.7) + ms.fish(170, 380, "#7EE0C3", flip=True, s=0.6) +
-            jelly(320, 360, 0.9) + jelly(40, 470, 0.7, "#C9A8FF") +
+            ms.fish(300, 95, "#FFD23F", flip=True, s=0.8) + ms.fish(80, 90, "#FF8FA3", s=0.7) + ms.fish(180, 420, "#7EE0C3", flip=True, s=0.6) +
+            jelly(325, 240, 0.8) + jelly(35, 410, 0.7, "#C9A8FF") +
             sand +
             seaweed(20, 740, 220, seed=1) + seaweed(340, 720, 260, seed=2) + seaweed(160, 760, 120, "#5CCB5F", seed=3) +
             coral(300, 740, 1.0) + coral(60, 740, 0.8, "#FFB13B") + chest(200, 760, 0.8) +
-            mm.boardwalk(L) +
+            road_sea(L) +
             ms.starfish(120, 770, 10) + ms.shell(260, 772, 0.8) + ms.plesio(300, 560, 0.35, "#39C1B5", "#2A7FC0"))
     return wrap(body, ("#4FC3F7", "#164A9E"))
 
@@ -246,10 +413,10 @@ def map_desert():
     body = (ms.sun(300, 70, 30) +
             pyramid(90, 300, 200, 140) + pyramid(230, 300, 140, 100, "#F7C76E", "#DDA14A") + pyramid(320, 300, 90, 64) +
             dune(300, "#F7D38A", 401, 24) + dune(440, "#F2C36E", 402, 30) + dune(580, "#ECB45C", 403, 26) + dune(700, "#E5A64E", 404, 18) +
-            road_paved(L, "#FFF0C8", "#D9B270", "#C98A52") +
-            cactus(330, 470, 0.8) + cactus(30, 380, 0.7) + cactus(310, 760, 1.0) + cactus(40, 600, 0.6) + cactus(200, 420, 0.5) +
-            ms.rock(330, 640, 50, 30, "#C9A07A") + ms.rock(40, 740, 44, 26, "#C9A07A") +
-            '<path d="M180 640 Q200 620 220 640" fill="none" stroke-width="4"/>' +
+            road_desert(L) +
+            cactus(340, 640, 0.8) + cactus(30, 380, 0.7) + cactus(310, 760, 1.0) + cactus(25, 620, 0.6) + cactus(190, 490, 0.5) +
+            ms.rock(330, 700, 50, 30, "#C9A07A") + ms.rock(200, 770, 44, 26, "#C9A07A") +
+            '<path d="M180 690 Q200 670 220 690" fill="none" stroke-width="4"/>' +
             ms.fly("petra", 120, 160, 0.26, colors=ms.PETRA_ORANGE))
     return wrap(body, ("#FFB86B", "#FFE9B8"))
 
@@ -261,9 +428,9 @@ def map_space():
     body = (ms.stars(80, 501, 760) +
             planet(70, 170, 34, "#FF9F1C", ring="#FFD23F", spots="#E07F00") + planet(310, 340, 26, "#7EE0C3", spots="#39C1B5") +
             planet(40, 520, 22, "#FF8FC8", spots="#E8557A") + planet(330, 640, 18, "#5B8DEF", ring="#BDEBFF") +
-            ms.shooting_star(300, 60, 70) + rocket(330, 220, 0.7, 25) + ufo(200, 120, 0.7) +
+            ms.shooting_star(300, 60, 70) + rocket(330, 220, 0.7, 25) + ufo(80, 300, 0.7) +
             moon_ground +
-            mm.road(L, "#5B4E8E", "#3E3470", "#FFF27A"))
+            road_space(L))
     return wrap(body, ("#0E0A2E", "#3A2E7A"))
 
 
