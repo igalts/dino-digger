@@ -426,9 +426,16 @@ img { -webkit-user-drag: none; }
   display: flex; align-items: center; gap: 10px; text-align: start; font-weight: 700; font-size: 16px; line-height: 1.25;
   background: #FFF6DA; border: 3px solid rgba(43,27,61,.15); border-radius: 14px; padding: 7px 10px;
 }
-.ctrl-list .k {
-  flex: none; min-width: 44px; height: 34px; padding: 0 6px; display: grid; place-items: center; border-radius: 10px;
-  background: #FFFFFF; border: 3px solid var(--ink); box-shadow: 0 3px 0 var(--ink); font-size: 17px; font-weight: 800; direction: ltr;
+.ctrl-list .hic {
+  flex: none; width: 46px; height: 46px; display: grid; place-items: center; border-radius: 14px;
+  background: #FFFFFF; border: 3px solid var(--ink); box-shadow: 0 3px 0 var(--ink);
+}
+.ctrl-list .hic svg { width: 32px; height: 32px; }
+.ctrl-list .keys { flex: none; display: flex; gap: 4px; direction: ltr; }
+.ctrl-list kbd {
+  min-width: 32px; height: 34px; padding: 0 7px; display: grid; place-items: center; border-radius: 9px;
+  background: linear-gradient(#FFFFFF, #ECE6F5); border: 3px solid var(--ink); box-shadow: 0 3px 0 var(--ink);
+  font: 800 15px/1 var(--display), sans-serif; color: var(--ink);
 }
 .pause-row { width: 100%; display: flex; align-items: center; gap: 10px; padding-top: 4px; border-top: 3px dashed rgba(43,27,61,.18); padding-top: 14px; }
 .round-toggle {

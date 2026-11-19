@@ -1711,42 +1711,64 @@
   // ---------- How to play (the "i" in the pause menu) ----------
   // Shows the controls for the game being played, on this kind of device, in the control mode that's on.
   const isTouch = () => !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
+  // Little drawn icons in the game's own style (ink outlines, the game's colours), one per kind of move.
+  const FINGER = '<path d="M13 13 V25 Q13 29 17 29 H21 Q25 29 25 25 V19 Q25 16.5 22.5 16.5 H17 V13 Q17 10.5 15 10.5 Q13 10.5 13 13 Z" fill="#FFE3C4"/>';
+  const HELP_ICONS = {
+    lr: '<path d="M3 16 L13 8 V24 Z M29 16 L19 8 V24 Z" fill="#FFD23F"/>',
+    down: '<path d="M16 27 L6 10 H26 Z" fill="#FFD23F"/>',
+    slam: '<path d="M16 29 L7 19 H25 Z" fill="#FF8FC8"/><path d="M16 18 L7 8 H25 Z" fill="#FF8FC8"/>',
+    rotate: '<path d="M23.5 10 A9 9 0 1 0 25 20" fill="none" stroke-width="7"/><path d="M23.5 10 A9 9 0 1 0 25 20" fill="none" stroke="#5CCB5F" stroke-width="3"/><path d="M28 5 L28 14 L19 12 Z" fill="#5CCB5F"/>',
+    tap: '<circle cx="15" cy="11" r="8" fill="none" stroke="#4FC3F7" stroke-width="3"/>' + FINGER,
+    dragX: '<path d="M4 6 H28 M8 2 L4 6 L8 10 M24 2 L28 6 L24 10" fill="none" stroke="#4FC3F7" stroke-width="3"/>' + FINGER,
+    dragDown: '<path d="M6 4 V22 M2 18 L6 22 L10 18" fill="none" stroke="#4FC3F7" stroke-width="3"/>' + FINGER,
+    flick: '<path d="M5 3 V14 M9 6 V20 M5 18 L9 24" fill="none" stroke="#FF8FC8" stroke-width="3"/>' + FINGER,
+    flickUp: '<path d="M6 22 V4 M2 8 L6 4 L10 8" fill="none" stroke="#5CCB5F" stroke-width="3"/>' + FINGER,
+    swipe: '<path d="M4 20 Q8 6 24 5 M20 1 L24 5 L20 9" fill="none" stroke="#4FC3F7" stroke-width="3"/>' + FINGER,
+    stop: '<path d="M11 3 H21 L29 11 V21 L21 29 H11 L3 21 V11 Z" fill="#E8553D"/><path d="M10 16 H22" stroke="#FFFFFF" stroke-width="4"/>',
+    dpad: '<path d="M12 3 H20 V12 H29 V20 H20 V29 H12 V20 H3 V12 H12 Z" fill="#FFD23F"/><circle cx="16" cy="16" r="2.5" fill="#2B1B3D" stroke="none"/>',
+    claim: '<path d="M3 24 V12 Q3 6 9 6 H18 V24 Z" fill="#5CCB5F"/><path d="M18 6 H28 V24 H18" fill="none" stroke="#FFD23F" stroke-width="3" stroke-dasharray="3 3"/><circle cx="18" cy="24" r="3.5" fill="#FFD23F"/>',
+    pocket: '<path d="M7 11 H25 L23 27 Q16 30 9 27 Z" fill="#FF8FA3"/><path d="M11 11 Q11 4 16 4 Q21 4 21 11" fill="none" stroke-width="3"/><rect x="11" y="15" width="10" height="7" rx="2" fill="#B07CE8" stroke-width="2"/>',
+    fire: '<path d="M16 3 Q24 11 23 18 Q27 15 26 11 Q30 17 28 22 Q25 30 16 30 Q7 30 5 22 Q4 16 9 11 Q9 16 12 17 Q10 9 16 3 Z" fill="#FF6B2C"/><path d="M16 15 Q21 20 20 24 Q19 28 16 28 Q12 28 12 24 Q12 20 16 15 Z" fill="#FFD23F" stroke="none"/>',
+  };
   function controlsHelp() {
     const blocksGame = G && G.mode === 'blocks', mode = controlMode(), perk = G && G.perk;
-    const rows = [];
+    const rows = []; // [icon name, or a list of keyboard keys, text]
     if (!isTouch()) {
       if (blocksGame) {
-        rows.push(['← →', 'מזיזים את האבן הצידה'], ['↓', 'האבן יורדת מהר'], ['↑ X', 'מסובבים את האבן'], ['רווח', 'הפלה! האבן נופלת מיד למטה']);
-        if (perk === 'petra') rows.push(['C', 'פטרה שומרת אבן בכיס, ושוב C מוציא אותה']);
-        if (perk === 'rex') rows.push(['C', 'כשהאש מלאה, רקס נושף אש']);
+        rows.push([['←', '→'], 'מזיזים את האבן הצידה'], [['↓'], 'האבן יורדת מהר'], [['↑', 'X'], 'מסובבים את האבן'], [['רווח'], 'הפלה! האבן נופלת מיד למטה']);
+        if (perk === 'petra') rows.push([['C'], 'פטרה שומרת אבן בכיס, ושוב C מוציא אותה']);
+        if (perk === 'rex') rows.push([['C'], 'כשהאש מלאה, רקס נושף אש']);
       } else {
-        rows.push(['← → ↑ ↓', 'מזיזים את הדינו'], ['🌱', 'יוצאים מהדשא לחפור, וחוזרים אליו כדי לסגור שטח']);
+        rows.push([['←', '↑', '↓', '→'], 'מזיזים את הדינו'], ['claim', 'יוצאים מהדשא לחפור, וחוזרים אליו כדי לסגור שטח']);
       }
-      rows.push(['P Esc', 'הפסקה']);
-      return { title: '⌨️ מקלדת', rows };
+      rows.push([['P', 'Esc'], 'הפסקה']);
+      return { title: 'מקלדת', rows };
     }
     if (blocksGame) {
       if (mode === 'pad') {
-        rows.push(['◀ ▶', 'מזיזים את האבן הצידה'], ['▼', 'האבן יורדת מהר'], ['⏬', 'הכפתור הוורוד: הפלה! האבן נופלת מיד'], ['🔄', 'הכפתור הירוק: מסובבים את האבן'],
-          ['👆', 'נגיעה על הלוח גם מסובבת']);
+        rows.push(['lr', 'מזיזים את האבן הצידה'], ['down', 'האבן יורדת מהר'], ['slam', 'הכפתור הוורוד: הפלה! האבן נופלת מיד'],
+          ['rotate', 'הכפתור הירוק: מסובבים את האבן'], ['tap', 'נגיעה על הלוח גם מסובבת']);
       } else {
-        rows.push(['👉', 'גוררים הצידה: האבן זזה עם האצבע'], ['👇', 'גוררים לאט למטה: האבן יורדת'], ['⚡', 'החלקה מהירה למטה: הפלה!'],
-          ['👆', 'נגיעה או החלקה למעלה: מסובבים']);
+        rows.push(['dragX', 'גוררים הצידה: האבן זזה עם האצבע'], ['dragDown', 'גוררים לאט למטה: האבן יורדת'], ['flick', 'החלקה מהירה למטה: הפלה!'],
+          ['flickUp', 'נגיעה או החלקה למעלה: מסובבים']);
       }
-      if (perk === 'petra') rows.push(['🎒', 'נוגעים בפטרה או בכיס כדי לשמור אבן, ושוב כדי להוציא']);
-      if (perk === 'rex') rows.push(['🔥', 'כשהאש מלאה, נוגעים ברקס והוא נושף אש']);
+      if (perk === 'petra') rows.push(['pocket', 'נוגעים בפטרה או בכיס כדי לשמור אבן, ושוב כדי להוציא']);
+      if (perk === 'rex') rows.push(['fire', 'כשהאש מלאה, נוגעים ברקס והוא נושף אש']);
     } else if (mode === 'pad') {
-      rows.push(['⬅️➡️', 'לוחצים על החיצים כדי להזיז את הדינו'], ['🌱', 'יוצאים מהדשא לחפור, וחוזרים אליו כדי לסגור שטח']);
+      rows.push(['dpad', 'לוחצים על החיצים כדי להזיז את הדינו'], ['claim', 'יוצאים מהדשא לחפור, וחוזרים אליו כדי לסגור שטח']);
     } else {
-      rows.push(['👆', 'מחליקים לכיוון: הדינו הולך לשם עד ההחלקה הבאה'], ['✋', 'נגיעה על הדינו עוצרת אותו'],
-        ['🌱', 'יוצאים מהדשא לחפור, וחוזרים אליו כדי לסגור שטח']);
+      rows.push(['swipe', 'מחליקים לכיוון: הדינו הולך לשם עד ההחלקה הבאה'], ['stop', 'נגיעה על הדינו עוצרת אותו'],
+        ['claim', 'יוצאים מהדשא לחפור, וחוזרים אליו כדי לסגור שטח']);
     }
-    return { title: mode === 'pad' ? '🎮 חיצים' : '👆 החלקה', rows };
+    return { title: mode === 'pad' ? 'חיצים' : 'החלקה', rows };
   }
+  const helpIcon = (ic) => (Array.isArray(ic)
+    ? `<span class="keys">${ic.map((k) => `<kbd>${k}</kbd>`).join('')}</span>`
+    : `<span class="hic"><svg viewBox="0 0 32 32" stroke="#2B1B3D" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">${HELP_ICONS[ic]}</svg></span>`);
   function showControlsHelp() {
     const h = controlsHelp();
     $('#ctrlMode').textContent = h.title;
-    $('#ctrlList').innerHTML = h.rows.map(([k, t]) => `<li><span class="k">${k}</span><span>${t}</span></li>`).join('');
+    $('#ctrlList').innerHTML = h.rows.map(([ic, t]) => `<li>${helpIcon(ic)}<span>${t}</span></li>`).join('');
     $('#pause').hidden = true; // the help takes the pause menu's place, and goes back to it when closed
     $('#ctrlInfo').hidden = false;
   }
