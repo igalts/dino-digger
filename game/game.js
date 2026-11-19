@@ -1702,10 +1702,59 @@
     if (screen !== 'game' || !G || G.state === 'won' || G.state === 'lost') return;
     paused = on;
     $('#pause').hidden = !on;
+    if (!on) $('#ctrlInfo').hidden = true;
     $('#pauseMuteBtn').classList.toggle('muted', !!store.data.muted);
     $('#pauseDino').src = `assets/${G.ch.img}.svg`;
     input.dir = null; padRelease();
   }
+
+  // ---------- How to play (the "i" in the pause menu) ----------
+  // Shows the controls for the game being played, on this kind of device, in the control mode that's on.
+  const isTouch = () => !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
+  function controlsHelp() {
+    const blocksGame = G && G.mode === 'blocks', mode = controlMode(), perk = G && G.perk;
+    const rows = [];
+    if (!isTouch()) {
+      if (blocksGame) {
+        rows.push(['← →', 'מזיזים את האבן הצידה'], ['↓', 'האבן יורדת מהר'], ['↑ X', 'מסובבים את האבן'], ['רווח', 'הפלה! האבן נופלת מיד למטה']);
+        if (perk === 'petra') rows.push(['C', 'פטרה שומרת אבן בכיס, ושוב C מוציא אותה']);
+        if (perk === 'rex') rows.push(['C', 'כשהאש מלאה, רקס נושף אש']);
+      } else {
+        rows.push(['← → ↑ ↓', 'מזיזים את הדינו'], ['🌱', 'יוצאים מהדשא לחפור, וחוזרים אליו כדי לסגור שטח']);
+      }
+      rows.push(['P Esc', 'הפסקה']);
+      return { title: '⌨️ מקלדת', rows };
+    }
+    if (blocksGame) {
+      if (mode === 'pad') {
+        rows.push(['◀ ▶', 'מזיזים את האבן הצידה'], ['▼', 'האבן יורדת מהר'], ['⏬', 'הכפתור הוורוד: הפלה! האבן נופלת מיד'], ['🔄', 'הכפתור הירוק: מסובבים את האבן'],
+          ['👆', 'נגיעה על הלוח גם מסובבת']);
+      } else {
+        rows.push(['👉', 'גוררים הצידה: האבן זזה עם האצבע'], ['👇', 'גוררים לאט למטה: האבן יורדת'], ['⚡', 'החלקה מהירה למטה: הפלה!'],
+          ['👆', 'נגיעה או החלקה למעלה: מסובבים']);
+      }
+      if (perk === 'petra') rows.push(['🎒', 'נוגעים בפטרה או בכיס כדי לשמור אבן, ושוב כדי להוציא']);
+      if (perk === 'rex') rows.push(['🔥', 'כשהאש מלאה, נוגעים ברקס והוא נושף אש']);
+    } else if (mode === 'pad') {
+      rows.push(['⬅️➡️', 'לוחצים על החיצים כדי להזיז את הדינו'], ['🌱', 'יוצאים מהדשא לחפור, וחוזרים אליו כדי לסגור שטח']);
+    } else {
+      rows.push(['👆', 'מחליקים לכיוון: הדינו הולך לשם עד ההחלקה הבאה'], ['✋', 'נגיעה על הדינו עוצרת אותו'],
+        ['🌱', 'יוצאים מהדשא לחפור, וחוזרים אליו כדי לסגור שטח']);
+    }
+    return { title: mode === 'pad' ? '🎮 חיצים' : '👆 החלקה', rows };
+  }
+  function showControlsHelp() {
+    const h = controlsHelp();
+    $('#ctrlMode').textContent = h.title;
+    $('#ctrlList').innerHTML = h.rows.map(([k, t]) => `<li><span class="k">${k}</span><span>${t}</span></li>`).join('');
+    $('#pause').hidden = true; // the help takes the pause menu's place, and goes back to it when closed
+    $('#ctrlInfo').hidden = false;
+  }
+  $('#ctrlInfoBtn').addEventListener('click', () => { sfx.tap(); showControlsHelp(); });
+  $('#ctrlInfoClose').addEventListener('click', () => {
+    sfx.tap(); $('#ctrlInfo').hidden = true;
+    if (paused) $('#pause').hidden = false;
+  });
 
   // Full screen is asked for once. If the player leaves it (for example to open the browser menu
   // and install the app), we don't pull them back in. The installed app is full screen already.

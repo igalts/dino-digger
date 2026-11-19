@@ -190,6 +190,7 @@
   <div id="pause" class="overlay" hidden>
     <div class="panel pause-panel">
       <div class="pause-nap" aria-hidden="true"><img id="pauseDino" alt=""><span class="zz">z<i>z</i><b>z</b></span></div>
+      <button id="ctrlInfoBtn" class="info-btn" aria-label="איך משחקים">i</button>
       <h2>הפסקה</h2>
       <button id="resumeBtn" class="btn resume">
         <svg class="ic" viewBox="0 0 48 48"><path class="fill" d="M15 9 L39 24 L15 39 Z"/></svg>
@@ -225,6 +226,16 @@
           </button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- How to play: the controls for this game, on this device, in the control mode that's on -->
+  <div id="ctrlInfo" class="overlay" hidden>
+    <div class="panel ctrl-panel">
+      <h2>איך משחקים</h2>
+      <div id="ctrlMode" class="ctrl-mode"></div>
+      <ul id="ctrlList" class="ctrl-list"></ul>
+      <button id="ctrlInfoClose" class="btn">הבנתי!</button>
     </div>
   </div>
 
