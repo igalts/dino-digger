@@ -23,7 +23,7 @@
   const ANCHORS = {
     pip:   { k: 1,    head: [146, 48],  eye: [164, 94],  nose: [190, 106], mouth: [180, 118], neck: [136, 132], back: [80, 94],   waist: [92, 140, 100],  seat: [52, 142],  tail: [8, 144] },
     stegi: { k: 0.75, head: [166, 109], eye: [172, 120], nose: [192, 128], mouth: [186, 140], neck: [148, 144], back: [98, 98],   waist: [100, 140, 104], seat: [52, 140],  tail: [8, 104] },
-    petra: { k: 0.7,  head: [104, 63],  eye: [111, 84],  nose: [156, 90],  mouth: [128, 99],  neck: [102, 107], back: [100, 104], waist: [100, 140, 46],  seat: [100, 152], tail: [14, 80] },
+    petra: { k: 0.7,  head: [104, 63],  eye: [111, 84],  nose: [156, 90],  mouth: [128, 99],  neck: [102, 107], back: [100, 104], waist: [100, 140, 46],  seat: [100, 152], tail: [14, 80], legs: [100, 178] },
     anki:  { k: 0.7,  head: [172, 108], eye: [178, 134], nose: [194, 140], mouth: [187, 148], neck: [156, 150], back: [96, 90],   waist: [100, 150, 120], seat: [44, 146],  tail: [14, 134] },
     rafi:  { k: 0.7,  head: [145, 58],  eye: [158, 74],  nose: [179, 80],  mouth: [170, 86],  neck: [136, 100], back: [104, 100], waist: [100, 132, 70],  seat: [74, 134],  tail: [10, 124] },
     rex:   { k: 1.25, flip: true, head: [66, 30], eye: [70, 62], nose: [21, 72], mouth: [44, 90], neck: [106, 118], back: [140, 96], waist: [128, 150, 116], seat: [178, 148], tail: [232, 66] },
@@ -407,7 +407,8 @@
       { d: 'M-31 10 L31 10', stroke: '#C98A55', sw: 7 },
       { d: 'M-18 -16 Q-12 -22 -4 -24', stroke: '#9BE29D', sw: 3 },
     ] },
-    { id: 'jetpack', name: 'ג\'טפק', slot: 'body', price: 25, at: 'back', scale: 1.2, box: [-20, -30, 40, 62], parts: [
+    // Petra flies with her wings, so her jetpack hangs down by her legs instead of covering her.
+    { id: 'jetpack', name: 'ג\'טפק', slot: 'body', price: 25, at: 'back', atFor: { petra: 'legs' }, scale: 1.2, box: [-20, -30, 40, 62], parts: [
       { d: 'M-16 10 Q-10 44 -4 10 Z', fill: '#FF9F1C', sw: 2.5, anim: 'flicker', pivot: [-10, 12] },
       { d: 'M4 10 Q10 44 16 10 Z', fill: '#FF9F1C', sw: 2.5, anim: 'flicker', pivot: [10, 12] },
       { d: 'M-12 12 Q-10 30 -8 12 Z M8 12 Q10 30 12 12 Z', fill: '#FFD23F', sw: 0, anim: 'flicker', pivot: [0, 12] },
@@ -462,7 +463,7 @@
     for (const slot of ['body', 'head', 'face']) {
       const it = BY_ID[outfit[slot]];
       if (!it || !!it.behind !== (layer === 'back')) continue;
-      const at = a[it.at];
+      const at = a[(it.atFor && it.atFor[charId]) || it.at];
       c.save();
       c.translate(at[0], at[1]);
       const sx = it.fit ? at[2] / 100 : a.k, sy = it.fit ? Math.max(a.k, 0.8) : a.k;
