@@ -117,7 +117,7 @@
     const world = WORLDS[G.w];
     if (G.l === world.levels.length - 1 && world.unlock && !r.unlocked.includes(world.unlock)) {
       r.unlocked.push(world.unlock); unlocked = world.unlock;
-      if (Array.isArray(r.active) && r.active.length < hydra.heads.MAX_HEADS) r.active.push(unlocked); // it joins the fight if there's room
+      if (hydra.heads.activeHeads().length < hydra.heads.MAX_HEADS) hydra.heads.swapHead(unlocked, null); // it joins the fight if there's room
     }
     store.save();
     setTimeout(() => {
@@ -133,16 +133,32 @@
         const P = game.prize(unlocked);
         $('#unlockImg').src = P.src;
         $('#unlockText').innerHTML = `${P.title}<small class="perk-line">${P.line}</small>`;
+        buildUnlockPick(unlocked);
         u.hidden = false;
         setTimeout(() => sfx.power(), 1300);
       } else u.hidden = true;
       const lastLevel = G.l >= world.levels.length - 1, lastWorld = G.w >= WORLDS.length - 1;
       $('#winTitle').textContent = lastLevel && lastWorld ? 'ניצחת את כל המשחק!' : G.bossFight ? 'ניצחת את הבוס!' : 'כל הכבוד!';
-      $('#nextBtn').textContent = lastLevel ? 'לעולם הבא' : 'לשלב הבא';
+      $('#nextLabel').textContent = lastLevel ? 'לעולם הבא' : 'לשלב הבא';
+      $('#winHero').src = hydra.heroNow();
       $('#nextBtn').hidden = lastLevel && lastWorld;
       $('#win').hidden = false;
       for (let i = 0; i < stars; i++) setTimeout(() => sfx.tone(880 + i * 220, 0.18, 'triangle', 0.1), 380 + i * 300);
     }, delay);
+  }
+  // The new head: it's in the fight already, or you pick which head it replaces.
+  function buildUnlockPick(id) {
+    const H = hydra.heads, box = $('#unlockPick'), on = H.activeHeads();
+    if (on.includes(id)) {
+      box.innerHTML = `<div class="pick-done">✓ ${H.HEADS[id].name} בקרב!</div>`;
+      $('#winHero').src = hydra.heroNow();
+      return;
+    }
+    box.innerHTML = `<div class="pick-ask">לקחת אותו לקרב? בוחרים ראש להחליף:</div><div class="pick-row">${
+      on.map((h) => `<button class="pick-head" data-h="${h}"><img src="${H.headURL(h)}" alt=""><small>${H.HEADS[h].name.replace('ראש ', '')}</small></button>`).join('')}</div>`;
+    for (const b of box.querySelectorAll('.pick-head')) {
+      b.addEventListener('click', () => { sfx.init(); sfx.power(); H.swapHead(id, b.dataset.h); buildUnlockPick(id); });
+    }
   }
   function lose() {
     const r = rec();
@@ -229,9 +245,11 @@
       b.innerHTML = `<span class="lvl-num">${cfg.bossFight ? '☠' : l + 1}</span>
         <span class="lvl-main"><b>${title}</b><small>${open ? `${sub}${best ? ` · השיא <bdi>${fmtTime(best)}</bdi>` : ''}` : 'נפתח אחרי השלב הקודם'}</small>${open ? chalRow(cfg, r.chal[key] || 0) : ''}</span>
         <span class="lvl-side"><span class="lvl-stars">${[0, 1, 2].map((k) => `<i class="${k < stars ? 'on' : ''}">★</i>`).join('')}</span>
-        <span class="lvl-play">${open ? `<svg viewBox="0 0 24 24"><path d="M8 5 L19 12 L8 19 Z"/></svg>${l === next ? '<em>שחק!</em>' : ''}` : '🔒'}</span></span>`;
+        <span class="lvl-play">${!open ? '🔒' : l === next ? '<span class="go-pill"><svg viewBox="0 0 24 24"><path d="M7 5 L19 12 L7 19 Z"/></svg>שחק!</span>'
+          : '<svg viewBox="0 0 24 24"><path d="M8 5 L19 12 L8 19 Z"/></svg>'}</span></span>${l === next ? '<span class="next-tag">הבא</span>' : ''}`;
       b.addEventListener('click', () => { sfx.init(); sfx.tap(); playLevel(w, l); });
       list.appendChild(b);
+      if (l === next) requestAnimationFrame(() => b.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
     });
   }
 

@@ -1,5 +1,5 @@
 // Offline support for מפלצת הראשים: serve from cache, refresh the cache in the background.
-const CACHE = 'monster-heads-v5';
+const CACHE = 'monster-heads-v6';
 const SHELL = ['./', 'index.html', 'style.css', 'hydra.js', 'app.js', 'manifest.webmanifest',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'assets/egg.svg', 'assets/htitle-bg.svg'];
 for (let w = 1; w <= 5; w++) SHELL.push(`assets/hworld-${w}.svg`, `assets/hbg-${w}.svg`);

@@ -241,17 +241,32 @@ window.DinoHydra = (core) => {
     const on = all.filter((h) => r.active.includes(h)).slice(0, MAX_HEADS);
     return on.length ? on : [all[0]];
   };
+  // r.active keeps the order the heads were picked in, so the oldest pick is the one that makes room.
+  const picked = () => {
+    const r = rec(), all = headsList();
+    return Array.isArray(r.active) ? r.active.filter((h) => all.includes(h)).slice(-MAX_HEADS) : all.slice(0, MAX_HEADS);
+  };
   function toggleHead(id) {
-    const r = rec(), on = activeHeads();
-    if (on.includes(id)) {
-      if (on.length === 1) return false; // the last head stays
-      r.active = on.filter((h) => h !== id);
-    } else {
-      if (on.length >= MAX_HEADS) return 'full';
-      r.active = [...on, id];
+    const r = rec();
+    let act = picked();
+    if (act.includes(id)) {
+      if (act.length === 1) return false; // the last head stays
+      act = act.filter((h) => h !== id);
+      r.active = act; store.save();
+      return 'off';
     }
-    store.save();
-    return true;
+    act.push(id);
+    const out = act.length > MAX_HEADS ? act.shift() : null;
+    r.active = act; store.save();
+    return out || 'on';
+  }
+  // A new head from a boss: it takes the place of the head you choose (or just joins if there's room).
+  function swapHead(newId, oldId) {
+    const r = rec();
+    let act = picked().filter((h) => h !== newId);
+    if (oldId) act = act.filter((h) => h !== oldId);
+    act.push(newId);
+    r.active = act.slice(-MAX_HEADS); store.save();
   }
 
   // ---------- Canvas ----------
@@ -770,20 +785,20 @@ window.DinoHydra = (core) => {
       G.rockT -= dt * ts;
       if (G.rockT <= 0) {
         G.rockT = (G.bossFight ? 11 : 7.5) - G.w * 0.5 + rand(0, 3);
-        G.rockWarn.push({ x: rand(36, VW - 44), t: 1.3, max: 1.3 });
+        G.rockWarn.push({ x: rand(40, VW - 50), t: 1.4, max: 1.4 });
         sfx.tone(880, 0.08, 'square', 0.025); sfx.tone(880, 0.08, 'square', 0.025, 0.16);
       }
     }
     for (const wn of G.rockWarn) {
       wn.t -= dt * ts;
-      if (wn.t <= 0) { wn.dead = true; G.rocks.push({ x: wn.x, y: -30, vx: 0, vy: rand(70, 90) + G.w * 6, r: rand(17, 21), rot: 0, spin: rand(0.8, 1.6) * (Math.random() < 0.5 ? -1 : 1), t: 0 }); }
+      if (wn.t <= 0) { wn.dead = true; G.rocks.push({ x: wn.x, y: -40, vx: 0, vy: 210 + G.w * 12, r: 22, rot: 0, spin: 3 * (Math.random() < 0.5 ? -1 : 1), t: 0 }); sfx.tone(160, 0.5, 'sawtooth', 0.04, 0, 60); }
     }
     G.rockWarn = G.rockWarn.filter((wn) => !wn.dead);
     const P = G.P;
     for (const k of G.rocks) {
       k.t += dt; k.x += k.vx * dt * ts; k.y += k.vy * dt * ts; k.rot += k.spin * dt * ts;
       if (k.y > VH + 40) k.dead = true;
-      if (G.state === 'play' && dist(k, P) < k.r * 0.85 + 8) { hit(20); k.vy *= 0.6; }
+      if (G.state === 'play' && !k.hitIt && dist(k, P) < k.r * 0.85 + 8) { hit(25); k.hitIt = true; }
       for (const s of G.shots) {
         if (!s.dead && (s.x - k.x) ** 2 + (s.y - k.y) ** 2 < (k.r + (s.r || 5)) ** 2) {
           if (s.glob) popGlob(s);
@@ -798,37 +813,49 @@ window.DinoHydra = (core) => {
     }
     G.rocks = G.rocks.filter((k) => !k.dead);
   }
-  // A spiked mine: dark metal, a pulsing red core. It can't be destroyed, so fly around it.
-  const MINE_CORE = ['#FF4020', '#5AFF8A', '#FF6A3A', '#FF4FD8', '#5AC8FF'];
+  // A mine: a big glowing spiked ball with a yellow-and-black warning ring. It can't be destroyed.
   function drawRock(c, k) {
-    const r = k.r, pulse = 0.5 + 0.5 * Math.sin(k.t * 7), core = MINE_CORE[G.w];
+    const r = k.r, pulse = 0.5 + 0.5 * Math.sin(k.t * 10);
     c.save(); c.translate(k.x, k.y);
+    // a streak behind it, and a hot glow
     c.save(); c.globalCompositeOperation = 'lighter';
-    c.beginPath(); c.arc(0, 0, r * (1.7 + pulse * 0.3), 0, TAU); c.fillStyle = 'rgba(255,40,60,.16)'; c.fill(); c.restore();
+    const tr = c.createLinearGradient(0, -r * 5, 0, 0); tr.addColorStop(0, 'rgba(255,60,40,0)'); tr.addColorStop(1, 'rgba(255,80,40,.45)');
+    c.fillStyle = tr; c.fillRect(-r * 0.7, -r * 5, r * 1.4, r * 5);
+    c.beginPath(); c.arc(0, 0, r * (1.8 + pulse * 0.3), 0, TAU); c.fillStyle = 'rgba(255,60,40,.22)'; c.fill(); c.restore();
     c.rotate(k.rot);
-    c.lineJoin = 'round'; c.strokeStyle = INK; c.lineWidth = 2;
+    c.lineJoin = 'round'; c.strokeStyle = INK; c.lineWidth = 2.2;
     for (let i = 0; i < 8; i++) {
-      const a = i / 8 * TAU;
-      c.save(); c.rotate(a);
-      c.beginPath(); c.moveTo(-r * 0.28, -r * 0.8); c.lineTo(0, -r * 1.38); c.lineTo(r * 0.28, -r * 0.8); c.closePath();
-      c.fillStyle = '#B8BFD0'; c.fill(); c.stroke(); c.restore();
+      c.save(); c.rotate(i / 8 * TAU);
+      c.beginPath(); c.moveTo(-r * 0.3, -r * 0.82); c.lineTo(0, -r * 1.45); c.lineTo(r * 0.3, -r * 0.82); c.closePath();
+      c.fillStyle = '#FFD23F'; c.fill(); c.stroke(); c.restore();
     }
-    c.beginPath(); c.arc(0, 0, r * 0.9, 0, TAU); c.fillStyle = k.ting > 0 ? '#5A6078' : '#2A2E3C'; c.fill(); c.stroke();
-    c.beginPath(); c.arc(-r * 0.3, -r * 0.35, r * 0.22, 0, TAU); c.fillStyle = 'rgba(255,255,255,.25)'; c.fill();
+    // the warning ring: yellow and black stripes
+    for (let i = 0; i < 12; i++) {
+      c.beginPath(); c.arc(0, 0, r * 0.86, i / 12 * TAU, (i + 1) / 12 * TAU); c.arc(0, 0, r * 0.6, (i + 1) / 12 * TAU, i / 12 * TAU, true); c.closePath();
+      c.fillStyle = i % 2 ? '#14100A' : '#FFD23F'; c.fill();
+    }
+    c.beginPath(); c.arc(0, 0, r * 0.86, 0, TAU); c.stroke();
+    c.beginPath(); c.arc(0, 0, r * 0.6, 0, TAU); c.fillStyle = '#C0121E'; c.fill(); c.stroke();
     c.save(); c.globalCompositeOperation = 'lighter';
-    c.beginPath(); c.arc(0, 0, r * (0.42 + pulse * 0.12), 0, TAU); c.fillStyle = core; c.fill();
-    c.beginPath(); c.arc(0, 0, r * 0.18, 0, TAU); c.fillStyle = '#FFFFFF'; c.fill(); c.restore();
+    c.beginPath(); c.arc(0, 0, r * (0.36 + pulse * 0.1), 0, TAU); c.fillStyle = '#FF6A3A'; c.fill();
+    c.beginPath(); c.arc(0, 0, r * 0.16, 0, TAU); c.fillStyle = '#FFFFFF'; c.fill(); c.restore();
     c.restore();
   }
-  // Before a mine comes in: a blinking warning sign at the top where it will appear.
+  // Before a mine comes: its lane down the screen flashes red, with arrows running down it.
   function drawRockWarn(c) {
     for (const wn of G.rockWarn) {
-      if (Math.floor(wn.t * 8) % 2) continue;
-      c.save(); c.translate(wn.x, 16);
-      c.beginPath(); c.moveTo(0, -11); c.lineTo(12, 9); c.lineTo(-12, 9); c.closePath();
-      c.fillStyle = '#FF3D5A'; c.fill(); c.lineWidth = 2; c.strokeStyle = INK; c.lineJoin = 'round'; c.stroke();
-      c.font = `15px ${FONT}`; c.textAlign = 'center'; c.fillStyle = '#FFFFFF'; c.fillText('!', 0, 7);
-      c.beginPath(); c.moveTo(-4, 15); c.lineTo(0, 21); c.lineTo(4, 15); c.strokeStyle = '#FF3D5A'; c.lineWidth = 2.2; c.stroke();
+      const k = 1 - wn.t / wn.max, w = 60, blink = Math.floor(wn.t * 8) % 2 ? 0.35 : 1;
+      c.save(); c.translate(wn.x, 0);
+      c.fillStyle = `rgba(255,40,60,${(0.1 + 0.12 * k) * blink})`; c.fillRect(-w / 2, 0, w, VH);
+      c.strokeStyle = `rgba(255,80,90,${0.7 * blink})`; c.lineWidth = 2; c.setLineDash([10, 8]);
+      c.beginPath(); c.moveTo(-w / 2, 0); c.lineTo(-w / 2, VH); c.moveTo(w / 2, 0); c.lineTo(w / 2, VH); c.stroke(); c.setLineDash([]);
+      c.strokeStyle = `rgba(255,120,120,${0.6 * blink})`; c.lineWidth = 3; c.lineCap = 'round';
+      for (let y = ((G.t * 220) % 70) - 70; y < VH; y += 70) { c.beginPath(); c.moveTo(-9, y); c.lineTo(0, y + 9); c.lineTo(9, y); c.stroke(); }
+      if (blink === 1) {
+        c.beginPath(); c.moveTo(0, 6); c.lineTo(15, 32); c.lineTo(-15, 32); c.closePath();
+        c.fillStyle = '#FFD23F'; c.fill(); c.lineWidth = 2.5; c.strokeStyle = INK; c.lineJoin = 'round'; c.stroke();
+        c.font = `19px ${FONT}`; c.textAlign = 'center'; c.fillStyle = INK; c.fillText('!', 0, 30);
+      }
       c.restore();
     }
   }
@@ -1074,6 +1101,7 @@ window.DinoHydra = (core) => {
     if (vignette) { c.fillStyle = vignette; c.fillRect(0, 0, VW, VH); }
     drawMotes(c);
     drawClouds(c);
+    drawRockWarn(c);
     for (const cl of G.clouds) drawPoisonCloud(c, cl);
     for (const p of G.pickups) drawPickup(c, p);
     for (const k of G.rocks) drawRock(c, k);
@@ -1086,7 +1114,6 @@ window.DinoHydra = (core) => {
     drawParticles(c);
     if (G.freezeT > 0) { c.fillStyle = `rgba(120,200,255,${0.12 + 0.04 * Math.sin(G.t * 6)})`; c.fillRect(0, 0, VW, VH); }
     drawTrack(c);
-    drawRockWarn(c);
     drawBossBar(c);
     drawUI(c);
     if (G.flash > 0) { c.fillStyle = `rgba(255,255,255,${G.flash * 0.8})`; c.fillRect(-10, -10, VW + 20, VH + 20); }
@@ -1666,10 +1693,10 @@ window.DinoHydra = (core) => {
         sfx.init();
         shownHead = id;
         let res = null;
-        if (open) { res = toggleHead(id); if (res === true) sfx.tone(act ? 330 : 660, 0.08, 'triangle', 0.06); else sfx.tone(200, 0.12, 'square', 0.04); }
+        if (open) { res = toggleHead(id); if (res) sfx.tone(res === 'off' ? 330 : 660, 0.08, 'triangle', 0.06); else sfx.tone(200, 0.12, 'square', 0.04); }
         else sfx.tap();
         buildTitle();
-        if (res === 'full') $('#charPerk').innerHTML = `אפשר לקחת עד ${MAX_HEADS} ראשים. מורידים ראש אחד כדי להחליף`;
+        if (res && res !== 'on' && res !== 'off') $('#charPerk').innerHTML = `${HEADS[id].name} נכנס, ${HEADS[res].name} יצא (עד ${MAX_HEADS} ראשים)`;
         if (res === false) $('#charPerk').innerHTML = 'צריך לפחות ראש אחד';
       });
       box.appendChild(b);
@@ -1744,10 +1771,10 @@ window.DinoHydra = (core) => {
 
   return {
     game: { worlds: WORLDS, chals: CHALS, goal: goalText, start, bosses: BOSSES, map: MAP, prize, buildTitle, paintHero },
-    heads: { activeHeads, toggleHead, MAX_HEADS },
+    heads: { activeHeads, toggleHead, swapHead, MAX_HEADS, headURL, HEADS },
     shop: { HEADS, HEAD_ORDER, LEVEL_PRICE, MAX_SHOP_LV, SPECIALS, SPECIAL_ORDER, headURL, specialURL, heroLevel },
     update: (dt) => { G = core.G(); update(dt); },
     render: () => { G = core.G(); render(); },
-    resize, key, onPause,
+    resize, key, onPause, heroNow: () => heroURL(activeHeads()),
   };
 };
