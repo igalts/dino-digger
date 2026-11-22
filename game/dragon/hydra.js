@@ -62,11 +62,11 @@ window.DinoHydra = (core) => {
   ];
   WORLDS.forEach((wd) => { wd.levels[wd.levels.length - 1].bossFight = true; });
   const BOSSES = [
-    { name: 'דרקון הלבה',    hp: 140, attacks: ['fan', 'summon', 'aimed', 'fan'] },
-    { name: 'דרקון הביצה',   hp: 280, attacks: ['aimed', 'charge', 'fan', 'summon'] },
-    { name: 'דרקון העצמות',  hp: 360, attacks: ['ring', 'fan', 'spiral', 'aimed'] },
-    { name: 'דרקון הקריסטל', hp: 420, attacks: ['ring', 'summon', 'fan', 'charge', 'aimed'] },
-    { name: 'דרקון הסערה',   hp: 480, attacks: ['spiral', 'fan', 'summon', 'ring', 'charge', 'aimed'] },
+    { name: 'דרקון הלבה',    hp: 240, attacks: ['fan', 'summon', 'aimed', 'fan'], rage: ['rain', 'fan', 'aimed', 'summon'] },
+    { name: 'דרקון הביצה',   hp: 470, attacks: ['aimed', 'charge', 'fan', 'summon'], rage: ['rain', 'charge', 'cross', 'summon', 'fan'] },
+    { name: 'דרקון העצמות',  hp: 600, attacks: ['ring', 'fan', 'spiral', 'aimed'], rage: ['double', 'ring', 'rain', 'cross', 'aimed'] },
+    { name: 'דרקון הקריסטל', hp: 700, attacks: ['ring', 'summon', 'fan', 'charge', 'aimed'], rage: ['cross', 'ring', 'double', 'charge', 'rain'] },
+    { name: 'דרקון הסערה',   hp: 800, attacks: ['spiral', 'fan', 'summon', 'ring', 'charge', 'aimed'], rage: ['double', 'rain', 'cross', 'charge', 'summon', 'ring'] },
   ];
   // Enemy dragons are bright and warm against the dark ground, each world in its own colours.
   const DRAGONS = [
@@ -486,7 +486,7 @@ window.DinoHydra = (core) => {
   // ---------- The boss ----------
   function bossEnters() {
     const hp = BOSSES[G.w].hp * G.help;
-    G.boss = { x: VW / 2, y: -160, hp, max: hp, t: 0, atk: 0, atkT: 1.6, act: null, enter: G.readyT, enterMax: G.readyT, r: 68, flash: 0, charge: null };
+    G.boss = { x: VW / 2, y: -160, hp, max: hp, t: 0, atk: 0, atkT: 1.6, act: null, enter: G.readyT, enterMax: G.readyT, phase: 1, trans: 0, r: 68, flash: 0, charge: null };
     hud(true);
   }
   function updateBoss(dt) {
@@ -502,6 +502,19 @@ window.DinoHydra = (core) => {
       return;
     }
     if (G.state !== 'play') return;
+    if (B.phase === 1 && B.hp <= B.max * 0.5) {
+      B.phase = 2; B.trans = 1.8; B.act = null; B.charge = null; B.atk = 0;
+      for (const b of G.bullets) { b.dead = true; puff(b.x, b.y); }
+      G.shake = 0.9; G.flash = 0.35;
+      floatText(VW / 2, VH * 0.45, 'הדרקון זועם!', '#FF6B4A');
+      sfx.tone(90, 1.0, 'sawtooth', 0.1, 0, 40); sfx.tone(180, 0.8, 'square', 0.05, 0.1, 70);
+    }
+    if (B.trans > 0) {
+      B.trans -= dt;
+      B.x += (VW / 2 - B.x) * Math.min(1, dt * 3) + Math.sin(B.t * 50) * 2; B.y += (150 - B.y) * Math.min(1, dt * 3);
+      if (Math.random() < 0.3) G.fx.push({ type: 'ring', x: B.x, y: B.y, r: 40, t: 0.5, max: 0.5, grow: 140 });
+      return;
+    }
     if (B.charge) {
       // A dive: shakes in place (with a warning), dashes down at the monster, then flies back up.
       const c = B.charge;
@@ -513,16 +526,16 @@ window.DinoHydra = (core) => {
     } else { B.x += (homeX - B.x) * Math.min(1, dt * 2); B.y += (homeY - B.y) * Math.min(1, dt * 2); }
     if (G.state === 'play' && dist(B, G.P) < B.r * 0.8 + 9) hit(30);
     if (B.act) { runAttack(B, dt); return; }
-    B.atkT -= dt * (B.hp < B.max / 2 ? 1.35 : 1);
+    B.atkT -= dt * (B.phase === 2 ? 1.45 : 1);
     if (B.atkT <= 0) {
-      const list = BOSSES[G.w].attacks;
+      const list = B.phase === 2 ? BOSSES[G.w].rage : BOSSES[G.w].attacks;
       B.act = { type: list[B.atk % list.length], t: 0, n: 0 };
       B.atk++;
       B.atkT = (2.5 - G.w * 0.12) / G.help;
     }
   }
   function runAttack(B, dt) {
-    const a = B.act, P = G.P, s = (115 + G.w * 9) * G.help * EASY();
+    const a = B.act, P = G.P, s = (115 + G.w * 9) * G.help * EASY() * (B.phase === 2 ? 1.1 : 1);
     a.t += dt;
     const aim = Math.atan2(P.y - B.y, P.x - B.x);
     if (a.type === 'fan') {
@@ -549,14 +562,28 @@ window.DinoHydra = (core) => {
       if (a.n >= 22) B.act = null;
     } else if (a.type === 'summon') {
       if (a.t > 0.5) {
-        for (let i = 0; i < 3; i++) {
-          const sd = i - 1;
+        const cnt = B.phase === 2 ? 5 : 3;
+        for (let i = 0; i < cnt; i++) {
+          const sd = (i - (cnt - 1) / 2) * (B.phase === 2 ? 0.6 : 1);
           addEnemy({ kind: 'small', coins: 0, delay: i * 0.25, mv: 'swoop', p0: [B.x, B.y + 20], p1: [B.x + sd * 150, VH * 0.75],
             p2: [B.x + sd * 260, -60], dur: 4.2, face: true }, true);
         }
         sfx.tone(600, 0.2, 'triangle', 0.05, 0, 900);
         B.act = null;
       }
+    } else if (a.type === 'rain') {
+      // fire rains down from the top of the screen
+      while (a.t > 0.4 + a.n * 0.11 && a.n < 20) { a.n++; bullet(20 + Math.random() * (VW - 40), -8, Math.PI / 2 + (Math.random() - 0.5) * 0.2, s * 0.85, 6.5); }
+      if (a.n === 1) sfx.tone(150, 0.6, 'sawtooth', 0.04, 0, 300);
+      if (a.n >= 20) B.act = null;
+    } else if (a.type === 'cross') {
+      // four streams turning around the boss
+      while (a.t > 0.3 + a.n * 0.12 && a.n < 18) { const k = a.n++; for (let q = 0; q < 4; q++) bullet(B.x, B.y + 10, k * 0.22 + q * Math.PI / 2, s * 0.8); }
+      if (a.n >= 18) B.act = null;
+    } else if (a.type === 'double') {
+      // two spirals turning opposite ways
+      while (a.t > 0.3 + a.n * 0.08 && a.n < 26) { const k = a.n++; bullet(B.x, B.y + 20, Math.PI / 2 + Math.sin(k * 0.5) * 1.3, s * 0.8); bullet(B.x, B.y + 20, Math.PI / 2 - Math.sin(k * 0.5) * 1.3, s * 0.8); }
+      if (a.n >= 26) B.act = null;
     } else if (a.type === 'charge') {
       if (!B.charge) { B.charge = { t: 0, x: B.x, y: B.y, tx: clamp(P.x, 60, VW - 60) }; sfx.tone(120, 0.6, 'sawtooth', 0.05, 0, 240); }
       B.act = null;
@@ -564,7 +591,7 @@ window.DinoHydra = (core) => {
   }
   function hurtBoss(dmg) {
     const B = G.boss;
-    if (!B || B.dead || B.enter > 0) return;
+    if (!B || B.dead || B.enter > 0 || B.trans > 0) return;
     B.hp -= dmg; B.flash = 0.07;
     if (B.hp <= 0) { B.hp = 0; B.dead = true; win(); }
   }
@@ -1478,13 +1505,16 @@ window.DinoHydra = (core) => {
     B.lag = B.lag == null ? k : Math.max(k, B.lag - 0.4 * (1 / 60));
     c.save();
     c.font = `15px ${FONT}`; c.textAlign = 'center'; c.lineWidth = 3.5; c.strokeStyle = INK;
-    c.strokeText(BOSSES[G.w].name, x0 + w / 2, y - 7); c.fillStyle = '#FFD0C0'; c.fillText(BOSSES[G.w].name, x0 + w / 2, y - 7);
-    c.fillStyle = 'rgba(5,4,12,.85)'; c.fillRect(x0 - 2, y - 2, w + 4, 14);
+    c.direction = 'rtl';
+    const nm = B.phase === 2 ? `${BOSSES[G.w].name} · זועם!` : BOSSES[G.w].name;
+    c.strokeText(nm, x0 + w / 2, y - 7); c.fillStyle = B.phase === 2 ? '#FF8A6A' : '#FFD0C0'; c.fillText(nm, x0 + w / 2, y - 7);
+    c.fillStyle = B.phase === 2 ? `rgba(120,0,20,${0.6 + 0.3 * Math.sin(G.t * 8)})` : 'rgba(5,4,12,.85)'; c.fillRect(x0 - 2, y - 2, w + 4, 14);
     c.fillStyle = '#FFFFFF'; c.fillRect(x0 + w * (1 - B.lag), y, w * B.lag, 10);
     const gr = c.createLinearGradient(0, y, 0, y + 10); gr.addColorStop(0, '#FF7A8A'); gr.addColorStop(1, '#C0122E');
     c.fillStyle = gr; c.fillRect(x0 + w * (1 - k), y, w * k, 10);
     c.fillStyle = 'rgba(255,255,255,.2)'; c.fillRect(x0, y, w, 3);
     c.strokeStyle = '#FF6B4A'; c.lineWidth = 1.2; c.strokeRect(x0 - 2, y - 2, w + 4, 14);
+    if (B.phase === 1) { c.fillStyle = '#FFD23F'; c.fillRect(x0 + w / 2 - 1, y - 4, 2, 18); } // where it gets angry
     c.restore();
   }
   function drawTrack(c) {
@@ -1998,7 +2028,14 @@ window.DinoHydra = (core) => {
       c.restore();
     }
     c.save(); c.globalCompositeOperation = 'lighter';
-    c.beginPath(); c.arc(0, 0, 110, 0, TAU); c.fillStyle = 'rgba(255,80,40,.12)'; c.fill(); c.restore();
+    c.beginPath(); c.arc(0, 0, 110, 0, TAU); c.fillStyle = 'rgba(255,80,40,.12)'; c.fill();
+    if (B.phase === 2) {
+      const k = 0.5 + 0.5 * Math.sin(G.t * 6);
+      c.beginPath(); c.arc(0, 10, 150 + k * 14, 0, TAU); c.fillStyle = `rgba(255,30,40,${0.14 + 0.1 * k})`; c.fill();
+      for (let i = 0; i < 6; i++) { const a = G.t * 1.5 + i * 1.05; c.beginPath(); c.arc(Math.cos(a) * 120, 10 + Math.sin(a) * 90, 7, 0, TAU); c.fillStyle = 'rgba(255,90,60,.6)'; c.fill(); }
+    }
+    c.restore();
+    if (B.phase === 2) c.scale(1.08, 1.08);
     drawBoss(c, G.w, G.t, B);
     if (B.flash > 0) { c.beginPath(); c.arc(0, 0, B.r, 0, TAU); c.fillStyle = 'rgba(255,255,255,.3)'; c.fill(); }
     c.restore();
