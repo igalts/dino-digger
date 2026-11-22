@@ -216,7 +216,7 @@
       b.innerHTML = `<span class="wc-shade"></span>
         <span class="wc-text"><span class="wc-num">עולם ${w + 1}</span><span class="wc-name">${wd.name}</span>
         <span class="wc-stars">${open ? `★ <bdi>${got}/${total}</bdi>` : `🔒 מסיימים את עולם ${w}`}</span></span>
-        <span class="wc-prize${grown ? '' : ' dim'}"><img src="${game.prize(wd.unlock).src}" alt=""><small>${grown ? 'גדל!' : 'פרס'}</small></span>`;
+        <span class="wc-prize${grown ? ' got' : ''}"><img src="${game.prize(wd.unlock).src}" alt=""><small>${grown ? '✓ יש לך' : 'פרס:'}</small><b>${game.heads[wd.unlock].name.replace('ראש ', '')}</b></span>`;
       b.addEventListener('click', () => {
         sfx.init();
         if (!open) { sfx.tone(200, 0.12, 'square', 0.04); b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake'); return; }
@@ -232,6 +232,9 @@
     $('#worldNum').textContent = `עולם ${w + 1}`;
     $('#worldName').textContent = wd.name;
     $('#worldStars').innerHTML = `★ <bdi>${starsIn(w)}/${wd.levels.length * 3}</bdi>`;
+    const grown = r.unlocked.includes(wd.unlock);
+    $('#worldPrize').innerHTML = `<img src="${game.prize(wd.unlock).src}" alt=""><span><small>${grown ? '✓ קיבלת' : 'הפרס של העולם'}</small><b>${game.heads[wd.unlock].name}</b></span>`;
+    $('#worldPrize').classList.toggle('got', grown);
     const list = $('#levelList');
     list.innerHTML = '';
     let next = wd.levels.findIndex((_, l) => levelOpen(w, l) && !(r.stars[`${w + 1}-${l + 1}`] || 0));
@@ -241,7 +244,7 @@
       b.className = `lvl-row${cfg.bossFight ? ' boss' : ''}${open ? ' open' : ' locked'}${l === next ? ' next' : ''}`;
       b.disabled = !open;
       const title = cfg.bossFight ? game.bosses[w].name : `שלב ${l + 1}`;
-      const sub = cfg.bossFight ? 'הבוס של העולם' : `${cfg.foes} דרקונים`;
+      const sub = cfg.bossFight ? `מנצחים ומקבלים את ${game.heads[wd.unlock].name}` : `${cfg.foes} דרקונים`;
       b.innerHTML = `<span class="lvl-num">${cfg.bossFight ? '☠' : l + 1}</span>
         <span class="lvl-main"><b>${title}</b><small>${open ? `${sub}${best ? ` · השיא <bdi>${fmtTime(best)}</bdi>` : ''}` : 'נפתח אחרי השלב הקודם'}</small>${open ? chalRow(cfg, r.chal[key] || 0) : ''}</span>
         <span class="lvl-side"><span class="lvl-stars">${[0, 1, 2].map((k) => `<i class="${k < stars ? 'on' : ''}">★</i>`).join('')}</span>

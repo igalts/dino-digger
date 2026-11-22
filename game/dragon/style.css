@@ -511,3 +511,24 @@ img { -webkit-user-drag: none; }
 }
 .char .mark.on { background: var(--gold); color: #2A1700; }
 .char .mark.add { background: #2C3760; color: #fff; border-color: rgba(255,255,255,.5); }
+/* ---------- What head each world gives ---------- */
+.wc-prize { gap: 1px; }
+.wc-prize img { width: 58px; height: 58px; border: 1.5px solid var(--gold); box-shadow: 0 0 14px rgba(242,184,75,.45); }
+.wc-prize small { font-size: 11px; color: var(--muted); }
+.wc-prize b { font-family: var(--display); font-weight: 400; font-size: 13px; color: var(--gold2); line-height: 1; }
+.wc-prize.got small { color: #7FE08A; }
+.world-card.locked .wc-prize img { filter: none; }
+.world-prize {
+  position: absolute; z-index: 1; right: 12px; top: calc(env(safe-area-inset-top, 0px) + 12px); display: flex; align-items: center; gap: 8px;
+  background: rgba(5,4,12,.78); border: 1.5px solid var(--gold); border-radius: 14px; padding: 5px 12px 5px 6px; box-shadow: 0 0 18px rgba(242,184,75,.3);
+}
+.world-prize img { width: 46px; height: 46px; }
+.world-prize span { display: flex; flex-direction: column; line-height: 1.15; }
+.world-prize small { font-size: 11.5px; font-weight: 800; color: var(--muted); }
+.world-prize b { font-family: var(--display); font-weight: 400; font-size: 17px; color: var(--gold2); }
+.world-prize.got small { color: #7FE08A; }
+.ready-prize { display: flex; align-items: center; gap: 8px; background: rgba(242,184,75,.1); border: 1px solid rgba(242,184,75,.5); border-radius: 12px; padding: 4px 12px 4px 6px; text-align: start; }
+.ready-prize img { width: 44px; height: 44px; }
+.ready-prize span { font-family: var(--body); font-size: 14px; color: var(--text); line-height: 1.2; }
+.ready-prize b { color: var(--gold2); }
+.ready-prize small { color: var(--muted); }

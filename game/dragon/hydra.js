@@ -62,7 +62,7 @@ window.DinoHydra = (core) => {
   ];
   WORLDS.forEach((wd) => { wd.levels[wd.levels.length - 1].bossFight = true; });
   const BOSSES = [
-    { name: 'דרקון הלבה',    hp: 180, attacks: ['fan', 'summon', 'aimed', 'fan'] },
+    { name: 'דרקון הלבה',    hp: 140, attacks: ['fan', 'summon', 'aimed', 'fan'] },
     { name: 'דרקון הביצה',   hp: 280, attacks: ['aimed', 'charge', 'fan', 'summon'] },
     { name: 'דרקון העצמות',  hp: 360, attacks: ['ring', 'fan', 'spiral', 'aimed'] },
     { name: 'דרקון הקריסטל', hp: 420, attacks: ['ring', 'summon', 'fan', 'charge', 'aimed'] },
@@ -91,7 +91,7 @@ window.DinoHydra = (core) => {
     const rnd = mulberry((w + 1) * 1009 + l * 131 + 17);
     const g = w * 5 + l;
     const len = cfg.len;
-    const gap = clamp(3.0 - g * 0.06, 1.75, 3.0);
+    const gap = w === 0 ? 3.6 - l * 0.08 : clamp(3.0 - g * 0.06, 1.75, 3.0);
     const kinds = ['line', 'vee', 'snake', 'swoop'];
     if (g >= 1) kinds.push('shooters', 'pincer', 'splitters');
     if (g >= 2) kinds.push('brute');
@@ -350,8 +350,9 @@ window.DinoHydra = (core) => {
     const how = [heads.length === 1 ? 'הראש יורה לבד, רק מזיזים את המפלצת' : `${heads.length} ראשים יורים לבד`];
     if (boss) how.push('יורים בדרקון עד שהחיים שלו נגמרים');
     else if (w === 0 && l === 0) how.push('אוספים מטבעות וקונים שדרוגים בחנות');
+    const prizeLine = boss ? `<div class="ready-prize"><img src="${headURL(world.unlock)}" alt=""><span>הפרס: <b>${HEADS[world.unlock].name}</b><br><small>${HEADS[world.unlock].perk}</small></span></div>` : '';
     b.innerHTML = `<div class="ready-card">${head}<div class="ready-goal">${goalText(cfg)}</div>${
-      how.map((s) => `<div class="ready-how">${s}</div>`).join('')}${bestLine}${
+      how.map((s) => `<div class="ready-how">${s}</div>`).join('')}${prizeLine}${bestLine}${
       core.chalRow(cfg, (r.chal || {})[key] || 0, 0, CHALS)}<div class="ready-bar"><i style="animation-duration:${G.readyT}s"></i></div></div>`;
     b.className = 'banner';
     if (boss) sfx.boss(); else sfx.ready();
@@ -363,7 +364,8 @@ window.DinoHydra = (core) => {
 
   // ---------- Enemies ----------
   const FOES = { small: { r: 15, hp: 2 }, spit: { r: 18, hp: 6 } };
-  const hpK = () => 1 + G.w * 0.5;
+  const hpK = () => (G.w === 0 ? 0.75 : 1 + G.w * 0.5);
+  const EASY = () => (G.w === 0 ? 0.8 : 1); // world 1: slower shots, less damage
   function spawnWave(ev) {
     if (ev.type === 'boss') { bossEnters(); return; }
     for (const s of formation(ev, G.w)) addEnemy(s);
@@ -425,7 +427,7 @@ window.DinoHydra = (core) => {
       // Spitting dragons aim at the monster while they're on the screen.
       if (e.every && e.t > (e.tin || 0) && !e.leaving && e.y > 20 && e.y < VH * 0.6 && ts) {
         e.shootT -= dt * k;
-        if (e.shootT <= 0) { e.shootT = e.every / G.help; enemyShoot(e); }
+        if (e.shootT <= 0) { e.shootT = e.every / G.help / EASY(); enemyShoot(e); }
       }
       // Bumping into the monster hurts both.
       if (G.state === 'play' && dist(e, G.P) < e.r * 0.75 + 9) { hit(e.tank ? 30 : 22); hurt(e, 4); }
@@ -435,7 +437,7 @@ window.DinoHydra = (core) => {
   }
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   function enemyShoot(e) {
-    const P = G.P, a = Math.atan2(P.y - e.y, P.x - e.x), s = (120 + G.w * 10) * G.help;
+    const P = G.P, a = Math.atan2(P.y - e.y, P.x - e.x), s = (120 + G.w * 10) * G.help * EASY();
     if (e.caster) { const off = Math.random() * TAU; for (let i = 0; i < 10; i++) bullet(e.x, e.y + 10, off + i * TAU / 10, s * 0.7); e.spat = 0.5; sfx.tone(700, 0.25, 'sine', 0.04, 0, 300); return; }
     if (e.tank || e.bomber) { const n = e.tank && G.w >= 3 ? 5 : 3; for (let i = 0; i < n; i++) bullet(e.x, e.y + e.r * 0.5, a + (i - (n - 1) / 2) * 0.24, s); }
     else bullet(e.x, e.y + e.r * 0.4, a, s);
@@ -520,7 +522,7 @@ window.DinoHydra = (core) => {
     }
   }
   function runAttack(B, dt) {
-    const a = B.act, P = G.P, s = (115 + G.w * 9) * G.help;
+    const a = B.act, P = G.P, s = (115 + G.w * 9) * G.help * EASY();
     a.t += dt;
     const aim = Math.atan2(P.y - B.y, P.x - B.x);
     if (a.type === 'fan') {
@@ -755,13 +757,13 @@ window.DinoHydra = (core) => {
   function hit(dmg = 20) {
     const P = G.P;
     if (P.inv > 0 || G.shieldT > 0 || G.state !== 'play') return;
-    G.hp = Math.max(0, G.hp - dmg * G.help);
+    G.hp = Math.max(0, G.hp - dmg * G.help * EASY());
     core.buildLives();
     P.inv = 1.1; G.shake = 0.3; G.flash = 0.15; G.hurtT = 0.5;
     // A short moment to recover: enemy shots right around the monster pop.
     for (const b of G.bullets) if (dist(b, P) < 90) { b.dead = true; puff(b.x, b.y); }
     for (let i = 0; i < 12; i++) G.particles.push({ x: P.x, y: P.y, vx: rand(-150, 150), vy: rand(-150, 100), life: 0.5, max: 0.5, color: ['#FFFFFF', '#FF4D6D', '#8A6CFF'][i % 3], size: rand(3, 5), drag: true });
-    floatText(P.x + 24, P.y - 30, `-${Math.round(dmg * G.help)}`, '#FF6B7A');
+    floatText(P.x + 24, P.y - 30, `-${Math.round(dmg * G.help * EASY())}`, '#FF6B7A');
     sfx.ouch();
     if (G.hp <= 0) { G.state = 'dying'; P.dead = 0.001; core.lose(); }
   }
@@ -1772,7 +1774,7 @@ window.DinoHydra = (core) => {
   function onPause() { held.left = held.right = held.up = held.down = false; sw.id = null; }
 
   return {
-    game: { worlds: WORLDS, chals: CHALS, goal: goalText, start, bosses: BOSSES, map: MAP, prize, buildTitle, paintHero },
+    game: { heads: HEADS, worlds: WORLDS, chals: CHALS, goal: goalText, start, bosses: BOSSES, map: MAP, prize, buildTitle, paintHero },
     heads: { activeHeads, toggleHead, swapHead, MAX_HEADS, headURL, HEADS },
     shop: { HEADS, HEAD_ORDER, LEVEL_PRICE, MAX_SHOP_LV, SPECIALS, SPECIAL_ORDER, headURL, specialURL, heroLevel },
     update: (dt) => { G = core.G(); update(dt); },
