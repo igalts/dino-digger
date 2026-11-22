@@ -42,39 +42,39 @@ window.DinoHydra = (core) => {
     meteor: { name: 'גשם מטאורים', price: 260, desc: 'מטאורים נופלים על כל האויבים' },
   };
   const SPECIAL_ORDER = ['roar', 'shield', 'freeze', 'meteor'];
-  const BODY = { c: '#3B2F5C', plate: '#5A4A86', bone: '#D9CFB8', wing: '#231A3A', vein: '#8A6CFF' };
+  const BODY = { c: '#3B2F5C', plate: '#5A4A86', bone: '#E6DCC4' };
   const heroLevel = (id) => clamp((rec().lv || {})[id] || 1, 1, MAX_SHOP_LV);
 
   // ---------- Worlds and levels ----------
   // len: seconds of enemy waves in the level. Boss levels have a short way in, then the boss.
   const L = (len) => ({ len });
   const WORLDS = [
-    { name: 'הרי האש', unlock: 'ice', bg: 'hbg-1', motes: ['#FF9F1C', '#FFD23F'], moteUp: true,
+    { name: 'מערות הלבה', unlock: 'ice', bg: 'hbg-1', motes: ['#FF9F1C', '#FFD23F'], moteUp: true,
       levels: [L(42), L(48), L(52), L(56), L(14)] },
-    { name: 'יער הדרקונים', unlock: 'poison', bg: 'hbg-2', motes: ['#B8EE8A', '#FFE38A'],
+    { name: 'ביצת הרפאים', unlock: 'poison', bg: 'hbg-2', motes: ['#7CFFB0', '#C77DFF'], moteUp: true,
       levels: [L(50), L(54), L(58), L(60), L(14)] },
-    { name: 'ים הסערה', unlock: 'bolt', bg: 'hbg-3', motes: ['#FFFFFF', '#BFF0FF'],
+    { name: 'בית קברות הדרקונים', unlock: 'bolt', bg: 'hbg-3', motes: ['#D9CFB8', '#FF8A4A'],
       levels: [L(54), L(58), L(60), L(62), L(14)] },
-    { name: 'פסגות הקרח', unlock: 'wind', bg: 'hbg-4', motes: ['#FFFFFF', '#E6F7FF'],
+    { name: 'תהום הקריסטלים', unlock: 'wind', bg: 'hbg-4', motes: ['#4AF0FF', '#FF4FD8', '#B8A8FF'],
       levels: [L(56), L(60), L(62), L(64), L(14)] },
-    { name: 'דרקוני החלל', unlock: 'star', bg: 'hbg-5', motes: ['#FFF6C9', '#BFD3FF'], streaks: true,
+    { name: 'מצודת הסערה', unlock: 'star', bg: 'hbg-5', motes: ['#BFD3FF', '#FFF6B0'], streaks: true,
       levels: [L(58), L(62), L(64), L(66), L(14)] },
   ];
   WORLDS.forEach((wd) => { wd.levels[wd.levels.length - 1].bossFight = true; });
   const BOSSES = [
     { name: 'דרקון הלבה',    hp: 180, attacks: ['fan', 'summon', 'aimed', 'fan'] },
-    { name: 'דרקון היער',    hp: 290, attacks: ['aimed', 'charge', 'fan', 'summon'] },
-    { name: 'דרקון הסערה',   hp: 390, attacks: ['ring', 'fan', 'spiral', 'aimed'] },
-    { name: 'דרקון הקרח',    hp: 480, attacks: ['ring', 'summon', 'fan', 'charge', 'aimed'] },
-    { name: 'דרקון הכוכבים', hp: 580, attacks: ['spiral', 'fan', 'summon', 'ring', 'charge', 'aimed'] },
+    { name: 'דרקון הביצה',   hp: 290, attacks: ['aimed', 'charge', 'fan', 'summon'] },
+    { name: 'דרקון העצמות',  hp: 390, attacks: ['ring', 'fan', 'spiral', 'aimed'] },
+    { name: 'דרקון הקריסטל', hp: 480, attacks: ['ring', 'summon', 'fan', 'charge', 'aimed'] },
+    { name: 'דרקון הסערה',   hp: 580, attacks: ['spiral', 'fan', 'summon', 'ring', 'charge', 'aimed'] },
   ];
   // Enemy dragons are bright and warm against the dark ground, each world in its own colours.
   const DRAGONS = [
-    { c: '#FF7A1A', dark: '#B33A00', belly: '#FFE08A', wing: '#FFC23D', horn: '#FFF1C9' },
-    { c: '#E8E23A', dark: '#8C8A00', belly: '#FFFFFF', wing: '#B8F23A', horn: '#FFF6B0' },
-    { c: '#FF5FA2', dark: '#A8195C', belly: '#FFE0EF', wing: '#FFA3CC', horn: '#FFFFFF' },
-    { c: '#3D7BFF', dark: '#1A3FA8', belly: '#E6F0FF', wing: '#8FB7FF', horn: '#FFFFFF' },
-    { c: '#FF4D6D', dark: '#9E1030', belly: '#FFE0E6', wing: '#FFB03D', horn: '#FFE95C' },
+    { c: '#FFE14A', dark: '#A87A00', belly: '#FFF8D0', wing: '#FF9A2A', horn: '#FFFFFF' },
+    { c: '#FF5FB0', dark: '#9E1A5E', belly: '#FFE0F0', wing: '#C77DFF', horn: '#FFFFFF' },
+    { c: '#5AA8FF', dark: '#1A4FA8', belly: '#E0EEFF', wing: '#9AD0FF', horn: '#FFFFFF' },
+    { c: '#FF8A2A', dark: '#A84400', belly: '#FFE6C8', wing: '#FFC24A', horn: '#FFFFFF' },
+    { c: '#FF3D5A', dark: '#9E0A24', belly: '#FFE0E6', wing: '#FFB03D', horn: '#FFE95C' },
   ];
   const KILL_PCT = 80;
 
@@ -185,22 +185,28 @@ window.DinoHydra = (core) => {
   }
   const headURL = (id) => paintURL(`h-${id}`, 160, 160, (c) => { c.translate(80, 84); c.scale(5.6, 5.6); drawHead(c, id, 0, 0, 0, 0, 0); });
   const bossURL = (w) => paintURL(`b-${w}`, 240, 250, (c) => { c.translate(120, 132); c.scale(1.18, 1.18); drawBoss(c, w, 0.4, null); });
-  const heroURL = (n) => paintURL(`hero-${n}`, 200, 200, (c) => { c.translate(100, 110); c.scale(1.7, 1.7); drawHydra(c, 0, 0, headsList().slice(0, n), 0.3, {}); });
+  const heroURL = (heads) => paintURL(`hero-${heads.join()}`, 200, 200, (c) => { c.translate(100, 112); c.scale(1.6, 1.6); drawHydra(c, 0, 0, heads, 0.3, {}); });
   const specialURL = (id) => paintURL(`s-${id}`, 120, 120, (c) => { c.translate(60, 60); c.scale(2.2, 2.2); drawSpecialIcon(c, id); });
-  const MAP = {
-    img: (w) => `assets/hmap-${w + 1}.svg`,
-    boss: bossURL,
-    layouts: [
-      { nodes: [[90, 605], [250, 520], [110, 420], [255, 318], [140, 215]], prize: [255, 120] },
-      { nodes: [[270, 605], [110, 535], [235, 440], [95, 340], [235, 230]], prize: [110, 120] },
-      { nodes: [[180, 605], [295, 500], [190, 400], [70, 300], [190, 205]], prize: [290, 118] },
-      { nodes: [[80, 605], [210, 545], [300, 430], [160, 360], [70, 235]], prize: [235, 130] },
-      { nodes: [[180, 605], [80, 500], [260, 420], [110, 320], [250, 215]], prize: [150, 115] },
-    ],
-  };
+  const MAP = { banner: (w) => `assets/hworld-${w + 1}.svg`, boss: bossURL };
   // The prize of a world is a new head.
   const prize = (id) => ({ src: headURL(id), title: `${HEADS[id].name} גדל!`, line: HEADS[id].perk });
   const headsList = () => HEAD_ORDER.filter((h) => h === 'fire' || rec().unlocked.includes(h));
+  // The heads you take along: the ones you've grown and switched on (at least one).
+  const activeHeads = () => {
+    const r = rec(), all = headsList();
+    if (!Array.isArray(r.active)) return all;
+    const on = all.filter((h) => r.active.includes(h));
+    return on.length ? on : [all[0]];
+  };
+  function toggleHead(id) {
+    const r = rec(), on = activeHeads();
+    if (on.includes(id)) {
+      if (on.length === 1) return false; // the last head stays
+      r.active = on.filter((h) => h !== id);
+    } else r.active = [...on, id];
+    store.save();
+    return true;
+  }
 
   // ---------- Canvas ----------
   const cv = $('#hcv');
@@ -234,7 +240,7 @@ window.DinoHydra = (core) => {
     tileCv = document.createElement('canvas');
     tileCv.width = Math.round(VW * RES); tileCv.height = Math.round(VH * RES);
     const c = tileCv.getContext('2d'), img = images[g.world.bg];
-    if (img) { c.filter = 'saturate(0.55) brightness(0.58) contrast(1.05)'; c.drawImage(img, 0, 0, tileCv.width, tileCv.height); c.filter = 'none'; }
+    if (img) { c.filter = 'saturate(0.85) brightness(0.88)'; c.drawImage(img, 0, 0, tileCv.width, tileCv.height); c.filter = 'none'; }
     else { c.fillStyle = '#1A1428'; c.fillRect(0, 0, tileCv.width, tileCv.height); }
     vignette = ctx.createRadialGradient(VW / 2, VH / 2, VH * 0.25, VW / 2, VH / 2, VH * 0.75);
     vignette.addColorStop(0, 'rgba(8,4,16,0)'); vignette.addColorStop(1, 'rgba(8,4,16,.55)');
@@ -249,11 +255,11 @@ window.DinoHydra = (core) => {
     const key = `${w + 1}-${l + 1}`;
     const help = (r.streak[key] || 0) >= 3 ? 0.85 : 1; // a little quiet help after 3 losses in a row
     const boss = !!cfg.bossFight;
-    const heads = headsList();
+    const heads = activeHeads();
     const special = SPECIALS[r.special] && (r.special === 'roar' || (r.specials || []).includes(r.special)) ? r.special : 'roar';
     G = {
       mode: 'hydra', w, l, cfg, key, world, help, bossFight: boss, bossInfo: BOSSES[w],
-      ch: { src: heroURL(heads.length) },
+      ch: { src: heroURL(heads) },
       lives: 3, maxLives: 3, score: 0, coins: 0, kills: 0, spawned: 0,
       state: 'ready', readyT: boss ? 3.2 : 2.4, t: 0, playT: 0, st: 0, shownSec: -1, ev: 0,
       P: { x: VW / 2, y: VH + 80, tx: VW / 2, ty: VH - 120, inv: 0, cool: {}, open: {}, heads, dead: 0 },
@@ -381,7 +387,7 @@ window.DinoHydra = (core) => {
     G.score += e.tank ? 200 : e.kind === 'spit' ? 40 : 15;
     G.charge = Math.min(1, G.charge + (e.tank ? 0.25 : 0.05));
     boom(e.x, e.y, e.r);
-    if (!e.summon) for (let i = 0; i < e.coins; i++) drop('coin', e.x + rand(-e.r, e.r) * 0.6, e.y + rand(-e.r, e.r) * 0.6);
+    if (!e.summon) for (let i = 0; i < e.coins; i++) drop('coin', e.x + rand(-e.r, e.r) * 0.8, e.y + rand(-e.r, e.r) * 0.8);
     G.killsSincePower++;
     if (e.tank || G.killsSincePower >= 26) { G.killsSincePower = 0; drop('power', e.x, e.y); }
     if (e.tank && G.lives < G.maxLives) drop('egg', e.x + 18, e.y);
@@ -488,7 +494,7 @@ window.DinoHydra = (core) => {
   // ---------- The monster's heads ----------
   // Necks fan out from the shoulders; the first heads get the middle spots. More heads: a wider fan.
   const SPREAD = [0, 0.38, 0.66, 0.86, 1.02, 1.15];
-  const neckLen = (a, n) => 21 + n * 1.2 - Math.abs(a) * 4;
+  const neckLen = (a, n) => 22 + n * 1.3 - Math.abs(a) * 4;
   function headSlots(n) {
     const S = SPREAD[n - 1] || 1.15;
     const angs = [...Array(n)].map((_, i) => (n === 1 ? 0 : -S + (2 * S * i) / (n - 1)));
@@ -499,7 +505,7 @@ window.DinoHydra = (core) => {
   }
   function headGeo(k, n, t) {
     const a = headSlots(n)[k] + Math.sin(t * 2.6 + k * 1.7) * 0.05;
-    const len = neckLen(a, n), bx = Math.sin(a) * 6, by = -10;
+    const len = neckLen(a, n), bx = Math.sin(a) * 8, by = -11;
     return { a, bx, by, hx: bx + Math.sin(a) * len, hy: by - Math.cos(a) * len };
   }
   function headPos(P, k, n, t) {
@@ -699,12 +705,12 @@ window.DinoHydra = (core) => {
     for (const p of G.pickups) {
       p.t += dt; p.spin += dt * 5;
       const d = dist(p, P);
-      if (G.state === 'play' && (d < 110 || G.ending) && p.t > 0.35) {
+      if (G.state === 'play' && (d < 130 || G.ending) && p.t > 0.35) {
         const sp = G.ending ? 520 : 420;
         p.vx = (P.x - p.x) / Math.max(1, d) * sp; p.vy = (P.y - p.y) / Math.max(1, d) * sp;
       } else { p.vx *= Math.pow(0.2, dt); p.vy = Math.min(80, p.vy + 260 * dt); }
       p.x += p.vx * dt; p.y += p.vy * dt;
-      if (G.state === 'play' && d < 24) { p.dead = true; collect(p); }
+      if (G.state === 'play' && d < 28) { p.dead = true; collect(p); }
       if (p.y > VH + 20) p.dead = true;
     }
     G.pickups = G.pickups.filter((p) => !p.dead);
@@ -979,7 +985,7 @@ window.DinoHydra = (core) => {
     if ((G.state === 'dying' || G.state === 'lost') && P.dead > 1.5) return;
     if (P.inv > 0 && G.state === 'play' && Math.floor(P.inv * 12) % 2 === 0) c.globalAlpha = 0.35;
     c.fillStyle = 'rgba(0,0,0,.3)';
-    c.beginPath(); c.ellipse(P.x + 18, P.y + 48, 20, 6, 0, 0, TAU); c.fill();
+    c.beginPath(); c.ellipse(P.x + 18, P.y + 52, 18, 6, 0, 0, TAU); c.fill();
     drawHydra(c, P.x, P.y, P.heads, G.t, { open: P.open, roar: G.roarFx > 0, spin: P.dead ? P.dead * 5 : 0 });
     c.globalAlpha = 1;
     if (G.shieldT > 0) {
@@ -991,53 +997,62 @@ window.DinoHydra = (core) => {
     }
   }
 
-  // The monster: an armoured body with a spiked tail and small tattered wings; a neck and head for every power.
+  // The monster: a hulking armoured beast with clawed arms and a glowing core, floating on a swirl of magic fire.
+  // A neck and head grows from its shoulders for every power it has.
   function drawHydra(c, x, y, heads, t, o) {
     c.save(); c.translate(x, y);
     if (o.spin) c.rotate(o.spin);
     c.lineJoin = 'round'; c.lineCap = 'round'; c.strokeStyle = INK;
-    const flap = Math.sin(t * 9);
-    // tail: long, thin, swaying, with a spade at the end
-    const tw = Math.sin(t * 2.4);
-    c.beginPath(); c.moveTo(0, 18); c.bezierCurveTo(tw * 8, 30, -tw * 10, 40, tw * 6, 50);
-    c.lineWidth = 7; c.stroke(); c.strokeStyle = BODY.c; c.lineWidth = 3.6; c.stroke();
-    c.save(); c.translate(tw * 6, 50); c.rotate(tw * 0.4);
-    c.beginPath(); c.moveTo(0, 8); c.lineTo(-4.5, 0); c.lineTo(0, -3); c.lineTo(4.5, 0); c.closePath();
-    c.fillStyle = BODY.bone; c.fill(); c.lineWidth = 1.8; c.strokeStyle = INK; c.stroke(); c.restore();
-    // wings: dark and tattered, with glowing veins
-    for (const sd of [-1, 1]) {
-      c.save(); c.translate(sd * 9, 0); c.rotate(sd * (-0.15 + flap * 0.22)); c.scale(sd, 1);
-      c.beginPath(); c.moveTo(0, 0); c.lineTo(10, -14); c.lineTo(26, -18); c.lineTo(22, -10); c.lineTo(28, -6); c.lineTo(20, -2);
-      c.lineTo(24, 4); c.lineTo(14, 4); c.lineTo(12, 10); c.closePath();
-      c.fillStyle = BODY.wing; c.fill(); c.lineWidth = 1.8; c.strokeStyle = INK; c.stroke();
-      c.beginPath(); c.moveTo(1, 0); c.lineTo(24, -15); c.moveTo(1, 1); c.lineTo(24, -5); c.moveTo(1, 2); c.lineTo(20, 4);
-      c.strokeStyle = BODY.vein; c.globalAlpha = 0.75; c.lineWidth = 1; c.stroke(); c.globalAlpha = 1;
-      c.restore();
+    // the magic fire it floats on
+    c.save(); c.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 4; i++) {
+      const f = Math.sin(t * 14 + i * 2) * 2, len = 26 + i * 3 + f;
+      c.beginPath(); c.moveTo(-9 + i * 1.5, 14); c.quadraticCurveTo(-4 + Math.sin(t * 9 + i) * 4, 14 + len * 0.6, Math.sin(t * 7 + i) * 3, 14 + len);
+      c.quadraticCurveTo(4 + Math.sin(t * 9 + i) * 4, 14 + len * 0.6, 9 - i * 1.5, 14); c.closePath();
+      c.fillStyle = ['rgba(120,80,255,.35)', 'rgba(170,120,255,.35)', 'rgba(220,180,255,.4)', 'rgba(255,255,255,.45)'][i]; c.fill();
     }
+    c.restore();
     // necks (drawn under the body so they grow out of the shoulders)
     const n = heads.length, geo = heads.map((_, k) => headGeo(k, n, t));
     heads.forEach((id, k) => {
       const g = geo[k];
-      c.beginPath(); c.moveTo(g.bx * 0.6, -2); c.quadraticCurveTo(g.bx + Math.sin(g.a) * 6, g.by - 6, g.hx, g.hy);
-      c.strokeStyle = INK; c.lineWidth = 7.5; c.stroke();
-      c.strokeStyle = BODY.c; c.lineWidth = 4.6; c.stroke();
-      c.strokeStyle = HEADS[id].c; c.globalAlpha = 0.55; c.lineWidth = 1.4; c.stroke(); c.globalAlpha = 1;
+      c.beginPath(); c.moveTo(g.bx * 0.7, -4); c.quadraticCurveTo(g.bx + Math.sin(g.a) * 6, g.by - 6, g.hx, g.hy);
+      c.strokeStyle = INK; c.lineWidth = 8; c.stroke();
+      c.strokeStyle = BODY.c; c.lineWidth = 5; c.stroke();
+      c.strokeStyle = HEADS[id].c; c.globalAlpha = 0.7; c.lineWidth = 1.6; c.stroke(); c.globalAlpha = 1;
     });
-    // body: armoured, with plates and a ridge of spikes
     c.strokeStyle = INK;
-    c.beginPath(); c.moveTo(0, -12); c.bezierCurveTo(13, -10, 14, 10, 6, 20); c.lineTo(-6, 20); c.bezierCurveTo(-14, 10, -13, -10, 0, -12); c.closePath();
+    // arms with claws, swaying a little
+    for (const sd of [-1, 1]) {
+      const sw = Math.sin(t * 3 + sd) * 0.12;
+      c.save(); c.translate(sd * 12, -2); c.rotate(sd * (0.35 + sw));
+      c.beginPath(); c.moveTo(-3.5, 0); c.quadraticCurveTo(sd * 3, 8, sd * 1.5, 16); c.lineTo(sd * 5.5, 16); c.quadraticCurveTo(sd * 7, 7, 3.5, 0); c.closePath();
+      c.fillStyle = BODY.c; c.fill(); c.lineWidth = 1.8; c.stroke();
+      for (const k of [-2, 1, 4]) { c.beginPath(); c.moveTo(sd * 3.5 + k, 15.5); c.lineTo(sd * 3.5 + k * 1.3, 20); c.lineTo(sd * 3.5 + k + 1.4, 15.5); c.closePath(); c.fillStyle = BODY.bone; c.fill(); c.lineWidth = 1; c.stroke(); }
+      c.restore();
+    }
+    // the body: broad shoulders, narrow waist
+    c.beginPath();
+    c.moveTo(-15, -8); c.quadraticCurveTo(0, -15, 15, -8); c.quadraticCurveTo(16, 2, 9, 12); c.quadraticCurveTo(0, 18, -9, 12); c.quadraticCurveTo(-16, 2, -15, -8); c.closePath();
     c.fillStyle = BODY.c; c.fill(); c.lineWidth = 2.2; c.stroke();
-    c.strokeStyle = BODY.plate; c.lineWidth = 1.4;
-    for (const yy of [-4, 3, 10]) { c.beginPath(); c.moveTo(-8, yy); c.quadraticCurveTo(0, yy + 4, 8, yy); c.stroke(); }
-    c.strokeStyle = INK; c.lineWidth = 1.4;
-    for (const yy of [-8, -1, 6, 13]) { c.beginPath(); c.moveTo(-2, yy + 2); c.lineTo(0, yy - 2.5); c.lineTo(2, yy + 2); c.closePath(); c.fillStyle = BODY.bone; c.fill(); c.stroke(); }
-    // claws
-    for (const sd of [-1, 1]) { c.beginPath(); c.moveTo(sd * 8, 12); c.lineTo(sd * 12, 19); c.lineTo(sd * 7, 17); c.closePath(); c.fillStyle = BODY.bone; c.fill(); c.stroke(); }
-    // heads, the middle ones last so they sit on top
+    c.strokeStyle = BODY.plate; c.lineWidth = 1.3;
+    for (const yy of [3, 8]) { c.beginPath(); c.moveTo(-8, yy); c.quadraticCurveTo(0, yy + 3, 8, yy); c.stroke(); }
+    // shoulder plates with spikes
+    c.strokeStyle = INK;
+    for (const sd of [-1, 1]) {
+      c.beginPath(); c.ellipse(sd * 12, -7, 6.5, 4.5, sd * 0.3, 0, TAU); c.fillStyle = BODY.plate; c.fill(); c.lineWidth = 1.8; c.stroke();
+      c.beginPath(); c.moveTo(sd * 10, -10); c.lineTo(sd * 15, -17); c.lineTo(sd * 15, -9); c.closePath(); c.fillStyle = BODY.bone; c.fill(); c.lineWidth = 1.3; c.stroke();
+    }
+    // the glowing core
+    const pulse = 0.75 + 0.25 * Math.sin(t * 4);
+    c.save(); c.globalCompositeOperation = 'lighter';
+    c.beginPath(); c.arc(0, -1, 7 * pulse, 0, TAU); c.fillStyle = 'rgba(160,110,255,.45)'; c.fill(); c.restore();
+    c.beginPath(); c.moveTo(0, -5.5); c.lineTo(3.4, -1); c.lineTo(0, 3.5); c.lineTo(-3.4, -1); c.closePath(); c.fillStyle = '#D8C8FF'; c.fill(); c.lineWidth = 1.2; c.stroke();
+    // heads, the middle ones last so they sit on top (a bit bigger than before)
     const order = heads.map((_, k) => k).sort((i, j) => Math.abs(geo[j].a) - Math.abs(geo[i].a));
     for (const k of order) {
       const g = geo[k], id = heads[k];
-      c.save(); c.translate(g.hx, g.hy); c.rotate(g.a);
+      c.save(); c.translate(g.hx, g.hy); c.rotate(g.a); c.scale(1.18, 1.18);
       drawHead(c, id, 0, 0, t + k, o.roar ? 1 : (o.open && o.open[id]) || 0, 0);
       c.restore();
     }
@@ -1212,7 +1227,7 @@ window.DinoHydra = (core) => {
   }
   function drawPickup(c, p) {
     c.save(); c.translate(p.x, p.y);
-    if (p.type === 'coin') drawCoin(c, 0, 0, 6.5, p.spin);
+    if (p.type === 'coin') drawCoin(c, 0, 0, 8.5, p.spin, true);
     else if (p.type === 'power') {
       const b = 1 + Math.sin(p.t * 8) * 0.08;
       c.scale(b, b);
@@ -1227,13 +1242,24 @@ window.DinoHydra = (core) => {
     }
     c.restore();
   }
-  function drawCoin(c, x, y, r, spin) {
-    const sx = Math.max(0.2, Math.abs(Math.cos(spin)));
+  function drawCoin(c, x, y, r, spin, shine = false) {
+    const sx = Math.max(0.25, Math.abs(Math.cos(spin)));
+    if (shine) {
+      c.save(); c.globalCompositeOperation = 'lighter';
+      c.beginPath(); c.arc(x, y, r * 2.3, 0, TAU); c.fillStyle = 'rgba(255,200,40,.22)'; c.fill();
+      c.restore();
+    }
     c.save(); c.translate(x, y); c.scale(sx, 1);
-    c.beginPath(); c.arc(0, 0, r, 0, TAU); c.fillStyle = '#FFC93C'; c.fill();
-    c.lineWidth = 1.6; c.strokeStyle = '#5A3A00'; c.stroke();
-    c.beginPath(); c.arc(0, 0, r * 0.55, 0, TAU); c.strokeStyle = '#D98E00'; c.lineWidth = 1.4; c.stroke();
+    c.beginPath(); c.arc(0, 0, r + 1.5, 0, TAU); c.fillStyle = '#2A1600'; c.fill();
+    c.beginPath(); c.arc(0, 0, r, 0, TAU); c.fillStyle = '#FFD84A'; c.fill();
+    c.beginPath(); c.arc(0, 0, r * 0.62, 0, TAU); c.fillStyle = '#FFB800'; c.fill();
+    c.beginPath(); c.arc(-r * 0.3, -r * 0.35, r * 0.28, 0, TAU); c.fillStyle = '#FFFBE0'; c.fill();
     c.restore();
+    if (shine && Math.sin(spin * 1.7) > 0.93) {
+      c.save(); c.globalCompositeOperation = 'lighter'; c.translate(x + r * 0.5, y - r * 0.6);
+      c.fillStyle = '#FFFFFF'; c.beginPath(); c.moveTo(0, -5); c.lineTo(1.2, 0); c.lineTo(0, 5); c.lineTo(-1.2, 0); c.closePath(); c.fill();
+      c.beginPath(); c.moveTo(-5, 0); c.lineTo(0, 1.2); c.lineTo(5, 0); c.lineTo(0, -1.2); c.closePath(); c.fill(); c.restore();
+    }
   }
   function drawParticles(c) {
     for (const q of G.particles) {
@@ -1246,7 +1272,7 @@ window.DinoHydra = (core) => {
       } else if (q.conf) {
         c.save(); c.translate(q.x, q.y); c.rotate(q.rot); c.fillStyle = q.color; c.fillRect(-q.w / 2, -q.h / 2, q.w, q.h); c.restore();
       } else if (q.coin) {
-        drawCoin(c, q.x, q.y, 6, q.spin);
+        drawCoin(c, q.x, q.y, 8, q.spin, true);
       } else if (q.bubble) {
         c.beginPath(); c.arc(q.x, q.y, q.size, 0, TAU); c.strokeStyle = q.color; c.lineWidth = 1.5; c.stroke();
       } else {
@@ -1409,20 +1435,29 @@ window.DinoHydra = (core) => {
 
   // ---------- Title screen: the heads ----------
   let shownHead = 'fire';
+  // Tap a head: switch it on or off (it shows what it does either way).
   function buildTitle() {
-    const r = rec(), box = $('#chars');
+    const r = rec(), box = $('#chars'), on = activeHeads();
     box.innerHTML = '';
     HEAD_ORDER.forEach((id, i) => {
-      const open = id === 'fire' || r.unlocked.includes(id);
+      const open = id === 'fire' || r.unlocked.includes(id), act = on.includes(id);
       const b = document.createElement('button');
-      b.className = `char head${open ? '' : ' locked'}${shownHead === id ? ' sel' : ''}`;
+      b.className = `char head${open ? '' : ' locked'}${act ? ' sel' : open ? ' off' : ''}`;
       b.setAttribute('aria-label', open ? HEADS[id].name : `נעול, נפתח אחרי עולם ${i}`);
+      b.setAttribute('aria-pressed', act);
       b.innerHTML = `<img src="${headURL(id)}" alt="">${open ? '' : '<span class="lock">🔒</span>'}`;
-      b.addEventListener('click', () => { sfx.init(); sfx.tap(); shownHead = id; buildTitle(); });
+      b.addEventListener('click', () => {
+        sfx.init();
+        shownHead = id;
+        if (open) { if (toggleHead(id)) sfx.tone(act ? 330 : 660, 0.08, 'triangle', 0.06); else sfx.tone(200, 0.12, 'square', 0.04); }
+        else sfx.tap();
+        buildTitle();
+      });
       box.appendChild(b);
     });
-    const H = HEADS[shownHead], open = shownHead === 'fire' || r.unlocked.includes(shownHead);
-    $('#charPerk').textContent = open ? `${H.name}: ${H.perk}` : `${H.name} גדל אחרי עולם ${HEAD_ORDER.indexOf(shownHead)}`;
+    const H = HEADS[shownHead], open = shownHead === 'fire' || r.unlocked.includes(shownHead), act = on.includes(shownHead);
+    $('#charPerk').innerHTML = !open ? `${H.name} גדל אחרי עולם ${HEAD_ORDER.indexOf(shownHead)}`
+      : `${H.name}: ${H.perk} · <b class="${act ? 'is-on' : 'is-off'}">${act ? 'בפנים' : 'בחוץ'}</b>`;
   }
   function paintHero(cv2, t, scale = 1) {
     const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
@@ -1433,7 +1468,7 @@ window.DinoHydra = (core) => {
     c.clearRect(0, 0, cv2.width, cv2.height);
     const s = Math.min(cw / 110, chh / 105) * scale;
     c.setTransform(dpr * s, 0, 0, dpr * s, dpr * cw / 2, dpr * (chh * 0.56));
-    const heads = headsList(), open = {};
+    const heads = activeHeads(), open = {};
     heads.forEach((id, k) => { open[id] = Math.max(0, Math.sin(t * 3 - k * 0.8)) * 0.8; });
     drawHydra(c, 0, 0, heads, t, { open });
   }
@@ -1489,6 +1524,7 @@ window.DinoHydra = (core) => {
 
   return {
     game: { worlds: WORLDS, chals: CHALS, goal: goalText, start, bosses: BOSSES, map: MAP, prize, buildTitle, paintHero },
+    heads: { activeHeads, toggleHead },
     shop: { HEADS, HEAD_ORDER, LEVEL_PRICE, MAX_SHOP_LV, SPECIALS, SPECIAL_ORDER, headURL, specialURL, heroLevel },
     update: (dt) => { G = core.G(); update(dt); },
     render: () => { G = core.G(); render(); },

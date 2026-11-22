@@ -56,38 +56,30 @@
   </div>
   <div id="shopList" class="shop-list"></div>
   <button id="shopBack" class="home-btn" aria-label="חזרה">
-    <svg class="ic" viewBox="0 0 48 48"><path class="fill" d="M30 8 L14 24 L30 40" style="fill:none;stroke-width:7;stroke:#fff"/></svg>
+    <svg class="ic" viewBox="0 0 48 48"><path d="M18 10 L32 24 L18 38" fill="none" stroke="#FFDE95" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>
   </button>
 </section>
 
 <section id="map" class="screen" hidden>
-  <div id="mapStage" class="map-stage">
-    <img id="mapBg" class="map-bg" alt="">
-    <div id="levels" class="levels"></div>
-    <img id="mapPrize" class="map-prize" alt="">
-  </div>
-  <header class="map-head"><h1 id="worldName"></h1><button id="mapShop" class="map-shop">החנות <span id="mapCoins" class="coin-pill"></span></button></header>
-  <div id="worldLocked" class="world-locked" hidden></div>
-  <div id="levelInfo" class="overlay" hidden>
-    <div class="panel level-info">
-      <button id="infoClose" class="icon-btn small info-close" aria-label="סגירה">✕</button>
-      <img id="infoFace" class="info-face" alt="" hidden>
-      <div id="infoWorld" class="info-world"></div>
-      <h2 id="infoTitle"></h2>
-      <div id="infoGoal" class="info-goal"></div>
-      <div id="infoStars" class="stars-big small"></div>
-      <div id="infoBest" class="info-best"></div>
-      <div id="infoChal"></div>
-      <button id="infoPlay" class="btn big">שחק!</button>
-    </div>
-  </div>
-  <div class="world-nav">
-    <button id="prevWorld" class="icon-btn" aria-label="עולם קודם">→</button>
-    <span id="worldNum"></span>
-    <button id="nextWorld" class="icon-btn" aria-label="עולם הבא">←</button>
-  </div>
+  <header class="top-bar">
+    <h1>העולמות</h1>
+    <button id="mapShop" class="map-shop">החנות <span id="mapCoins" class="coin-pill"></span></button>
+  </header>
+  <div id="worldList" class="world-list"></div>
   <button id="mapBack" class="home-btn" aria-label="למסך הראשי">
     <svg class="ic" viewBox="0 0 48 48"><path class="fill" d="M6 25 L24 8 L42 25 L37 25 L37 40 L11 40 L11 25 Z"/><rect class="fill door" x="20" y="28" width="8" height="12" rx="3"/></svg>
+  </button>
+</section>
+
+<section id="world" class="screen" hidden>
+  <div class="world-hero">
+    <img id="worldBanner" class="world-banner" alt="">
+    <img id="worldBoss" class="world-boss" alt="">
+    <div class="world-title"><span id="worldNum"></span><h1 id="worldName"></h1><span id="worldStars" class="world-stars"></span></div>
+  </div>
+  <div id="levelList" class="level-list"></div>
+  <button id="worldBack" class="home-btn" aria-label="לכל העולמות">
+    <svg class="ic" viewBox="0 0 48 48"><path d="M18 10 L32 24 L18 38" fill="none" stroke="#FFDE95" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>
   </button>
 </section>
 

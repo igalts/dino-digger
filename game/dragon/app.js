@@ -66,10 +66,11 @@
   let G = null, paused = false, screen = 'title';
   function show(name) {
     screen = name;
-    for (const id of ['title', 'map', 'game', 'shop']) $(`#${id}`).hidden = id !== name;
+    for (const id of ['title', 'map', 'world', 'game', 'shop']) $(`#${id}`).hidden = id !== name;
     if (name === 'shop') buildShop();
     if (name === 'title') buildTitle();
     if (name === 'map') buildMap();
+    if (name === 'world') buildWorld();
   }
   function hideOverlays() { for (const id of ['pause', 'win', 'lose', 'ctrlInfo']) $(`#${id}`).hidden = true; }
 
@@ -173,85 +174,58 @@
     $('#muteBtn').textContent = store.data.muted ? '🔇' : '🔊';
   }
 
-  // ---------- Map ----------
+  // ---------- Worlds: a list of world portals, and each world's own screen with its levels ----------
   const worldOpen = (w) => w === 0 || (rec().stars[`${w}-5`] || 0) > 0;
   const levelOpen = (w, l) => (l === 0 ? worldOpen(w) : (rec().stars[`${w + 1}-${l}`] || 0) > 0);
+  const starsIn = (w) => game.worlds[w].levels.reduce((n, _, l) => n + (rec().stars[`${w + 1}-${l + 1}`] || 0), 0);
   function currentMapWorld() {
     let w = rec().mapWorld;
     if (!Number.isInteger(w) || w < 0 || w >= game.worlds.length) { w = 0; for (let i = 0; i < game.worlds.length; i++) if (worldOpen(i)) w = i; }
     return w;
   }
   function buildMap() {
-    const w = currentMapWorld(), world = game.worlds[w], r = rec(), MAP = game.map, layout = MAP.layouts[w];
-    $('#map').dataset.world = String(w + 1);
-    const bg = $('#mapBg'), src = MAP.img(w);
-    if (bg.getAttribute('src') !== src) bg.src = src;
-    const P = game.prize(world.unlock), pz = $('#mapPrize');
-    pz.src = P.src;
-    pz.classList.toggle('locked', !r.unlocked.includes(world.unlock));
-    pz.style.left = `${layout.prize[0] / 360 * 100}%`;
-    pz.style.top = `${layout.prize[1] / 780 * 100}%`;
-    $('#worldName').textContent = world.name;
     $('#mapCoins').textContent = coinText();
-    $('#worldNum').textContent = `עולם ${w + 1} מתוך ${game.worlds.length}`;
-    $('#prevWorld').disabled = w === 0;
-    $('#nextWorld').disabled = w === game.worlds.length - 1;
-    $('#worldLocked').hidden = worldOpen(w);
-    $('#worldLocked').textContent = `מסיימים את עולם ${w} כדי לפתוח`;
-    const box = $('#levels');
-    box.innerHTML = '';
-    world.levels.forEach((lvl, i) => {
-      const key = `${w + 1}-${i + 1}`, stars = r.stars[key] || 0, open = levelOpen(w, i);
+    const list = $('#worldList'), cur = currentMapWorld();
+    list.innerHTML = '';
+    game.worlds.forEach((wd, w) => {
+      const open = worldOpen(w), got = starsIn(w), total = wd.levels.length * 3, grown = rec().unlocked.includes(wd.unlock);
       const b = document.createElement('button');
-      b.className = `level${open ? '' : ' locked'}${lvl.bossFight ? ' boss' : ''}`;
-      b.style.left = `${layout.nodes[i][0] / 360 * 100}%`;
-      b.style.top = `${layout.nodes[i][1] / 780 * 100}%`;
-      const label = lvl.bossFight ? `בוס: ${game.bosses[w].name}` : `שלב ${i + 1}`;
-      b.setAttribute('aria-label', open ? label : `${label}, נעול`);
-      const face = lvl.bossFight ? `<img class="boss-face" src="${MAP.boss(w)}" alt="">` : '';
-      const best = r.best[key], done = r.chal[key] || 0;
-      const marks = game.chals.map((ch) => `<span class="cm${done & ch.bit ? ' on' : ''}">${ch.icon}</span>`).join('');
-      const timeTag = best && open ? `<span class="best-time">⏱ ${fmtTime(best)} ${marks}</span>` : '';
-      b.innerHTML = `${face}${lvl.bossFight ? 'בוס' : i + 1}<span class="st">${[0, 1, 2].map((k) => `<span class="${k < stars ? 'on' : 'off'}">★</span>`).join('')}</span>${timeTag}`;
-      b.disabled = !open;
-      b.addEventListener('click', () => { if (Date.now() - slidAt < 400) return; sfx.init(); sfx.tap(); showLevelInfo(w, i); });
-      box.appendChild(b);
+      b.className = `world-card${open ? '' : ' locked'}${w === cur ? ' current' : ''}`;
+      b.style.backgroundImage = `url(${game.map.banner(w)})`;
+      b.innerHTML = `<span class="wc-shade"></span>
+        <span class="wc-text"><span class="wc-num">עולם ${w + 1}</span><span class="wc-name">${wd.name}</span>
+        <span class="wc-stars">${open ? `★ <bdi>${got}/${total}</bdi>` : `🔒 מסיימים את עולם ${w}`}</span></span>
+        <span class="wc-prize${grown ? '' : ' dim'}"><img src="${game.prize(wd.unlock).src}" alt=""><small>${grown ? 'גדל!' : 'פרס'}</small></span>`;
+      b.addEventListener('click', () => {
+        sfx.init();
+        if (!open) { sfx.tone(200, 0.12, 'square', 0.04); b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake'); return; }
+        sfx.tap(); rec().mapWorld = w; store.save(); show('world');
+      });
+      list.appendChild(b);
     });
   }
-  let infoLevel = null;
-  function showLevelInfo(w, l) {
-    infoLevel = [w, l];
-    const cfg = game.worlds[w].levels[l], r = rec(), key = `${w + 1}-${l + 1}`, stars = r.stars[key] || 0, best = r.best[key];
-    $('#infoWorld').textContent = game.worlds[w].name;
-    $('#infoTitle').textContent = cfg.bossFight ? `בוס: ${game.bosses[w].name}` : `שלב ${l + 1}`;
-    $('#infoFace').hidden = !cfg.bossFight;
-    if (cfg.bossFight) $('#infoFace').src = game.map.boss(w);
-    $('#infoGoal').innerHTML = game.goal(cfg);
-    $('#infoStars').innerHTML = [0, 1, 2].map((k) => `<span class="${k < stars ? 'on' : 'off'}">★</span>`).join('');
-    $('#infoBest').innerHTML = best ? `⏱ השיא <bdi>${fmtTime(best)}</bdi>` : 'עוד לא ניצחת כאן';
-    $('#infoChal').innerHTML = chalRow(cfg, r.chal[key] || 0);
-    $('#levelInfo').hidden = false;
-  }
-  // Changing worlds: the map slides out to the side and the next one slides in.
-  let slidAt = 0, sliding = false;
-  function pageWorld(step) {
-    const w = currentMapWorld() + step;
-    if (sliding || w < 0 || w >= game.worlds.length) return;
-    sliding = true; sfx.tap();
-    const st = $('#mapStage'), dir = step > 0 ? -1 : 1; // RTL: the next world is on the left
-    st.animate([{ translate: '0 0', opacity: 1 }, { translate: `${dir * 40}% 0`, opacity: 0 }], { duration: 160, easing: 'ease-in' }).onfinish = () => {
-      rec().mapWorld = w; store.save(); buildMap();
-      st.animate([{ translate: `${-dir * 40}% 0`, opacity: 0 }, { translate: '0 0', opacity: 1 }], { duration: 200, easing: 'ease-out' }).onfinish = () => { sliding = false; };
-    };
-  }
-  {
-    let sx = null, sy = 0, sid = null;
-    $('#map').addEventListener('pointerdown', (e) => { if (!$('#levelInfo').hidden || e.target.closest('.world-nav, .home-btn')) return; sx = e.clientX; sy = e.clientY; sid = e.pointerId; });
-    $('#map').addEventListener('pointerup', (e) => {
-      if (e.pointerId !== sid || sx === null) return;
-      const dx = e.clientX - sx, dy = e.clientY - sy;
-      sx = null;
-      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) { slidAt = Date.now(); pageWorld(dx > 0 ? 1 : -1); }
+  function buildWorld() {
+    const w = currentMapWorld(), wd = game.worlds[w], r = rec();
+    $('#worldBanner').src = game.map.banner(w);
+    $('#worldBoss').src = game.map.boss(w);
+    $('#worldNum').textContent = `עולם ${w + 1}`;
+    $('#worldName').textContent = wd.name;
+    $('#worldStars').innerHTML = `★ <bdi>${starsIn(w)}/${wd.levels.length * 3}</bdi>`;
+    const list = $('#levelList');
+    list.innerHTML = '';
+    wd.levels.forEach((cfg, l) => {
+      const key = `${w + 1}-${l + 1}`, open = levelOpen(w, l), stars = r.stars[key] || 0, best = r.best[key];
+      const b = document.createElement('button');
+      b.className = `lvl-row${cfg.bossFight ? ' boss' : ''}${open ? '' : ' locked'}`;
+      b.disabled = !open;
+      const title = cfg.bossFight ? game.bosses[w].name : `שלב ${l + 1}`;
+      const sub = cfg.bossFight ? 'הבוס של העולם' : `${cfg.foes} דרקונים`;
+      b.innerHTML = `<span class="lvl-num">${cfg.bossFight ? '☠' : l + 1}</span>
+        <span class="lvl-main"><b>${title}</b><small>${sub}${best ? ` · השיא <bdi>${fmtTime(best)}</bdi>` : ''}</small>${chalRow(cfg, r.chal[key] || 0)}</span>
+        <span class="lvl-side"><span class="lvl-stars">${[0, 1, 2].map((k) => `<i class="${k < stars ? 'on' : ''}">★</i>`).join('')}</span>
+        <span class="lvl-play">${open ? '▶' : '🔒'}</span></span>`;
+      b.addEventListener('click', () => { sfx.init(); sfx.tap(); playLevel(w, l); });
+      list.appendChild(b);
     });
   }
 
@@ -335,19 +309,15 @@
   on('#mapBack', () => show('title'));
   on('#shopBtn', openShop);
   on('#mapShop', openShop);
-  on('#winShopBtn', () => { hideOverlays(); G = null; openShop(); shopFrom = 'map'; });
+  on('#winShopBtn', () => { rec().mapWorld = G.w; hideOverlays(); G = null; openShop(); shopFrom = 'world'; });
   on('#shopBack', () => show(shopFrom === 'shop' ? 'title' : shopFrom));
-  on('#prevWorld', () => pageWorld(-1));
-  on('#nextWorld', () => pageWorld(1));
-  on('#infoPlay', () => { $('#levelInfo').hidden = true; if (infoLevel) playLevel(infoLevel[0], infoLevel[1]); });
-  on('#infoClose', () => { $('#levelInfo').hidden = true; });
-  $('#levelInfo').addEventListener('click', (e) => { if (e.target.id === 'levelInfo') $('#levelInfo').hidden = true; });
+  on('#worldBack', () => show('map'));
   on('#muteBtn', () => { store.data.muted = !store.data.muted; store.save(); buildTitle(); });
   on('#pauseBtn', () => togglePause(true));
   on('#resumeBtn', () => togglePause(false));
   $('#pause').addEventListener('click', (e) => { if (e.target.id === 'pause') { sfx.tap(); togglePause(false); } });
   on('#restartBtn', () => playLevel(G.w, G.l));
-  on('#pauseMapBtn', () => { paused = false; hideOverlays(); show('map'); });
+  on('#pauseMapBtn', () => { paused = false; hideOverlays(); show('world'); });
   on('#pauseHomeBtn', () => { paused = false; hideOverlays(); show('title'); });
   on('#pauseMuteBtn', () => { store.data.muted = !store.data.muted; store.save(); $('#pauseMuteBtn').classList.toggle('muted', !!store.data.muted); });
   on('#ctrlInfoBtn', showHelp);
@@ -357,9 +327,9 @@
     else { rec().mapWorld = G.w + 1; store.save(); playLevel(G.w + 1, 0); }
   });
   on('#winRetryBtn', () => playLevel(G.w, G.l));
-  on('#winMapBtn', () => { rec().mapWorld = G.w; hideOverlays(); show('map'); });
+  on('#winMapBtn', () => { rec().mapWorld = G.w; hideOverlays(); show('world'); });
   on('#retryBtn', () => playLevel(G.w, G.l));
-  on('#loseMapBtn', () => { hideOverlays(); show('map'); });
+  on('#loseMapBtn', () => { hideOverlays(); show('world'); });
   const step = (confirming) => { $('#resetAsk').hidden = confirming; $('#resetConfirm').hidden = !confirming; };
   on('#settingsBtn', () => { step(false); $('#resetDone').hidden = true; $('#settings').hidden = false; });
   on('#settingsClose', () => { $('#settings').hidden = true; });
