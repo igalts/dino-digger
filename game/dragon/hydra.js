@@ -53,7 +53,7 @@ window.DinoHydra = (core) => {
       levels: [L(42), L(48), L(52), L(56), L(14)] },
     { name: 'ביצת הרפאים', unlock: 'poison', bg: 'hbg-2', motes: ['#7CFFB0', '#C77DFF'], moteUp: true,
       levels: [L(50), L(54), L(58), L(60), L(14)] },
-    { name: 'בית קברות הדרקונים', unlock: 'bolt', bg: 'hbg-3', motes: ['#D9CFB8', '#FF8A4A'],
+    { name: 'דרקון השלד', unlock: 'bolt', bg: 'hbg-3', motes: ['#D9CFB8', '#FF8A4A'],
       levels: [L(54), L(58), L(60), L(62), L(14)] },
     { name: 'תהום הקריסטלים', unlock: 'wind', bg: 'hbg-4', motes: ['#4AF0FF', '#FF4FD8', '#B8A8FF'],
       levels: [L(56), L(60), L(62), L(64), L(14)] },
@@ -225,7 +225,7 @@ window.DinoHydra = (core) => {
     return iconCache[key];
   }
   const headURL = (id) => paintURL(`h-${id}`, 160, 160, (c) => { c.translate(80, 84); c.scale(5.6, 5.6); drawHead(c, id, 0, 0, 0, 0, 0); });
-  const bossURL = (w) => paintURL(`b-${w}`, 240, 250, (c) => { c.translate(120, 132); c.scale(1.18, 1.18); drawBoss(c, w, 0.4, null, 3.3); });
+  const bossURL = (w) => paintURL(`b-${w}`, 240, 250, (c) => { c.translate(120, 132); c.scale(1.18, 1.18); drawBoss(c, w, 0.4, null, 0.72); });
   const heroURL = (heads) => paintURL(`hero-${heads.join()}`, 200, 200, (c) => { c.translate(100, 112); c.scale(1.6, 1.6); drawHydra(c, 0, 0, heads, 0.3, {}); });
   const specialURL = (id) => paintURL(`s-${id}`, 120, 120, (c) => { c.translate(60, 60); c.scale(2.2, 2.2); drawSpecialIcon(c, id); });
   const MAP = { banner: (w) => `assets/hworld-${w + 1}.svg`, boss: bossURL };
@@ -1657,10 +1657,334 @@ window.DinoHydra = (core) => {
       if (o.angry || o.boss) { c.beginPath(); c.moveTo(sd * 5.6, 5); c.lineTo(sd * 1.2, 6.4); c.lineWidth = 1.4 * k; c.stroke(); }
     }
   }
-  // The boss: a huge dragon of the world.
-  function drawBoss(c, w, t, B, scale = 4.4) {
+  // ---------- The five bosses: each one its own big, detailed, animated dragon ----------
+  // Drawn facing down at you (tail up, head at the bottom), about 300 wide at scale 1. B: the live boss (or null for the map icon).
+  function drawBoss(c, w, t, B, scale = 1) {
     c.save(); c.scale(scale, scale);
-    drawDragon(c, t * 0.8, DRAGONS[w], w, { boss: true, angry: true, open: B && B.act ? 1 : 0, lw: 0.6 });
+    c.lineJoin = 'round'; c.lineCap = 'round'; c.strokeStyle = INK;
+    const open = B && (B.act || (B.charge && B.charge.t < 1.5)) ? 1 : 0;
+    [bossLava, bossSwamp, bossBones, bossCrystal, bossStorm][w](c, t, open);
+    c.restore();
+  }
+  const glowOn = (c) => { c.save(); c.globalCompositeOperation = 'lighter'; };
+  function fs(c, fill, lw = 3) { c.fillStyle = fill; c.fill(); c.lineWidth = lw; c.strokeStyle = INK; c.stroke(); }
+  function path(c, pts, close = true) { c.beginPath(); pts.forEach(([x, y], i) => (i ? c.lineTo(x, y) : c.moveTo(x, y))); if (close) c.closePath(); }
+  // A bat-like wing from the shoulder: ribs out to the tips, scalloped bottom edge.
+  function batWing(c, sd, f, o) {
+    const tips = [[150, -78 - f * 26], [138, -24 - f * 16], [112, 14 - f * 8], [76, 40 - f * 3]];
+    c.save(); c.scale(sd, 1);
+    c.beginPath(); c.moveTo(26, -30);
+    c.quadraticCurveTo(80, -110 - f * 30, tips[0][0], tips[0][1]);
+    for (let i = 1; i < tips.length; i++) {
+      const [px, py] = tips[i - 1], [x, y] = tips[i];
+      c.quadraticCurveTo((px + x) / 2 - 8, (py + y) / 2 - 2, x, y);
+    }
+    c.quadraticCurveTo(52, 34, 30, 22); c.closePath();
+    if (o.fill) fs(c, o.fill, o.lw || 3);
+    if (o.ribs) {
+      c.beginPath(); for (const [x, y] of tips) { c.moveTo(28, -26); c.quadraticCurveTo(x * 0.5, y * 0.6 - 16, x, y); }
+      c.strokeStyle = o.ribs; c.lineWidth = o.ribW || 3; c.stroke();
+    }
+    c.restore();
+    return tips;
+  }
+
+  // 1. Lava: a molten dragon with glowing cracks, obsidian horns, a burning tail and dripping magma.
+  function bossLava(c, t, open) {
+    const f = Math.sin(t * 5), pulse = 0.6 + 0.4 * Math.sin(t * 4);
+    // tail with a flame on the end
+    const tx = Math.sin(t * 2) * 30, ty = -150;
+    c.beginPath(); c.moveTo(0, -40); c.bezierCurveTo(-20, -80, tx + 20, -110, tx, ty);
+    c.lineWidth = 26; c.strokeStyle = INK; c.stroke(); c.lineWidth = 19; c.strokeStyle = '#5A1A10'; c.stroke();
+    c.lineWidth = 3; c.strokeStyle = '#FF7A1A'; c.setLineDash([8, 10]); c.stroke(); c.setLineDash([]);
+    glowOn(c);
+    for (let i = 0; i < 4; i++) {
+      const h = 34 + i * 6 + Math.sin(t * 13 + i) * 6;
+      c.beginPath(); c.moveTo(tx - 14 + i * 2, ty + 6); c.quadraticCurveTo(tx - 10 + Math.sin(t * 9 + i) * 6, ty - h * 0.6, tx + Math.sin(t * 11 + i) * 4, ty - h);
+      c.quadraticCurveTo(tx + 10 + Math.sin(t * 7 + i) * 6, ty - h * 0.6, tx + 14 - i * 2, ty + 6); c.closePath();
+      c.fillStyle = ['rgba(255,60,20,.5)', 'rgba(255,130,30,.5)', 'rgba(255,200,60,.55)', 'rgba(255,255,200,.6)'][i]; c.fill();
+    }
+    c.restore();
+    // wings: dark membrane, glowing ribs and hot edges
+    for (const sd of [-1, 1]) {
+      const tips = batWing(c, sd, f, { fill: '#2A0E0C', ribs: '#FF6A1A', ribW: 3.5 });
+      glowOn(c); c.scale(sd, 1);
+      for (const [x, y] of tips) { c.beginPath(); c.arc(x, y, 6 + pulse * 3, 0, TAU); c.fillStyle = 'rgba(255,120,40,.5)'; c.fill(); }
+      c.restore();
+      // magma drips falling from the wing tips
+      c.save(); c.scale(sd, 1);
+      for (let i = 0; i < 3; i++) {
+        const k = (t * 0.8 + i * 0.33) % 1, [x, y] = tips[i + 1];
+        c.globalAlpha = 1 - k; c.beginPath(); c.ellipse(x, y + 10 + k * 70, 3.5, 5, 0, 0, TAU); c.fillStyle = '#FF8A2A'; c.fill();
+      }
+      c.restore();
+    }
+    // body
+    c.beginPath(); c.ellipse(0, -2, 50, 60, 0, 0, TAU); fs(c, '#5A1A10', 4);
+    c.beginPath(); c.ellipse(0, 6, 28, 42, 0, 0, TAU); c.fillStyle = '#7A2A14'; c.fill();
+    c.strokeStyle = '#C2481E'; c.lineWidth = 3;
+    for (const y of [-14, 0, 14, 28]) { c.beginPath(); c.moveTo(-22, y); c.quadraticCurveTo(0, y + 8, 22, y); c.stroke(); }
+    // glowing cracks
+    glowOn(c);
+    c.strokeStyle = `rgba(255,${120 + pulse * 80},40,${0.6 + pulse * 0.4})`; c.lineWidth = 3;
+    for (const sd of [-1, 1]) {
+      c.beginPath(); c.moveTo(sd * 44, -30); c.lineTo(sd * 30, -12); c.lineTo(sd * 40, 4); c.lineTo(sd * 28, 22); c.lineTo(sd * 36, 40); c.stroke();
+      c.beginPath(); c.moveTo(sd * 30, -12); c.lineTo(sd * 16, -20); c.stroke();
+    }
+    c.restore();
+    // obsidian spikes down the back
+    for (const y of [-52, -38, -24]) { path(c, [[-8, y + 8], [0, y - 14], [8, y + 8]]); fs(c, '#140808', 2.5); }
+    // head
+    path(c, [[-30, 40], [30, 40], [26, 70], [14, 96], [-14, 96], [-26, 70]]); fs(c, '#6A2010', 4);
+    // horns: obsidian, swept back
+    for (const sd of [-1, 1]) {
+      c.beginPath(); c.moveTo(sd * 18, 46); c.quadraticCurveTo(sd * 52, 36, sd * 58, 2); c.quadraticCurveTo(sd * 44, 28, sd * 26, 58); c.closePath(); fs(c, '#1A0A0A', 3);
+      c.beginPath(); c.moveTo(sd * 24, 48); c.quadraticCurveTo(sd * 46, 40, sd * 54, 12); c.strokeStyle = '#5A2A20'; c.lineWidth = 2; c.stroke();
+    }
+    // eyes: angry glowing slits
+    glowOn(c);
+    for (const sd of [-1, 1]) {
+      c.beginPath(); c.moveTo(sd * 6, 62); c.lineTo(sd * 24, 54); c.lineTo(sd * 20, 66); c.closePath();
+      c.fillStyle = '#FFE45C'; c.fill();
+      c.beginPath(); c.arc(sd * 16, 60, 12, 0, TAU); c.fillStyle = 'rgba(255,160,40,.3)'; c.fill();
+    }
+    c.restore();
+    // mouth: a glowing maw when it attacks
+    if (open) {
+      glowOn(c);
+      c.beginPath(); c.ellipse(0, 92, 14, 8, 0, 0, TAU); c.fillStyle = '#FFD23F'; c.fill();
+      c.beginPath(); c.arc(0, 98, 26, 0, TAU); c.fillStyle = 'rgba(255,120,30,.35)'; c.fill();
+      c.restore();
+    } else { c.beginPath(); c.moveTo(-10, 90); c.lineTo(10, 90); c.lineWidth = 3; c.strokeStyle = INK; c.stroke(); }
+    c.fillStyle = '#FFF4D0';
+    for (const sd of [-1, 1]) { path(c, [[sd * 6, 92], [sd * 9, 102], [sd * 12, 92]]); c.fill(); }
+  }
+
+  // 2. Swamp: a mossy bog dragon with torn wings, glowing mushrooms on its back, three eyes and ghost wisps.
+  function bossSwamp(c, t, open) {
+    const f = Math.sin(t * 4);
+    // ghost wisps circling it
+    glowOn(c);
+    for (let i = 0; i < 4; i++) {
+      const a = t * 0.9 + i * 1.57, x = Math.cos(a) * 140, y = Math.sin(a) * 70 - 10;
+      c.beginPath(); c.arc(x, y, 12, 0, TAU); c.fillStyle = 'rgba(120,255,190,.18)'; c.fill();
+      c.beginPath(); c.arc(x, y, 5, 0, TAU); c.fillStyle = 'rgba(200,255,230,.6)'; c.fill();
+    }
+    c.restore();
+    // a long tail with a spiked club
+    const tx = Math.sin(t * 1.6) * 34, ty = -145;
+    c.beginPath(); c.moveTo(0, -40); c.bezierCurveTo(30, -80, tx - 30, -110, tx, ty);
+    c.lineWidth = 22; c.strokeStyle = INK; c.stroke(); c.lineWidth = 15; c.strokeStyle = '#2E4A3A'; c.stroke();
+    c.beginPath(); c.arc(tx, ty, 14, 0, TAU); fs(c, '#3A5A44');
+    for (let i = 0; i < 6; i++) { const a = i / 6 * TAU; path(c, [[tx + Math.cos(a - 0.3) * 12, ty + Math.sin(a - 0.3) * 12], [tx + Math.cos(a) * 24, ty + Math.sin(a) * 24], [tx + Math.cos(a + 0.3) * 12, ty + Math.sin(a + 0.3) * 12]]); fs(c, '#C8D8C0', 2); }
+    // torn wings, with holes and hanging moss
+    for (const sd of [-1, 1]) {
+      const tips = batWing(c, sd, f, { fill: '#1E3428', ribs: '#5A7A5A', ribW: 4 });
+      c.save(); c.scale(sd, 1);
+      c.fillStyle = 'rgba(6,12,10,.9)';
+      for (const [x, y, r] of [[96, -40, 10], [120, -10, 7], [70, 0, 8], [104, 20, 6]]) { c.beginPath(); c.ellipse(x, y - f * 10, r, r * 0.7, 0.4, 0, TAU); c.fill(); }
+      c.strokeStyle = '#6A9A5A'; c.lineWidth = 2.5;
+      for (const [x, y] of tips.slice(1)) { c.beginPath(); c.moveTo(x, y); c.quadraticCurveTo(x + Math.sin(t * 3 + x) * 6, y + 18, x - 2, y + 30); c.stroke(); }
+      c.restore();
+    }
+    // body: lumpy and mossy
+    c.beginPath();
+    for (let i = 0; i <= 20; i++) { const a = i / 20 * TAU, r = 1 + Math.sin(i * 3.1) * 0.05; const x = Math.cos(a) * 52 * r, y = -2 + Math.sin(a) * 60 * r; i ? c.lineTo(x, y) : c.moveTo(x, y); }
+    c.closePath(); fs(c, '#2E4A3A', 4);
+    c.fillStyle = '#3E6A44';
+    for (const [x, y, r] of [[-24, -30, 14], [20, -38, 12], [-8, -8, 10], [26, 6, 11], [-28, 18, 9]]) { c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill(); }
+    c.beginPath(); c.ellipse(0, 20, 24, 30, 0, 0, TAU); c.fillStyle = '#C89AA8'; c.fill();
+    // glowing mushrooms growing on its back
+    for (const [x, y, col] of [[-22, -42, '#4AF0FF'], [14, -48, '#C77DFF'], [30, -20, '#7CFF8A'], [-34, -10, '#C77DFF']]) {
+      glowOn(c); c.beginPath(); c.arc(x, y - 4, 16, 0, TAU); c.fillStyle = `${col}33`; c.fill(); c.restore();
+      c.fillStyle = '#E0E8D0'; c.fillRect(x - 2, y - 2, 4, 9);
+      c.beginPath(); c.moveTo(x - 9, y); c.quadraticCurveTo(x, y - 14, x + 9, y); c.closePath(); fs(c, col, 2);
+    }
+    // head: broad and toad-like
+    c.beginPath(); c.ellipse(0, 66, 40, 30, 0, 0, TAU); fs(c, '#3A5A44', 4);
+    c.beginPath(); c.ellipse(0, 82, 30, 13, 0, 0, TAU); c.fillStyle = '#2A4030'; c.fill();
+    // three glowing eyes
+    for (const [x, y, r] of [[-18, 58, 7], [18, 58, 7], [0, 48, 6]]) {
+      glowOn(c); c.beginPath(); c.arc(x, y, r * 2.2, 0, TAU); c.fillStyle = 'rgba(180,255,80,.3)'; c.fill(); c.restore();
+      c.beginPath(); c.arc(x, y, r, 0, TAU); fs(c, '#D8FF6A', 2);
+      c.beginPath(); c.ellipse(x, y, r * 0.25, r * 0.8, 0, 0, TAU); c.fillStyle = INK; c.fill();
+    }
+    // mouth, with slime dripping
+    c.beginPath(); c.moveTo(-26, 82); c.quadraticCurveTo(0, open ? 106 : 92, 26, 82); c.lineWidth = 3; c.strokeStyle = INK; c.stroke();
+    if (open) { c.beginPath(); c.moveTo(-24, 83); c.quadraticCurveTo(0, 104, 24, 83); c.quadraticCurveTo(0, 90, -24, 83); c.fillStyle = '#3A0A1A'; c.fill(); }
+    glowOn(c);
+    for (let i = 0; i < 3; i++) {
+      const k = (t * 0.7 + i * 0.37) % 1, x = -14 + i * 14;
+      c.beginPath(); c.ellipse(x, 88 + k * 40, 3, 4 + k * 3, 0, 0, TAU); c.fillStyle = `rgba(150,255,90,${0.8 * (1 - k)})`; c.fill();
+    }
+    c.restore();
+  }
+
+  // 3. Bones: a skeleton dragon - skull, ribcage with a burning heart inside, bone wings, a spine for a tail.
+  function bossBones(c, t, open) {
+    const f = Math.sin(t * 4.5), beat = 0.7 + 0.3 * Math.abs(Math.sin(t * 3));
+    glowOn(c); c.beginPath(); c.arc(0, 0, 150, 0, TAU); c.fillStyle = 'rgba(120,40,200,.1)'; c.fill(); c.restore();
+    // the spine tail: a line of vertebrae
+    for (let i = 0; i < 9; i++) {
+      const k = i / 8, x = Math.sin(t * 2 + k * 3) * 26 * k, y = -46 - k * 110;
+      c.beginPath(); c.ellipse(x, y, 10 - k * 4, 7 - k * 2, 0, 0, TAU); fs(c, '#E6DCC4', 2.5);
+      path(c, [[x - 4, y - 4], [x, y - 14 + k * 4], [x + 4, y - 4]]); fs(c, '#CFC3A6', 2);
+    }
+    // bone wings: long finger bones with a thin torn membrane between them
+    for (const sd of [-1, 1]) {
+      c.save(); c.scale(sd, 1);
+      const tips = [[154, -82 - f * 26], [142, -26 - f * 16], [116, 14 - f * 8], [80, 40 - f * 3]];
+      c.beginPath(); c.moveTo(28, -26);
+      for (const [x, y] of tips) c.lineTo(x, y);
+      c.lineTo(34, 24); c.closePath(); c.fillStyle = 'rgba(60,30,90,.45)'; c.fill();
+      c.lineWidth = 9; c.strokeStyle = INK;
+      for (const [x, y] of tips) { c.beginPath(); c.moveTo(28, -26); c.quadraticCurveTo(x * 0.5, y * 0.6 - 18, x, y); c.stroke(); }
+      c.lineWidth = 5; c.strokeStyle = '#E6DCC4';
+      for (const [x, y] of tips) { c.beginPath(); c.moveTo(28, -26); c.quadraticCurveTo(x * 0.5, y * 0.6 - 18, x, y); c.stroke(); }
+      for (const [x, y] of tips) { c.beginPath(); c.arc(x, y, 5, 0, TAU); fs(c, '#E6DCC4', 2); }
+      c.restore();
+    }
+    // the heart burning inside the ribs
+    glowOn(c);
+    c.beginPath(); c.arc(0, -4, 34 * beat, 0, TAU); c.fillStyle = 'rgba(255,40,60,.25)'; c.fill();
+    c.beginPath(); c.arc(0, -4, 15 * beat, 0, TAU); c.fillStyle = 'rgba(255,90,90,.85)'; c.fill();
+    c.restore();
+    // spine and ribs
+    c.lineWidth = 10; c.strokeStyle = INK; c.beginPath(); c.moveTo(0, -50); c.lineTo(0, 40); c.stroke();
+    c.lineWidth = 6; c.strokeStyle = '#E6DCC4'; c.stroke();
+    for (let i = 0; i < 5; i++) {
+      const y = -38 + i * 15, w = 44 - Math.abs(i - 1.5) * 6;
+      for (const sd of [-1, 1]) {
+        c.beginPath(); c.moveTo(0, y); c.bezierCurveTo(sd * w, y - 8, sd * (w + 6), y + 14, sd * (w - 10), y + 22);
+        c.lineWidth = 8; c.strokeStyle = INK; c.stroke(); c.lineWidth = 4.5; c.strokeStyle = '#D9CFB8'; c.stroke();
+      }
+    }
+    // skull
+    c.beginPath(); c.moveTo(-34, 44); c.quadraticCurveTo(0, 26, 34, 44); c.lineTo(30, 72); c.lineTo(18, 100); c.lineTo(-18, 100); c.lineTo(-30, 72); c.closePath(); fs(c, '#E6DCC4', 4);
+    for (const sd of [-1, 1]) {
+      c.beginPath(); c.moveTo(sd * 22, 44); c.quadraticCurveTo(sd * 50, 30, sd * 60, -6); c.quadraticCurveTo(sd * 46, 26, sd * 30, 54); c.closePath(); fs(c, '#BFB294', 3);
+    }
+    c.beginPath(); c.moveTo(-28, 74); c.lineTo(28, 74); c.lineWidth = 2; c.strokeStyle = '#A89A7C'; c.stroke();
+    // eye sockets with burning eyes
+    for (const sd of [-1, 1]) {
+      c.beginPath(); c.ellipse(sd * 14, 58, 10, 9, sd * 0.3, 0, TAU); c.fillStyle = '#1A1012'; c.fill();
+      glowOn(c); c.beginPath(); c.arc(sd * 14, 58, 12, 0, TAU); c.fillStyle = 'rgba(255,40,40,.35)'; c.fill();
+      c.beginPath(); c.arc(sd * 14, 58, 4 + beat, 0, TAU); c.fillStyle = '#FF5A3A'; c.fill(); c.restore();
+    }
+    c.beginPath(); path(c, [[-4, 76], [0, 70], [4, 76]]); c.fillStyle = '#1A1012'; c.fill();
+    // jaw with teeth (it drops open when it attacks)
+    const jaw = open ? 10 : 0;
+    c.fillStyle = '#F4EEDC';
+    for (let i = -2; i <= 2; i++) { path(c, [[i * 7 - 3, 96], [i * 7, 106 + jaw * 0.3], [i * 7 + 3, 96]]); fs(c, '#F4EEDC', 1.5); }
+    c.beginPath(); c.moveTo(-18, 102 + jaw); c.lineTo(18, 102 + jaw); c.lineTo(12, 114 + jaw); c.lineTo(-12, 114 + jaw); c.closePath(); fs(c, '#D9CFB8', 3);
+  }
+
+  // 4. Crystal: a faceted dragon of gem stone, see-through crystal wings and a shining core.
+  function bossCrystal(c, t, open) {
+    const f = Math.sin(t * 4), pulse = 0.6 + 0.4 * Math.sin(t * 3);
+    // tail of stacked crystal shards
+    for (let i = 0; i < 6; i++) {
+      const k = i / 5, x = Math.sin(t * 1.8 + k * 2) * 24 * k, y = -48 - k * 100, s = 16 - k * 7;
+      path(c, [[x, y - s * 1.6], [x + s, y], [x, y + s * 0.8], [x - s, y]]); fs(c, i % 2 ? '#7B5CFF' : '#4AF0FF', 2.5);
+    }
+    // wings: see-through, faceted, glowing edges
+    for (const sd of [-1, 1]) {
+      c.save(); c.scale(sd, 1);
+      const pts = [[30, -30], [92, -96 - f * 28], [158, -66 - f * 24], [140, -10 - f * 14], [106, 26 - f * 6], [36, 20]];
+      glowOn(c); path(c, pts); c.fillStyle = 'rgba(90,200,255,.22)'; c.fill(); c.restore();
+      path(c, pts); c.lineWidth = 3; c.strokeStyle = INK; c.stroke();
+      glowOn(c);
+      c.beginPath(); for (const [x, y] of pts.slice(1, 5)) { c.moveTo(30, -10); c.lineTo(x, y); }
+      c.strokeStyle = 'rgba(170,240,255,.7)'; c.lineWidth = 2; c.stroke();
+      path(c, pts); c.strokeStyle = 'rgba(120,230,255,.9)'; c.lineWidth = 2; c.stroke();
+      c.restore(); c.restore();
+    }
+    // body: a gem with facets
+    const body = [[0, -64], [40, -40], [50, 0], [36, 40], [0, 56], [-36, 40], [-50, 0], [-40, -40]];
+    path(c, body); fs(c, '#3A2A7A', 4);
+    c.strokeStyle = '#6A5AC8'; c.lineWidth = 2; c.beginPath();
+    for (const [x, y] of body) { c.moveTo(0, -4); c.lineTo(x, y); } c.stroke();
+    // the core
+    glowOn(c);
+    c.beginPath(); c.arc(0, -4, 36 * pulse, 0, TAU); c.fillStyle = 'rgba(255,80,220,.25)'; c.fill();
+    path(c, [[0, -24], [14, -4], [0, 16], [-14, -4]]); c.fillStyle = 'rgba(255,170,250,.95)'; c.fill();
+    c.restore();
+    // crystal spikes on the shoulders and back
+    for (const [x, y, h, col] of [[-30, -44, 34, '#4AF0FF'], [30, -44, 34, '#FF4FD8'], [-12, -58, 26, '#B8A8FF'], [12, -58, 26, '#4AF0FF'], [-46, -12, 24, '#FF4FD8'], [46, -12, 24, '#B8A8FF']]) {
+      path(c, [[x - 7, y + 6], [x + (x > 0 ? 4 : -4), y - h], [x + 7, y + 6]]); fs(c, col, 2.5);
+      path(c, [[x + (x > 0 ? 4 : -4), y - h], [x + 2, y + 4], [x + 7, y + 6]]); c.fillStyle = 'rgba(255,255,255,.45)'; c.fill();
+    }
+    // head: angular, with crystal horns
+    path(c, [[-28, 46], [28, 46], [22, 80], [8, 102], [-8, 102], [-22, 80]]); fs(c, '#4A3A9A', 4);
+    c.strokeStyle = '#7A6AD8'; c.lineWidth = 2; c.beginPath(); c.moveTo(0, 46); c.lineTo(0, 100); c.moveTo(-22, 80); c.lineTo(22, 80); c.stroke();
+    for (const sd of [-1, 1]) { path(c, [[sd * 18, 50], [sd * 54, 6], [sd * 30, 58]]); fs(c, '#4AF0FF', 3); }
+    glowOn(c);
+    for (const sd of [-1, 1]) {
+      path(c, [[sd * 6, 66], [sd * 22, 60], [sd * 18, 70]]); c.fillStyle = '#FFFFFF'; c.fill();
+      c.beginPath(); c.arc(sd * 15, 65, 12, 0, TAU); c.fillStyle = 'rgba(120,230,255,.3)'; c.fill();
+    }
+    if (open) { c.beginPath(); c.ellipse(0, 96, 10, 7, 0, 0, TAU); c.fillStyle = 'rgba(255,120,240,.9)'; c.fill(); }
+    // twinkles
+    for (let i = 0; i < 6; i++) {
+      const k = (t * 0.6 + i / 6) % 1, a = i * 1.7, x = Math.cos(a) * (60 + i * 14), y = Math.sin(a) * 60 - 10;
+      const s = Math.sin(k * Math.PI) * 6;
+      c.beginPath(); c.moveTo(x, y - s); c.lineTo(x + s * 0.25, y); c.lineTo(x, y + s); c.lineTo(x - s * 0.25, y); c.closePath();
+      c.moveTo(x - s, y); c.lineTo(x, y + s * 0.25); c.lineTo(x + s, y); c.lineTo(x, y - s * 0.25); c.closePath();
+      c.fillStyle = '#FFFFFF'; c.fill();
+    }
+    c.restore();
+  }
+
+  // 5. Storm: a dark thunder dragon with lightning running over it and sparks jumping between its horns.
+  function bossStorm(c, t, open) {
+    const f = Math.sin(t * 5), rnd = mulberry(Math.floor(t * 14));
+    const zig = (x0, y0, x1, y1, n, j) => { c.beginPath(); c.moveTo(x0, y0); for (let i = 1; i < n; i++) { const u = i / n; c.lineTo(x0 + (x1 - x0) * u + (rnd() - 0.5) * j, y0 + (y1 - y0) * u + (rnd() - 0.5) * j); } c.lineTo(x1, y1); };
+    // tail ending in a crackling orb
+    const tx = Math.sin(t * 2.2) * 30, ty = -150;
+    c.beginPath(); c.moveTo(0, -40); c.bezierCurveTo(-26, -80, tx + 26, -112, tx, ty);
+    c.lineWidth = 22; c.strokeStyle = INK; c.stroke(); c.lineWidth = 15; c.strokeStyle = '#1A2240'; c.stroke();
+    glowOn(c);
+    c.beginPath(); c.arc(tx, ty, 22, 0, TAU); c.fillStyle = 'rgba(90,170,255,.35)'; c.fill();
+    c.beginPath(); c.arc(tx, ty, 10, 0, TAU); c.fillStyle = '#D8EEFF'; c.fill();
+    zig(tx, ty, tx + (rnd() - 0.5) * 60, ty - 30, 5, 14); c.strokeStyle = '#BFE4FF'; c.lineWidth = 2; c.stroke();
+    c.restore();
+    // wings with glowing edges and storm clouds along them
+    for (const sd of [-1, 1]) {
+      const tips = batWing(c, sd, f, { fill: '#121830', ribs: '#2A3A6A', ribW: 4 });
+      c.save(); c.scale(sd, 1);
+      glowOn(c);
+      c.beginPath(); c.moveTo(26, -30); c.quadraticCurveTo(80, -110 - f * 30, tips[0][0], tips[0][1]);
+      c.strokeStyle = 'rgba(110,190,255,.8)'; c.lineWidth = 3; c.stroke();
+      if (rnd() < 0.5) { const [x, y] = tips[1 + Math.floor(rnd() * 3)]; zig(x, y, x + (rnd() - 0.5) * 40, y + 40, 5, 12); c.strokeStyle = '#FFF6B0'; c.lineWidth = 2; c.stroke(); }
+      c.restore();
+      c.fillStyle = 'rgba(40,50,80,.9)';
+      for (const [x, y, r] of [[70, -70 - f * 18, 16], [96, -78 - f * 22, 13], [120, -74 - f * 24, 11]]) { c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill(); }
+      c.restore();
+    }
+    // body, with lightning veins
+    c.beginPath(); c.ellipse(0, -2, 48, 60, 0, 0, TAU); fs(c, '#1A2240', 4);
+    c.beginPath(); c.ellipse(0, 8, 24, 38, 0, 0, TAU); c.fillStyle = '#26305A'; c.fill();
+    glowOn(c);
+    for (let i = 0; i < 3; i++) { zig(rnd() * 60 - 30, -50, rnd() * 60 - 30, 44, 6, 22); c.strokeStyle = i ? 'rgba(140,200,255,.55)' : 'rgba(255,246,176,.9)'; c.lineWidth = i ? 2 : 2.5; c.stroke(); }
+    c.restore();
+    // a mane of energy spikes
+    for (let i = 0; i < 7; i++) {
+      const a = Math.PI + 0.25 + i * (Math.PI - 0.5) / 6, x = Math.cos(a) * 46, y = Math.sin(a) * 30 + 34;
+      path(c, [[x - 6, y + 4], [x * 1.5, y - 24 + Math.sin(t * 6 + i) * 4], [x + 6, y + 4]]); fs(c, '#3E6AC8', 2.5);
+    }
+    // head
+    path(c, [[-30, 42], [30, 42], [26, 72], [12, 100], [-12, 100], [-26, 72]]); fs(c, '#222C50', 4);
+    // horns, with sparks jumping between them
+    for (const sd of [-1, 1]) { c.beginPath(); c.moveTo(sd * 18, 46); c.lineTo(sd * 54, 0); c.lineTo(sd * 28, 54); c.closePath(); fs(c, '#9AB0D8', 3); }
+    glowOn(c);
+    zig(-54, 0, 54, 0, 9, 18); c.strokeStyle = 'rgba(160,210,255,.6)'; c.lineWidth = 5; c.stroke();
+    c.strokeStyle = '#FFFFFF'; c.lineWidth = 1.8; c.stroke();
+    // white-hot eyes
+    for (const sd of [-1, 1]) {
+      c.beginPath(); c.arc(sd * 15, 62, 14, 0, TAU); c.fillStyle = 'rgba(140,200,255,.35)'; c.fill();
+      path(c, [[sd * 5, 66], [sd * 24, 58], [sd * 20, 69]]); c.fillStyle = '#FFFFFF'; c.fill();
+    }
+    if (open) { c.beginPath(); c.ellipse(0, 94, 12, 8, 0, 0, TAU); c.fillStyle = '#D8F0FF'; c.fill(); zig(0, 98, (rnd() - 0.5) * 30, 140, 5, 12); c.strokeStyle = '#FFF6B0'; c.lineWidth = 2.5; c.stroke(); }
     c.restore();
   }
   function drawBossLive(c) {
