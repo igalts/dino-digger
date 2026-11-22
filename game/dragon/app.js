@@ -90,12 +90,14 @@
   // The health bar in the top bar (it used to be eggs).
   function buildLives() {
     const el = $('#lives');
-    if (!el.firstChild) el.innerHTML = '<div class="hp"><i></i><b></b><span></span></div>';
+    if (!el.firstChild) el.innerHTML = '<span class="hp-heart">❤</span><div class="hp"><i class="lag"></i><i class="fill"></i><u></u><span></span></div>';
     const k = clamp(G.hp / G.maxHp, 0, 1);
-    el.querySelector('i').style.width = `${k * 100}%`;
-    el.querySelector('span').textContent = Math.ceil(G.hp);
+    el.querySelector('.fill').style.width = `${k * 100}%`;
+    el.querySelector('.lag').style.width = `${k * 100}%`;
+    el.querySelector('.hp span').textContent = `${Math.ceil(G.hp)} / ${G.maxHp}`;
     el.classList.toggle('low', k < 0.35);
-    el.classList.remove('hurt'); void el.offsetWidth; el.classList.add('hurt');
+    if (G.lastHp != null && G.hp < G.lastHp) { el.classList.remove('hurt'); void el.offsetWidth; el.classList.add('hurt'); }
+    G.lastHp = G.hp;
   }
   const chalRow = (cfg, done, freshBits = 0, chals = game.chals) => `<span class="chal-row">${chals.map((ch) =>
     `<span class="chal${done & ch.bit ? ' done' : ''}${freshBits & ch.bit ? ' fresh' : ''}">${ch.icon} <bdi>${ch.label(cfg)}</bdi></span>`).join('')}</span>`;

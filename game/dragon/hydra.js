@@ -91,9 +91,12 @@ window.DinoHydra = (core) => {
     const rnd = mulberry((w + 1) * 1009 + l * 131 + 17);
     const g = w * 5 + l;
     const len = cfg.len;
-    const gap = clamp(2.75 - g * 0.06, 1.55, 2.75);
+    const gap = clamp(3.0 - g * 0.06, 1.75, 3.0);
     const kinds = ['line', 'vee', 'snake', 'swoop'];
-    if (g >= 1) kinds.push('shooters', 'pincer');
+    if (g >= 1) kinds.push('shooters', 'pincer', 'splitters');
+    if (g >= 2) kinds.push('brute');
+    if (g >= 4) kinds.push('caster');
+    if (g >= 8) kinds.push('brute');
     if (g >= 2) kinds.push('rain', 'divers');
     if (g >= 3) kinds.push('shooters');
     if (g >= 4) kinds.push('wall');
@@ -107,7 +110,7 @@ window.DinoHydra = (core) => {
       else { do type = kinds[Math.floor(rnd() * kinds.length)]; while (type === last); }
       last = type;
       ev.push({ t, type, side: rnd() < 0.5 ? -1 : 1, x: 70 + rnd() * 220, seed: Math.floor(rnd() * 1e9) });
-      t += gap * (type === 'tank' ? 2.1 : type === 'shooters' || type === 'bomber' ? 1.45 : 1) * (0.85 + rnd() * 0.3);
+      t += gap * (type === 'tank' ? 2.1 : ['shooters', 'bomber', 'brute', 'caster'].includes(type) ? 1.5 : 1) * (0.85 + rnd() * 0.3);
     }
     if (cfg.bossFight) ev.push({ t: len, type: 'boss' });
     let foes = 0, coins = 0;
@@ -177,6 +180,20 @@ window.DinoHydra = (core) => {
         for (let i = 0; i < 7; i++) A({ mv: 'down', x0: 28 + i * 50.6, y0: -30, v: 55 * sp, amp: 8, f: 1.5, ph: i * 0.6, delay: 0 });
         break;
       }
+      case 'brute': {
+        // armoured giants: slow, and they take a lot of hits
+        const n = w >= 2 ? 2 : 1;
+        for (let i = 0; i < n; i++) A({ mv: 'down', brute: true, x0: n === 1 ? clamp(ev.x, 90, 270) : 100 + i * 160, y0: -50, v: 34 * sp, amp: 18, f: 0.8, ph: i * 2, delay: i * 0.8, coins: 4 });
+        break;
+      }
+      case 'splitters':
+        // when one is beaten it splits into two small dragons
+        for (let i = 0; i < 3; i++) A({ mv: 'down', splitter: true, x0: 180 + (i - 1) * 95, y0: -40, v: 58 * sp, amp: 10, f: 1.4, ph: i, delay: Math.abs(i - 1) * 0.4, coins: 2 });
+        break;
+      case 'caster':
+        // a magic dragon that stops and shoots rings of shots
+        B({ mv: 'hover', caster: true, x0: clamp(ev.x, 90, 270), y0: -50, stop: 120, tin: 1.6, hold: 7, v: 80, amp: 50, every: 3.0 - w * 0.1, coins: 4 });
+        break;
       case 'bomber':
         B({ mv: 'hover', bomber: true, x0: 70 + rnd() * 220, y0: -50, stop: 90 + rnd() * 50, tin: 1.8, hold: 6, v: 80, amp: 60, every: 1.9 - w * 0.05, coins: 4 });
         break;
@@ -293,7 +310,7 @@ window.DinoHydra = (core) => {
       state: 'ready', readyT: boss ? 3.2 : 2.4, t: 0, playT: 0, st: 0, shownSec: -1, ev: 0,
       P: { x: VW / 2, y: VH + 80, tx: VW / 2, ty: VH - 120, inv: 0, cool: {}, open: {}, heads, dead: 0 },
       lv: Object.fromEntries(heads.map((id) => [id, heroLevel(id)])), boost: 0,
-      enemies: [], rocks: [], rockT: 6, shots: [], bullets: [], fx: [], pickups: [], particles: [], gusts: [], clouds: [], beam: null, meteors: [],
+      enemies: [], rocks: [], rockWarn: [], rockT: 6, shots: [], bullets: [], fx: [], pickups: [], particles: [], gusts: [], clouds: [], beam: null, meteors: [],
       motes: [], scroll: 0, special, charge: 0, roarFx: 0, shieldT: 0, freezeT: 0, meteorT: 0,
       shake: 0, flash: 0, boss: null, winT: 0, ending: false, killsSincePower: 0, hudKey: '',
     };
@@ -338,8 +355,8 @@ window.DinoHydra = (core) => {
   }
   function addEnemy(s, summon = false) {
     const F = FOES[s.kind];
-    const size = s.tank ? 1.85 : s.bomber ? 1.4 : 1;
-    const hp = (s.tank ? 36 : s.bomber ? 15 : F.hp) * hpK() * G.help;
+    const size = s.tank ? 1.85 : s.brute ? 1.65 : s.bomber || s.caster ? 1.4 : s.splitter ? 1.3 : 1;
+    const hp = (s.tank ? 36 : s.brute ? 26 : s.caster ? 18 : s.bomber ? 15 : s.splitter ? 8 : F.hp) * hpK() * G.help;
     const e = { ...s, size, r: F.r * size, hp, maxHp: hp, t: -s.delay, x: -200, y: -200, slow: 0, poison: 0,
       flash: 0, push: 0, shootT: (s.every || 2) * rand(0.5, 1), seen: false, summon, anim: Math.random() * 6, rot: 0 };
     if (!summon) G.spawned++;
@@ -391,7 +408,7 @@ window.DinoHydra = (core) => {
         if (Math.random() < dt * 8) G.particles.push({ x: e.x + rand(-e.r, e.r), y: e.y, vx: 0, vy: -30, life: 0.6, max: 0.6, color: '#B6FF6A', size: rand(2, 4), bubble: true });
       }
       // Spitting dragons aim at the monster while they're on the screen.
-      if (e.kind === 'spit' && e.every && e.t > (e.tin || 0) && !e.leaving && e.y > 20 && e.y < VH * 0.6 && ts) {
+      if (e.every && e.t > (e.tin || 0) && !e.leaving && e.y > 20 && e.y < VH * 0.6 && ts) {
         e.shootT -= dt * k;
         if (e.shootT <= 0) { e.shootT = e.every / G.help; enemyShoot(e); }
       }
@@ -404,6 +421,7 @@ window.DinoHydra = (core) => {
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   function enemyShoot(e) {
     const P = G.P, a = Math.atan2(P.y - e.y, P.x - e.x), s = (120 + G.w * 10) * G.help;
+    if (e.caster) { const off = Math.random() * TAU; for (let i = 0; i < 10; i++) bullet(e.x, e.y + 10, off + i * TAU / 10, s * 0.7); e.spat = 0.5; sfx.tone(700, 0.25, 'sine', 0.04, 0, 300); return; }
     if (e.tank || e.bomber) { const n = e.tank && G.w >= 3 ? 5 : 3; for (let i = 0; i < n; i++) bullet(e.x, e.y + e.r * 0.5, a + (i - (n - 1) / 2) * 0.24, s); }
     else bullet(e.x, e.y + e.r * 0.4, a, s);
     e.spat = 0.3;
@@ -421,14 +439,21 @@ window.DinoHydra = (core) => {
   function kill(e) {
     e.dead = true;
     if (!e.summon) G.kills++;
-    G.score += e.tank ? 200 : e.kind === 'spit' ? 40 : 15;
-    G.charge = Math.min(1, G.charge + (e.tank ? 0.25 : 0.05));
+    const big = e.tank || e.brute || e.caster || e.bomber;
+    G.score += e.tank ? 200 : big ? 120 : e.kind === 'spit' ? 40 : 15;
+    G.charge = Math.min(1, G.charge + (e.tank ? 0.25 : big ? 0.15 : 0.05));
+    if (e.splitter) {
+      for (const sd of [-1, 1]) {
+        addEnemy({ kind: 'small', coins: 1, delay: 0, mv: 'swoop', p0: [e.x, e.y], p1: [e.x + sd * 90, e.y + 110], p2: [e.x + sd * 170, VH + 70], dur: 2.6, face: true });
+      }
+      G.fx.push({ type: 'ring', x: e.x, y: e.y, r: 10, t: 0.3, max: 0.3, grow: 40 });
+    }
     boom(e.x, e.y, e.r);
     if (!e.summon) for (let i = 0; i < e.coins; i++) drop('coin', e.x + rand(-e.r, e.r) * 0.8, e.y + rand(-e.r, e.r) * 0.8);
     G.killsSincePower++;
-    if (e.tank || G.killsSincePower >= 26) { G.killsSincePower = 0; drop('power', e.x, e.y); }
-    if (e.tank || (G.hp < G.maxHp * 0.6 && Math.random() < 0.06)) drop('heart', e.x + 18, e.y);
-    sfx.tone(e.tank ? 160 : 520, e.tank ? 0.4 : 0.1, e.tank ? 'sawtooth' : 'square', 0.04, 0, e.tank ? 60 : 1300);
+    if (e.tank || (big && Math.random() < 0.35) || G.killsSincePower >= 26) { G.killsSincePower = 0; drop('power', e.x, e.y); }
+    if (e.tank || (big && G.hp < G.maxHp * 0.7) || (G.hp < G.maxHp * 0.6 && Math.random() < 0.06)) drop('heart', e.x + 18, e.y);
+    sfx.tone(big ? 160 : 520, big ? 0.4 : 0.1, big ? 'sawtooth' : 'square', 0.04, 0, big ? 60 : 1300);
   }
   function boom(x, y, r) {
     const n = Math.round(6 + r * 0.6);
@@ -745,61 +770,67 @@ window.DinoHydra = (core) => {
       G.rockT -= dt * ts;
       if (G.rockT <= 0) {
         G.rockT = (G.bossFight ? 11 : 7.5) - G.w * 0.5 + rand(0, 3);
-        const r = rand(13, 19);
-        G.rocks.push({ x: rand(30, VW - 30), y: -30, vx: rand(-12, 12), vy: rand(60, 85) + G.w * 6, r, rot: rand(0, TAU), spin: rand(-1, 1), t: Math.random() * 6 });
+        G.rockWarn.push({ x: rand(36, VW - 44), t: 1.3, max: 1.3 });
+        sfx.tone(880, 0.08, 'square', 0.025); sfx.tone(880, 0.08, 'square', 0.025, 0.16);
       }
     }
+    for (const wn of G.rockWarn) {
+      wn.t -= dt * ts;
+      if (wn.t <= 0) { wn.dead = true; G.rocks.push({ x: wn.x, y: -30, vx: 0, vy: rand(70, 90) + G.w * 6, r: rand(17, 21), rot: 0, spin: rand(0.8, 1.6) * (Math.random() < 0.5 ? -1 : 1), t: 0 }); }
+    }
+    G.rockWarn = G.rockWarn.filter((wn) => !wn.dead);
     const P = G.P;
     for (const k of G.rocks) {
       k.t += dt; k.x += k.vx * dt * ts; k.y += k.vy * dt * ts; k.rot += k.spin * dt * ts;
       if (k.y > VH + 40) k.dead = true;
       if (G.state === 'play' && dist(k, P) < k.r * 0.85 + 8) { hit(20); k.vy *= 0.6; }
       for (const s of G.shots) {
-        if (!s.dead && (s.x - k.x) ** 2 + (s.y - k.y) ** 2 < (k.r + (s.r || 5)) ** 2) { if (s.glob) popGlob(s); else { s.dead = true; sparkHit(s); } }
+        if (!s.dead && (s.x - k.x) ** 2 + (s.y - k.y) ** 2 < (k.r + (s.r || 5)) ** 2) {
+          if (s.glob) popGlob(s);
+          else {
+            s.dead = true;
+            for (let i = 0; i < 3; i++) G.particles.push({ x: s.x, y: s.y, vx: rand(-120, 120), vy: rand(20, 120), life: 0.25, max: 0.25, color: '#FFFFFF', size: rand(1.2, 2.2), glow: true });
+            k.ting = 0.12;
+          }
+        }
       }
+      if (k.ting > 0) k.ting -= dt;
     }
     G.rocks = G.rocks.filter((k) => !k.dead);
   }
+  // A spiked mine: dark metal, a pulsing red core. It can't be destroyed, so fly around it.
+  const MINE_CORE = ['#FF4020', '#5AFF8A', '#FF6A3A', '#FF4FD8', '#5AC8FF'];
   function drawRock(c, k) {
+    const r = k.r, pulse = 0.5 + 0.5 * Math.sin(k.t * 7), core = MINE_CORE[G.w];
     c.save(); c.translate(k.x, k.y);
-    // a faint red danger ring under every hazard
-    c.beginPath(); c.arc(0, 0, k.r + 6 + Math.sin(k.t * 5) * 1.5, 0, TAU); c.strokeStyle = 'rgba(255,70,90,.45)'; c.lineWidth = 1.5; c.setLineDash([4, 4]); c.stroke(); c.setLineDash([]);
+    c.save(); c.globalCompositeOperation = 'lighter';
+    c.beginPath(); c.arc(0, 0, r * (1.7 + pulse * 0.3), 0, TAU); c.fillStyle = 'rgba(255,40,60,.16)'; c.fill(); c.restore();
     c.rotate(k.rot);
     c.lineJoin = 'round'; c.strokeStyle = INK; c.lineWidth = 2;
-    const r = k.r, w = G.w;
-    if (w === 0) { // molten rock
-      c.beginPath(); for (let i = 0; i < 7; i++) { const a = i / 7 * TAU, rr = r * (0.85 + 0.15 * Math.sin(i * 2.3)); i ? c.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : c.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); } c.closePath();
-      c.fillStyle = '#2E2228'; c.fill(); c.stroke();
-      c.beginPath(); c.moveTo(-r * 0.5, -r * 0.2); c.lineTo(0, r * 0.1); c.lineTo(r * 0.3, -r * 0.4); c.moveTo(0, r * 0.1); c.lineTo(r * 0.1, r * 0.6);
-      c.strokeStyle = '#FF7A2A'; c.lineWidth = 2.2; c.stroke();
-    } else if (w === 1) { // a ghost
-      c.rotate(-k.rot);
-      c.globalAlpha = 0.85;
-      c.beginPath(); c.arc(0, -r * 0.2, r * 0.8, Math.PI, 0); c.lineTo(r * 0.8, r * 0.7);
-      for (let i = 0; i < 4; i++) c.quadraticCurveTo(r * (0.6 - i * 0.4), r * (0.4 + (i % 2) * 0.5), r * (0.4 - i * 0.4), r * 0.7);
-      c.closePath(); c.fillStyle = '#BFFFE0'; c.fill(); c.stroke();
-      c.fillStyle = INK; for (const sd of [-1, 1]) { c.beginPath(); c.ellipse(sd * r * 0.3, -r * 0.25, r * 0.14, r * 0.2, 0, 0, TAU); c.fill(); }
-      c.beginPath(); c.ellipse(0, r * 0.15, r * 0.15, r * 0.1, 0, 0, TAU); c.fill();
-      c.globalAlpha = 1;
-    } else if (w === 2) { // a floating skull
-      c.beginPath(); c.moveTo(-r * 0.8, -r * 0.2); c.quadraticCurveTo(-r * 0.8, -r, 0, -r); c.quadraticCurveTo(r * 0.8, -r, r * 0.8, -r * 0.2); c.lineTo(r * 0.5, r * 0.5); c.lineTo(-r * 0.5, r * 0.5); c.closePath();
-      c.fillStyle = '#E6DCC4'; c.fill(); c.stroke();
-      c.fillStyle = '#1A1210'; for (const sd of [-1, 1]) { c.beginPath(); c.arc(sd * r * 0.35, -r * 0.3, r * 0.22, 0, TAU); c.fill(); }
-      c.fillStyle = '#FF4A2A'; for (const sd of [-1, 1]) { c.beginPath(); c.arc(sd * r * 0.35, -r * 0.3, r * 0.07, 0, TAU); c.fill(); }
-      c.beginPath(); c.moveTo(-r * 0.3, r * 0.5); c.lineTo(-r * 0.3, r * 0.75); c.moveTo(0, r * 0.5); c.lineTo(0, r * 0.75); c.moveTo(r * 0.3, r * 0.5); c.lineTo(r * 0.3, r * 0.75); c.stroke();
-    } else if (w === 3) { // a crystal cluster
-      for (const [a, h, col] of [[-0.5, 1.1, '#4AF0FF'], [0.4, 1.2, '#FF4FD8'], [0, 1.4, '#B8A8FF']]) {
-        c.save(); c.rotate(a); c.beginPath(); c.moveTo(-r * 0.25, r * 0.4); c.lineTo(0, -r * h); c.lineTo(r * 0.25, r * 0.4); c.closePath();
-        c.fillStyle = col; c.fill(); c.stroke(); c.restore();
-      }
-    } else { // a storm orb
-      c.save(); c.globalCompositeOperation = 'lighter';
-      c.beginPath(); c.arc(0, 0, r * 1.2, 0, TAU); c.fillStyle = 'rgba(120,180,255,.25)'; c.fill(); c.restore();
-      c.beginPath(); c.arc(0, 0, r * 0.75, 0, TAU); c.fillStyle = '#2A3A6A'; c.fill(); c.stroke();
-      c.beginPath(); c.moveTo(-r * 0.5, -r * 0.4); c.lineTo(r * 0.1, -r * 0.05); c.lineTo(-r * 0.15, r * 0.1); c.lineTo(r * 0.5, r * 0.45);
-      c.strokeStyle = '#FFF6B0'; c.lineWidth = 2.2; c.stroke();
+    for (let i = 0; i < 8; i++) {
+      const a = i / 8 * TAU;
+      c.save(); c.rotate(a);
+      c.beginPath(); c.moveTo(-r * 0.28, -r * 0.8); c.lineTo(0, -r * 1.38); c.lineTo(r * 0.28, -r * 0.8); c.closePath();
+      c.fillStyle = '#B8BFD0'; c.fill(); c.stroke(); c.restore();
     }
+    c.beginPath(); c.arc(0, 0, r * 0.9, 0, TAU); c.fillStyle = k.ting > 0 ? '#5A6078' : '#2A2E3C'; c.fill(); c.stroke();
+    c.beginPath(); c.arc(-r * 0.3, -r * 0.35, r * 0.22, 0, TAU); c.fillStyle = 'rgba(255,255,255,.25)'; c.fill();
+    c.save(); c.globalCompositeOperation = 'lighter';
+    c.beginPath(); c.arc(0, 0, r * (0.42 + pulse * 0.12), 0, TAU); c.fillStyle = core; c.fill();
+    c.beginPath(); c.arc(0, 0, r * 0.18, 0, TAU); c.fillStyle = '#FFFFFF'; c.fill(); c.restore();
     c.restore();
+  }
+  // Before a mine comes in: a blinking warning sign at the top where it will appear.
+  function drawRockWarn(c) {
+    for (const wn of G.rockWarn) {
+      if (Math.floor(wn.t * 8) % 2) continue;
+      c.save(); c.translate(wn.x, 16);
+      c.beginPath(); c.moveTo(0, -11); c.lineTo(12, 9); c.lineTo(-12, 9); c.closePath();
+      c.fillStyle = '#FF3D5A'; c.fill(); c.lineWidth = 2; c.strokeStyle = INK; c.lineJoin = 'round'; c.stroke();
+      c.font = `15px ${FONT}`; c.textAlign = 'center'; c.fillStyle = '#FFFFFF'; c.fillText('!', 0, 7);
+      c.beginPath(); c.moveTo(-4, 15); c.lineTo(0, 21); c.lineTo(4, 15); c.strokeStyle = '#FF3D5A'; c.lineWidth = 2.2; c.stroke();
+      c.restore();
+    }
   }
 
   // ---------- Pickups ----------
@@ -1024,23 +1055,10 @@ window.DinoHydra = (core) => {
 
   // ---------- HUD ----------
   function hud(force) {
-    const B = G.boss;
-    const pct = Math.min(100, Math.round(G.st / Math.max(1, G.cfg.len) * 100));
-    const key = G.bossFight ? `b${B ? Math.round(B.hp / B.max * 100) : 100}` : `n${pct}`;
+    const key = G.bossFight ? 'b' : `n${G.l}`;
     if (!force && key === G.hudKey) return;
     G.hudKey = key;
-    $('.meter').classList.toggle('boss', G.bossFight);
-    $('.meter').style.visibility = G.bossFight ? '' : 'hidden';
-    if (G.bossFight) {
-      $('#levelName').textContent = BOSSES[G.w].name;
-      const left = B ? B.hp / B.max : 1;
-      $('#meterFill').style.width = `${left * 100}%`;
-      $('#meterNum').innerHTML = `<bdi>${Math.ceil(left * 100)}%</bdi>`;
-      return;
-    }
-    $('#levelName').textContent = `שלב ${G.l + 1}`;
-    $('#meterFill').style.width = `${pct}%`;
-    $('#meterNum').innerHTML = `<bdi>${pct}%</bdi>`;
+    $('#levelName').textContent = G.bossFight ? 'בוס' : `שלב ${G.l + 1}`;
   }
 
   // ---------- Render ----------
@@ -1068,6 +1086,8 @@ window.DinoHydra = (core) => {
     drawParticles(c);
     if (G.freezeT > 0) { c.fillStyle = `rgba(120,200,255,${0.12 + 0.04 * Math.sin(G.t * 6)})`; c.fillRect(0, 0, VW, VH); }
     drawTrack(c);
+    drawRockWarn(c);
+    drawBossBar(c);
     drawUI(c);
     if (G.flash > 0) { c.fillStyle = `rgba(255,255,255,${G.flash * 0.8})`; c.fillRect(-10, -10, VW + 20, VH + 20); }
   }
@@ -1420,6 +1440,23 @@ window.DinoHydra = (core) => {
     }
   }
   // How far through the level: the monster climbs from the start to the finish flag (or the boss).
+  // The boss's health: a wide bar under its name at the top of the board.
+  function drawBossBar(c) {
+    const B = G.boss;
+    if (!B || B.enter > 0.6 || G.bossPopped) return;
+    const x0 = 40, w = VW - 140, y = 30, k = clamp(B.hp / B.max, 0, 1);
+    B.lag = B.lag == null ? k : Math.max(k, B.lag - 0.4 * (1 / 60));
+    c.save();
+    c.font = `15px ${FONT}`; c.textAlign = 'center'; c.lineWidth = 3.5; c.strokeStyle = INK;
+    c.strokeText(BOSSES[G.w].name, x0 + w / 2, y - 7); c.fillStyle = '#FFD0C0'; c.fillText(BOSSES[G.w].name, x0 + w / 2, y - 7);
+    c.fillStyle = 'rgba(5,4,12,.85)'; c.fillRect(x0 - 2, y - 2, w + 4, 14);
+    c.fillStyle = '#FFFFFF'; c.fillRect(x0 + w * (1 - B.lag), y, w * B.lag, 10);
+    const gr = c.createLinearGradient(0, y, 0, y + 10); gr.addColorStop(0, '#FF7A8A'); gr.addColorStop(1, '#C0122E');
+    c.fillStyle = gr; c.fillRect(x0 + w * (1 - k), y, w * k, 10);
+    c.fillStyle = 'rgba(255,255,255,.2)'; c.fillRect(x0, y, w, 3);
+    c.strokeStyle = '#FF6B4A'; c.lineWidth = 1.2; c.strokeRect(x0 - 2, y - 2, w + 4, 14);
+    c.restore();
+  }
   function drawTrack(c) {
     const x = VW - 14, top = 54, bot = VH - 96;
     const k = G.bossFight ? (G.boss ? 1 : clamp(G.st / G.cfg.len, 0, 1)) : clamp(G.st / G.cfg.len, 0, 1);
@@ -1468,11 +1505,12 @@ window.DinoHydra = (core) => {
       c.font = `12px ${FONT}`; c.textAlign = 'left'; c.fillStyle = '#FFE2A8'; c.fillText('+1 נשק', 78, VH - 40);
     }
     // coins
-    drawCoin(c, VW - 78, 20, 7.5, 0);
+    const cy = G.boss && !G.bossPopped ? 58 : 20;
+    drawCoin(c, VW - 78, cy, 7.5, 0);
     c.font = `17px ${FONT}`; c.textAlign = 'left';
     c.lineWidth = 3; c.strokeStyle = INK;
     const txt = `${G.coins}`;
-    c.strokeText(txt, VW - 66, 26); c.fillStyle = G.coins >= G.cfg.coinGoal ? '#FFC93C' : '#FFFFFF'; c.fillText(txt, VW - 66, 26);
+    c.strokeText(txt, VW - 66, cy + 6); c.fillStyle = G.coins >= G.cfg.coinGoal ? '#FFC93C' : '#FFFFFF'; c.fillText(txt, VW - 66, cy + 6);
   }
 
   // ---------- Enemies, drawn ----------
@@ -1485,7 +1523,10 @@ window.DinoHydra = (core) => {
     if (e.rot) c.rotate(e.rot);
     const P = DRAGONS[G.w];
     if (e.kind === 'spit') { c.scale(1.22, 1.22); drawDragon(c, e.anim, P, G.w, { angry: true, open: e.spat > 0 ? 1 : 0 }); }
-    else drawDragon(c, e.anim, P, G.w, {});
+    else drawDragon(c, e.anim, P, G.w, { angry: e.brute || e.splitter });
+    if (e.brute) drawArmor(c);
+    if (e.splitter) drawSplit(c, e.anim);
+    if (e.caster) drawCaster(c, e.anim, e.spat > 0);
     c.restore();
     if (e.spat > 0) e.spat -= 1 / 60;
     if (e.warn) {
@@ -1496,11 +1537,44 @@ window.DinoHydra = (core) => {
       c.beginPath(); c.arc(e.x, e.y, e.r * 0.95, 0, TAU);
       c.fillStyle = e.flash > 0 ? 'rgba(255,255,255,.55)' : 'rgba(150,220,255,.35)'; c.fill();
     }
-    if (e.tank && e.hp < e.maxHp) {
-      const w = 44;
-      c.fillStyle = 'rgba(12,8,22,.8)'; c.fillRect(e.x - w / 2 - 1, e.y - e.r - 11, w + 2, 6);
-      c.fillStyle = '#FF4D6D'; c.fillRect(e.x - w / 2, e.y - e.r - 10, w * e.hp / e.maxHp, 4);
+    // big enemies show how much is left
+    if (e.maxHp >= 8 * hpK() * G.help && e.hp < e.maxHp) {
+      const w = Math.min(56, e.r * 2);
+      c.fillStyle = 'rgba(12,8,22,.85)'; c.fillRect(e.x - w / 2 - 1.5, e.y - e.r - 13, w + 3, 7);
+      c.fillStyle = '#FF4D6D'; c.fillRect(e.x - w / 2, e.y - e.r - 11.5, w * Math.max(0, e.hp) / e.maxHp, 4);
     }
+  }
+  // A brute: a steel helmet and shoulder plates with rivets.
+  function drawArmor(c) {
+    c.strokeStyle = INK; c.lineWidth = 1.6;
+    for (const sd of [-1, 1]) {
+      c.beginPath(); c.ellipse(sd * 6.5, -3, 4.2, 5.5, sd * 0.3, 0, TAU); c.fillStyle = '#8A93A8'; c.fill(); c.stroke();
+      c.beginPath(); c.arc(sd * 6.5, -3, 0.9, 0, TAU); c.fillStyle = '#E0E6F0'; c.fill();
+    }
+    c.beginPath(); c.arc(0, 9, 8, Math.PI * 1.02, Math.PI * 1.98); c.closePath(); c.fillStyle = '#9AA3B8'; c.fill(); c.stroke();
+    c.beginPath(); c.moveTo(-2, 2.5); c.lineTo(0, -3.5); c.lineTo(2, 2.5); c.closePath(); c.fillStyle = '#E0E6F0'; c.fill(); c.stroke();
+    c.beginPath(); c.moveTo(-7.5, 7.5); c.lineTo(7.5, 7.5); c.strokeStyle = '#5A6078'; c.lineWidth = 1.2; c.stroke();
+  }
+  // A splitter: a glowing crack down the middle, where it will split.
+  function drawSplit(c, t) {
+    c.save(); c.globalCompositeOperation = 'lighter';
+    c.beginPath(); c.moveTo(0, -12); c.lineTo(1.6, -6); c.lineTo(-1.6, -1); c.lineTo(1.6, 4); c.lineTo(0, 14);
+    c.strokeStyle = `rgba(255,120,240,${0.6 + 0.3 * Math.sin(t * 8)})`; c.lineWidth = 2.2; c.stroke();
+    c.restore();
+  }
+  // A caster: a glowing orb floating in front of it (it flares when it shoots) and a crown of horns.
+  function drawCaster(c, t, firing) {
+    c.strokeStyle = INK; c.lineWidth = 1.3;
+    for (const a of [-0.6, -0.2, 0.2, 0.6]) {
+      c.save(); c.translate(0, 4); c.rotate(a + Math.PI);
+      c.beginPath(); c.moveTo(-1.4, 0); c.lineTo(0, 6); c.lineTo(1.4, 0); c.closePath(); c.fillStyle = '#E8D0FF'; c.fill(); c.stroke(); c.restore();
+    }
+    const r = (firing ? 6.5 : 4.5) + Math.sin(t * 6) * 0.6;
+    c.save(); c.globalCompositeOperation = 'lighter';
+    c.beginPath(); c.arc(0, 24, r * 2.2, 0, TAU); c.fillStyle = 'rgba(255,80,220,.25)'; c.fill();
+    c.beginPath(); c.arc(0, 24, r, 0, TAU); c.fillStyle = 'rgba(255,150,240,.9)'; c.fill();
+    c.beginPath(); c.arc(0, 24, r * 0.45, 0, TAU); c.fillStyle = '#FFFFFF'; c.fill();
+    c.restore();
   }
   function fillStroke(c, fill) { c.fillStyle = fill; c.fill(); c.stroke(); }
   // A dragon flying down at you: tail up top, wings out, head at the bottom. About 50 wide.

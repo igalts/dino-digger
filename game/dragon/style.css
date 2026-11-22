@@ -433,3 +433,28 @@ img { -webkit-user-drag: none; }
 }
 .lvl-row.open.boss .lvl-play svg { background: linear-gradient(#FF9A7A, #D83A2A); fill: #fff; }
 .lvl-play em { font-style: normal; font-family: var(--display); font-size: 13px; color: var(--gold2); margin-top: 2px; }
+/* ---------- The top bar: a big health bar ---------- */
+.hud { gap: 10px; padding: 8px 12px 9px; }
+.lives { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; }
+.hp-heart {
+  flex: none; font-size: 24px; line-height: 1; color: #FF4D6D;
+  filter: drop-shadow(0 0 6px rgba(255,77,109,.6)) drop-shadow(0 2px 0 #000);
+}
+.lives .hp {
+  flex: 1; position: relative; height: 26px; width: auto; border-radius: 9px; overflow: hidden;
+  background: linear-gradient(#05070F, #12162A); border: 2px solid rgba(242,184,75,.65);
+  box-shadow: 0 0 0 1px #000, inset 0 2px 6px rgba(0,0,0,.7);
+}
+.lives .hp i { position: absolute; top: 0; bottom: 0; right: 0; left: auto; width: 100%; }
+.lives .hp i.fill { background: linear-gradient(#9CFFB5, #2ED06A 55%, #138A3E); transition: width .18s ease-out; }
+.lives .hp i.lag { background: #FFFFFF; opacity: .85; transition: width .55s .35s ease-in; }
+.lives .hp u { position: absolute; inset: 0; background:
+  linear-gradient(rgba(255,255,255,.28), rgba(255,255,255,0) 45%),
+  repeating-linear-gradient(90deg, transparent 0 calc(10% - 1.5px), rgba(0,0,0,.35) calc(10% - 1.5px) 10%); }
+.lives .hp span { position: absolute; inset: 0; display: grid; place-items: center; direction: ltr;
+  font-family: var(--display); font-size: 14px; color: #fff; text-shadow: 0 1px 2px #000, 0 0 4px #000; }
+.lives.low .hp i.fill { background: linear-gradient(#FF9AA8, #E8243C 55%, #8A0A1E); animation: lowHp .5s ease-in-out infinite alternate; }
+.lives.low .hp-heart { animation: beat .5s ease-in-out infinite; }
+@keyframes beat { 50% { transform: scale(1.25); } }
+.lives.hurt .hp { animation: hpShake .3s; }
+.level-box { flex: none; }
