@@ -32,13 +32,13 @@ for L in LAYOUTS:
 
 
 # ---------------------------------------------------------------- helpers
-def flight_path(L, dash):
-    """The way through the sky: a puffy white cloud trail with a dotted line on it."""
+def flight_path(L):
+    """The flight route: a dark track with a glowing gold dashed line on it."""
     d = mm.catmull(mm.road_pts(L))
-    return (f'<path d="{d}" fill="none" stroke="#FFFFFF" stroke-width="54" opacity=".25"/>'
-            f'<path d="{d}" fill="none" stroke="{INK}" stroke-width="34"/>'
-            f'<path d="{d}" fill="none" stroke="#FFFFFF" stroke-width="27"/>'
-            f'<path d="{d}" fill="none" stroke="{dash}" stroke-width="5" stroke-dasharray="2 14"/>') + mm.pads(L)
+    return (f'<path d="{d}" fill="none" stroke="#FFB020" stroke-width="40" opacity=".12"/>'
+            f'<path d="{d}" fill="none" stroke="#05070F" stroke-width="22" opacity=".85"/>'
+            f'<path d="{d}" fill="none" stroke="#F2B84B" stroke-width="3.5" stroke-dasharray="10 9"/>'
+            + "".join(f'<ellipse cx="{x}" cy="{y + 30}" rx="38" ry="10" fill="#000" opacity=".35" stroke="none"/>' for x, y in L["nodes"] + [L["prize"]]))
 
 
 def dragon(x, y, s=1.0, body="#E8553D", wing="#FF9F1C", flip=False):
@@ -54,8 +54,14 @@ def dragon(x, y, s=1.0, body="#E8553D", wing="#FF9F1C", flip=False):
     return f'<g transform="translate({x} {y}) scale({sx} {s})">{g}</g>'
 
 
-def map_svg(body, sky):
-    return mm.wrap(body, sky)
+def map_svg(body, L, sky):
+    """The scenery, darkened into dusk (lighter toward the bottom), with the route drawn on top."""
+    shade = ('<defs><linearGradient id="dusk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#05040C" stop-opacity=".72"/>'
+             '<stop offset="1" stop-color="#05040C" stop-opacity=".45"/></linearGradient>'
+             '<radialGradient id="vig" cx=".5" cy=".5" r=".75"><stop offset=".55" stop-color="#000" stop-opacity="0"/>'
+             '<stop offset="1" stop-color="#000" stop-opacity=".6"/></radialGradient></defs>'
+             f'<rect width="{W}" height="{H}" fill="url(#dusk)" stroke="none"/><rect width="{W}" height="{H}" fill="url(#vig)" stroke="none"/>')
+    return mm.wrap(body + shade + flight_path(L), sky)
 
 
 # ---------------------------------------------------------------- the five maps
@@ -68,9 +74,8 @@ def map_fire():
             '<path d="M200 470 Q170 560 220 640 Q260 720 210 800" fill="none" stroke-width="24"/>'
             '<path d="M200 470 Q170 560 220 640 Q260 720 210 800" fill="none" stroke="#FF6B2C" stroke-width="15"/>'
             '<path d="M196 490 Q174 560 214 630" fill="none" stroke="#FFD23F" stroke-width="4"/>' +
-            flight_path(L, "#FF9F1C") +
             ms.rock(320, 640, 60, 34, "#9C7A8E") + ms.rock(40, 730, 50, 28, "#9C7A8E") + ms.rock(300, 760, 44, 24, "#9C7A8E"))
-    return map_svg(body, ("#FF8A5C", "#FFD9A0"))
+    return map_svg(body, L, ("#3A0E1A", "#C2482A"))
 
 
 def map_forest():
@@ -82,10 +87,9 @@ def map_forest():
             dragon(290, 190, 0.6, "#3FA244", "#7ED957", flip=True) + dragon(70, 380, 0.45, "#3FA244", "#C5E86C") +
             mm.layer(360, "#8ED16E", 21, 30) + mm.layer(470, "#6FC25A", 22, 26) + mm.layer(600, "#4CB85A", 23, 26) +
             mm.layer(700, "#3FA244", 24, 18) + trees +
-            flight_path(L, "#5CCB5F") +
             ms.mushroom(330, 620, 0.7) + ms.mushroom(30, 640, 0.6, "#FFD23F", "#FFFFFF") +
             ms.flowers([(60, 700), (300, 700), (200, 650), (140, 760)]))
-    return map_svg(body, ("#6FCDF8", "#E6F7D0"))
+    return map_svg(body, L, ("#0E2A3A", "#5A8A5A"))
 
 
 def map_sea():
@@ -96,9 +100,8 @@ def map_sea():
     body = (ms.sun(300, 70, 28) + ms.cloud(30, 120, 0.7) + ms.cloud(200, 230, 0.55) +
             dragon(90, 220, 0.6, "#2A8FD0", "#4FC3F7") + sea + mm.waves("#BFF0FF", 31, 18) + isle +
             ms.palm(40, 460, 0.55) + ms.palm(325, 630, 0.6, flip=True) +
-            mm.boat(300, 410, 0.7) + ms.plesio(280, 760, 0.35, "#39C1B5", "#2E8FD6") +
-            flight_path(L, "#4FC3F7"))
-    return map_svg(body, ("#5EC8F7", "#D9F4FF"))
+            mm.boat(300, 410, 0.7) + ms.plesio(280, 760, 0.35, "#39C1B5", "#2E8FD6") )
+    return map_svg(body, L, ("#0A1A3A", "#3A7AB0"))
 
 
 def map_ice():
@@ -110,9 +113,8 @@ def map_ice():
                 f'L{x + w * .06:.0f} {base - h * .6:.0f} L{x} {base - h * .7:.0f} L{x - w * .06:.0f} {base - h * .6:.0f} Z" fill="#FFFFFF"/>')
     pines = "".join(ms.pine(x, y, s) for x, y, s in ((30, 560, 0.8), (330, 590, 0.9), (20, 760, 1.0), (340, 770, 1.1), (190, 780, 0.7)))
     body = (ms.snowflakes(26, 41, 760) + dragon(270, 140, 0.6, "#9FDCF5", "#E6F7FF", flip=True) + mtn +
-            mm.layer(470, "#EAF4FF", 42, 24) + mm.layer(600, "#DDEBF8", 43, 26) + mm.layer(700, "#CFE2F4", 44, 18) + pines +
-            flight_path(L, "#5BC8F5") + ms.snowman(320, 480, 0.6))
-    return map_svg(body, ("#8EC9F0", "#F2FAFF"))
+            mm.layer(470, "#EAF4FF", 42, 24) + mm.layer(600, "#DDEBF8", 43, 26) + mm.layer(700, "#CFE2F4", 44, 18) + pines + ms.snowman(320, 480, 0.6))
+    return map_svg(body, L, ("#14203A", "#8AA8C8"))
 
 
 def map_space():
@@ -121,9 +123,8 @@ def map_space():
     body = (ms.stars(90, 51, 770) +
             mba.planet(300, 300, 34, "#FF9F1C", ring="#FFD23F", spots="#E07F00") + mba.planet(50, 200, 22, "#7EE0C3", spots="#39C1B5") +
             mba.planet(320, 640, 24, "#FF8FC8", spots="#E8557A") + mba.planet(40, 420, 18, "#5B8DEF", ring="#BDEBFF") +
-            ms.shooting_star(120, 60, 80) + dragon(80, 680, 0.6, "#5B3E9E", "#B07CE8") + dragon(300, 470, 0.45, "#5B3E9E", "#B07CE8", flip=True) +
-            flight_path(L, "#B07CE8"))
-    return map_svg(body, ("#0E0A2E", "#3A2E7A"))
+            ms.shooting_star(120, 60, 80) + dragon(80, 680, 0.6, "#5B3E9E", "#B07CE8") + dragon(300, 470, 0.45, "#5B3E9E", "#B07CE8", flip=True) )
+    return map_svg(body, L, ("#0E0A2E", "#3A2E7A"))
 
 
 # ---------------------------------------------------------------- ground from above (repeats top to bottom)
@@ -267,13 +268,13 @@ def bg_space():
 
 # ---------------------------------------------------------------- title background and icon
 def title_bg():
-    body = (ms.cloud(40, 120, 0.8, "#FFF0F7") + ms.cloud(260, 70, 0.6, "#FFF0F7") + ms.cloud(220, 260, 0.5, "#FFF0F7") +
+    body = (ms.stars(60, 77, 380) +
             dragon(70, 220, 0.7) + dragon(300, 330, 0.6, "#3FA244", "#7ED957", flip=True) + dragon(110, 400, 0.45, "#2A8FD0", "#4FC3F7") +
             ms.volcano(280, 640, 260, 170, erupt=True, color="#6E5486") +
-            mm.layer(600, "#8E7FD0", 61, 30) + mm.layer(680, "#6E5FB8", 62, 24) + mm.layer(740, "#5A4AA0", 63, 18))
+            mm.layer(600, "#2A1E40", 61, 30) + mm.layer(680, "#1C1430", 62, 24) + mm.layer(740, "#120C20", 63, 18))
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" preserveAspectRatio="xMidYMax slice">'
-            '<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2E6FC2"/>'
-            f'<stop offset="0.55" stop-color="#8E7FD0"/><stop offset="0.85" stop-color="#FFB86B"/></linearGradient>{ms.DEFS}</defs>'
+            '<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#070A1A"/>'
+            f'<stop offset="0.55" stop-color="#2A1A4A"/><stop offset="0.85" stop-color="#8A2A1A"/></linearGradient>{ms.DEFS}</defs>'
             f'<rect width="{W}" height="{H}" fill="url(#sky)"/>'
             f'<g stroke="{INK}" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">{body}</g></svg>')
 

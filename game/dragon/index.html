@@ -10,7 +10,7 @@
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Rubik:wght@500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Secular+One&family=Rubik:wght@500;700;800&display=swap">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -23,6 +23,7 @@
     <div class="chars-box">
       <div id="chars" class="chars"></div>
       <div id="charPerk" class="perk"></div>
+      <button id="shopBtn" class="btn alt shop-btn">החנות <span id="titleCoins" class="coin-pill"></span></button>
     </div>
   </div>
   <button id="muteBtn" class="icon-btn corner" aria-label="צליל">🔊</button>
@@ -44,13 +45,28 @@
   </div>
 </section>
 
+<section id="shop" class="screen" hidden>
+  <header class="shop-head">
+    <h1>החנות</h1>
+    <span id="shopCoins" class="coin-pill big"></span>
+  </header>
+  <div class="shop-tabs" role="tablist">
+    <button class="tab" data-tab="heads">ראשים</button>
+    <button class="tab" data-tab="specials">כוחות מיוחדים</button>
+  </div>
+  <div id="shopList" class="shop-list"></div>
+  <button id="shopBack" class="home-btn" aria-label="חזרה">
+    <svg class="ic" viewBox="0 0 48 48"><path class="fill" d="M30 8 L14 24 L30 40" style="fill:none;stroke-width:7;stroke:#fff"/></svg>
+  </button>
+</section>
+
 <section id="map" class="screen" hidden>
   <div id="mapStage" class="map-stage">
     <img id="mapBg" class="map-bg" alt="">
     <div id="levels" class="levels"></div>
     <img id="mapPrize" class="map-prize" alt="">
   </div>
-  <header class="map-head"><h1 id="worldName"></h1></header>
+  <header class="map-head"><h1 id="worldName"></h1><button id="mapShop" class="map-shop">החנות <span id="mapCoins" class="coin-pill"></span></button></header>
   <div id="worldLocked" class="world-locked" hidden></div>
   <div id="levelInfo" class="overlay" hidden>
     <div class="panel level-info">
@@ -143,6 +159,7 @@
         <div class="unlock-row"><img id="unlockImg" alt=""><div id="unlockText"></div></div>
       </div>
       <button id="nextBtn" class="btn">לשלב הבא</button>
+      <button id="winShopBtn" class="btn alt">לחנות</button>
       <button id="winRetryBtn" class="btn alt">שוב</button>
       <button id="winMapBtn" class="btn alt">למפה</button>
     </div>

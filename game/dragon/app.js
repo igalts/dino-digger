@@ -6,7 +6,7 @@
   const fmtTime = (s) => { const t = Math.max(0, Math.floor(s)); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
 
   // ---------- Saved progress (its own save, nothing shared with the other games) ----------
-  const fresh = () => ({ stars: {}, best: {}, chal: {}, times: {}, streak: {}, unlocked: [], muted: false, mapWorld: null, coins: 0 });
+  const fresh = () => ({ stars: {}, best: {}, chal: {}, times: {}, streak: {}, unlocked: [], muted: false, mapWorld: null, coins: 0, lv: {}, specials: ['roar'], special: 'roar' });
   const store = {
     key: 'monsterHeads.v1',
     data: fresh(),
@@ -66,7 +66,8 @@
   let G = null, paused = false, screen = 'title';
   function show(name) {
     screen = name;
-    for (const id of ['title', 'map', 'game']) $(`#${id}`).hidden = id !== name;
+    for (const id of ['title', 'map', 'game', 'shop']) $(`#${id}`).hidden = id !== name;
+    if (name === 'shop') buildShop();
     if (name === 'title') buildTitle();
     if (name === 'map') buildMap();
   }
@@ -117,7 +118,7 @@
       if (!G || G.state !== 'won') return;
       $('#winStars').innerHTML = [0, 1, 2].map((i) => `<span class="${i < stars ? 'on' : 'off'}">★</span>`).join('');
       $('#winChal').innerHTML = chalRow(G.cfg, r.chal[G.key], freshBits);
-      $('#winScore').innerHTML = `<span class="gem-win">🪙 ${G.coins}</span><span>ניקוד: ${G.score}</span>`;
+      $('#winScore').innerHTML = `<span class="gem-win">+${G.coins} 🪙</span><span>ניקוד: ${G.score}</span>`;
       if (freshBits) setTimeout(() => sfx.power(), 900);
       $('#winTime').innerHTML = `<span>⏱ <bdi>${fmtTime(time)}</bdi></span>${
         record && prevBest ? '<span class="record">שיא חדש!</span>' : !record ? `<span class="best">השיא <bdi>${fmtTime(prevBest)}</bdi></span>` : ''}`;
@@ -140,6 +141,7 @@
   function lose() {
     const r = rec();
     r.streak[G.key] = (r.streak[G.key] || 0) + 1;
+    r.coins = (r.coins || 0) + G.coins; // coins you picked up are kept even when you lose
     store.save();
     sfx.lose();
     $('#loseImg').src = G.ch.src;
@@ -164,8 +166,10 @@
   const playLevel = (w, l) => game.start(w, l);
 
   // ---------- Title ----------
+  const coinText = () => `🪙 ${store.data.coins || 0}`;
   function buildTitle() {
     game.buildTitle();
+    $('#titleCoins').textContent = coinText();
     $('#muteBtn').textContent = store.data.muted ? '🔇' : '🔊';
   }
 
@@ -188,6 +192,7 @@
     pz.style.left = `${layout.prize[0] / 360 * 100}%`;
     pz.style.top = `${layout.prize[1] / 780 * 100}%`;
     $('#worldName').textContent = world.name;
+    $('#mapCoins').textContent = coinText();
     $('#worldNum').textContent = `עולם ${w + 1} מתוך ${game.worlds.length}`;
     $('#prevWorld').disabled = w === 0;
     $('#nextWorld').disabled = w === game.worlds.length - 1;
@@ -250,6 +255,60 @@
     });
   }
 
+  // ---------- Shop: weapon levels for every head, and the special powers ----------
+  const S = hydra.shop;
+  let shopTab = 'heads', shopFrom = 'title';
+  function openShop() { shopFrom = screen; show('shop'); }
+  function buy(price) {
+    if ((store.data.coins || 0) < price) { sfx.tone(200, 0.15, 'square', 0.04); return false; }
+    store.data.coins -= price; store.save(); sfx.power(); return true;
+  }
+  function buildShop() {
+    const r = rec();
+    r.lv = r.lv || {}; r.specials = r.specials || ['roar'];
+    $('#shopCoins').textContent = coinText();
+    for (const t of document.querySelectorAll('#shop .tab')) t.classList.toggle('on', t.dataset.tab === shopTab);
+    const list = $('#shopList');
+    list.innerHTML = '';
+    if (shopTab === 'heads') {
+      S.HEAD_ORDER.forEach((id, i) => {
+        const H = S.HEADS[id], open = id === 'fire' || r.unlocked.includes(id), lv = S.heroLevel(id);
+        const card = document.createElement('div');
+        card.className = `shop-card${open ? '' : ' locked'}`;
+        const pips = [1, 2, 3, 4].map((k) => `<i class="${k <= lv ? 'on' : ''}"></i>`).join('');
+        let action = '';
+        if (!open) action = `<div class="shop-note">נפתח אחרי עולם ${i}</div>`;
+        else if (lv >= S.MAX_SHOP_LV) action = '<div class="shop-note max">רמה מקסימלית</div>';
+        else {
+          const price = S.LEVEL_PRICE[lv + 1];
+          action = `<button class="buy${(r.coins || 0) < price ? ' poor' : ''}">שדרוג · ${price} 🪙</button>`;
+        }
+        card.innerHTML = `<img src="${S.headURL(id)}" alt=""><div class="shop-info"><div class="shop-name">${H.name}</div>
+          <div class="pips">${pips}</div><div class="shop-desc">${open ? `רמה ${lv}: ${H.lv[lv - 1]}${lv < S.MAX_SHOP_LV ? `<br><span class="next">הבאה: ${H.lv[lv]}</span>` : ''}` : H.perk}</div></div>${action}`;
+        const b = card.querySelector('.buy');
+        if (b) b.addEventListener('click', () => { if (buy(S.LEVEL_PRICE[lv + 1])) { r.lv[id] = lv + 1; store.save(); buildShop(); } });
+        list.appendChild(card);
+      });
+    } else {
+      S.SPECIAL_ORDER.forEach((id) => {
+        const sp = S.SPECIALS[id], owned = id === 'roar' || r.specials.includes(id), on = (r.special || 'roar') === id;
+        const card = document.createElement('div');
+        card.className = `shop-card special${on ? ' equipped' : ''}`;
+        const action = on ? '<div class="shop-note max">✓ נבחר</div>'
+          : owned ? '<button class="buy pick">בחירה</button>'
+          : `<button class="buy${(r.coins || 0) < sp.price ? ' poor' : ''}">קנייה · ${sp.price} 🪙</button>`;
+        card.innerHTML = `<img src="${S.specialURL(id)}" alt=""><div class="shop-info"><div class="shop-name">${sp.name}</div><div class="shop-desc">${sp.desc}</div></div>${action}`;
+        const b = card.querySelector('.buy');
+        if (b) b.addEventListener('click', () => {
+          if (owned) { r.special = id; store.save(); sfx.tap(); buildShop(); return; }
+          if (buy(sp.price)) { r.specials.push(id); r.special = id; store.save(); buildShop(); }
+        });
+        list.appendChild(card);
+      });
+    }
+  }
+  for (const t of document.querySelectorAll('#shop .tab')) t.addEventListener('click', () => { sfx.init(); sfx.tap(); shopTab = t.dataset.tab; buildShop(); });
+
   // ---------- Pause and help ----------
   function togglePause(on) {
     if (screen !== 'game' || !G || G.state === 'won' || G.state === 'lost' || G.state === 'dying') return;
@@ -263,8 +322,8 @@
   const isTouch = () => !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
   function showHelp() {
     const rows = isTouch()
-      ? [['👆', 'גוררים את האצבע: המפלצת זזה איתה'], ['🐲', 'הראשים יורים לבד'], ['🪙', 'אוספים מטבעות וכוח'], ['🦖', 'שאגה מלאה: נוגעים בכפתור שלה (או שתי נגיעות מהירות)']]
-      : [['⬅️', 'חיצים: מזיזים את המפלצת'], ['🐲', 'הראשים יורים לבד'], ['🪙', 'אוספים מטבעות וכוח'], ['␣', 'רווח: שאגה! כשהיא מלאה, מנקה את המסך'], ['P', 'הפסקה']];
+      ? [['👆', 'גוררים את האצבע: המפלצת זזה איתה'], ['🐲', 'הראשים יורים לבד'], ['🪙', 'אוספים מטבעות וכוח'], ['⚡', 'הכוח המיוחד מלא: נוגעים בכפתור שלו (או שתי נגיעות מהירות)'], ['🛒', 'בחנות קונים רמות לנשקים וכוחות מיוחדים']]
+      : [['⬅️', 'חיצים: מזיזים את המפלצת'], ['🐲', 'הראשים יורים לבד'], ['🪙', 'אוספים מטבעות וכוח'], ['␣', 'רווח: הכוח המיוחד, כשהוא מלא'], ['P', 'הפסקה']];
     $('#ctrlList').innerHTML = rows.map(([ic, t]) => `<li><span class="hic emoji">${ic}</span><span>${t}</span></li>`).join('');
     $('#pause').hidden = true;
     $('#ctrlInfo').hidden = false;
@@ -274,6 +333,10 @@
   const on = (id, fn) => $(id).addEventListener('click', (e) => { sfx.init(); sfx.tap(); fn(e); });
   on('#playBtn', () => { goFullscreen(); show('map'); });
   on('#mapBack', () => show('title'));
+  on('#shopBtn', openShop);
+  on('#mapShop', openShop);
+  on('#winShopBtn', () => { hideOverlays(); G = null; openShop(); shopFrom = 'map'; });
+  on('#shopBack', () => show(shopFrom === 'shop' ? 'title' : shopFrom));
   on('#prevWorld', () => pageWorld(-1));
   on('#nextWorld', () => pageWorld(1));
   on('#infoPlay', () => { $('#levelInfo').hidden = true; if (infoLevel) playLevel(infoLevel[0], infoLevel[1]); });
