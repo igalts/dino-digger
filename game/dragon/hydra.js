@@ -62,11 +62,11 @@ window.DinoHydra = (core) => {
   ];
   WORLDS.forEach((wd) => { wd.levels[wd.levels.length - 1].bossFight = true; });
   const BOSSES = [
-    { name: 'דרקון הלבה',    hp: 240, attacks: ['fan', 'summon', 'aimed', 'fan'], rage: ['rain', 'fan', 'aimed', 'summon'] },
-    { name: 'דרקון הביצה',   hp: 470, attacks: ['aimed', 'charge', 'fan', 'summon'], rage: ['rain', 'charge', 'cross', 'summon', 'fan'] },
-    { name: 'דרקון העצמות',  hp: 600, attacks: ['ring', 'fan', 'spiral', 'aimed'], rage: ['double', 'ring', 'rain', 'cross', 'aimed'] },
-    { name: 'דרקון הקריסטל', hp: 700, attacks: ['ring', 'summon', 'fan', 'charge', 'aimed'], rage: ['cross', 'ring', 'double', 'charge', 'rain'] },
-    { name: 'דרקון הסערה',   hp: 800, attacks: ['spiral', 'fan', 'summon', 'ring', 'charge', 'aimed'], rage: ['double', 'rain', 'cross', 'charge', 'summon', 'ring'] },
+    { name: 'דרקון הלבה',    hp: 360, attacks: ['fan', 'summon', 'aimed', 'fan'], rage: ['rain', 'fan', 'aimed', 'summon'] },
+    { name: 'דרקון הביצה',   hp: 700, attacks: ['aimed', 'charge', 'fan', 'summon'], rage: ['rain', 'charge', 'cross', 'summon', 'fan'] },
+    { name: 'דרקון העצמות',  hp: 900, attacks: ['ring', 'fan', 'spiral', 'aimed'], rage: ['double', 'ring', 'rain', 'cross', 'aimed'] },
+    { name: 'דרקון הקריסטל', hp: 1050, attacks: ['ring', 'summon', 'fan', 'charge', 'aimed'], rage: ['cross', 'ring', 'double', 'charge', 'rain'] },
+    { name: 'דרקון הסערה',   hp: 1200, attacks: ['spiral', 'fan', 'summon', 'ring', 'charge', 'aimed'], rage: ['double', 'rain', 'cross', 'charge', 'summon', 'ring'] },
   ];
   // Enemy dragons are bright and warm against the dark ground, each world in its own colours.
   const DRAGONS = [
@@ -324,7 +324,7 @@ window.DinoHydra = (core) => {
       state: 'ready', readyT: boss ? 3.2 : 2.4, t: 0, playT: 0, st: 0, shownSec: -1, ev: 0,
       P: { x: VW / 2, y: VH + 80, tx: VW / 2, ty: VH - 120, inv: 0, cool: {}, open: {}, heads, dead: 0 },
       lv: Object.fromEntries(heads.map((id) => [id, heroLevel(id)])), boost: 0,
-      enemies: [], rocks: [], rockWarn: [], rockT: 6, shots: [], bullets: [], fx: [], pickups: [], particles: [], gusts: [], clouds: [], beam: null, meteors: [],
+      scorch: [], enemies: [], rocks: [], rockWarn: [], rockT: 6, shots: [], bullets: [], fx: [], pickups: [], particles: [], gusts: [], clouds: [], beam: null, meteors: [],
       motes: [], scroll: 0, special, charge: 0, roarFx: 0, shieldT: 0, freezeT: 0, meteorT: 0,
       shake: 0, flash: 0, boss: null, winT: 0, ending: false, killsSincePower: 0, hudKey: '',
     };
@@ -941,8 +941,10 @@ window.DinoHydra = (core) => {
       G.freezeT = 4; G.flash = 0.2;
       sfx.tone(1800, 0.6, 'sine', 0.05, 0, 600);
     } else if (sp === 'meteor') {
-      G.meteorT = 2.8; G.meteorNext = 0;
-      sfx.tone(90, 0.8, 'sawtooth', 0.06, 0, 45);
+      G.meteorT = 3.4; G.meteorNext = 0.35; G.meteorMax = 3.4;
+      G.shake = 0.4;
+      floatText(VW / 2, VH * 0.4, 'גשם מטאורים!', '#FFB020');
+      sfx.tone(70, 1.4, 'sawtooth', 0.08, 0, 35); sfx.tone(140, 1.2, 'square', 0.03, 0.1, 50);
     }
   }
   function updateSpecials(dt) {
@@ -951,22 +953,27 @@ window.DinoHydra = (core) => {
     if (G.meteorT > 0) {
       G.meteorT -= dt; G.meteorNext -= dt;
       if (G.meteorNext <= 0) {
-        G.meteorNext = 0.13;
+        G.meteorNext = 0.1;
         const live = G.enemies.filter((e) => !e.dead && e.t >= 0 && e.y > 0 && e.y < VH);
         const tg = live.length && Math.random() < 0.7 ? live[Math.floor(Math.random() * live.length)]
           : bossHittable() && Math.random() < 0.6 ? { x: G.boss.x + rand(-40, 40), y: G.boss.y + rand(-20, 30) } : { x: rand(20, VW - 20), y: rand(60, VH * 0.6) };
-        G.meteors.push({ x: tg.x + 120, y: tg.y - 260, tx: tg.x, ty: tg.y, t: 0, dur: 0.45 });
+        const big = Math.random() < 0.35;
+        G.meteors.push({ x: tg.x + rand(90, 160), y: tg.y - rand(300, 380), tx: tg.x + rand(-10, 10), ty: tg.y + rand(-10, 10), t: 0, dur: rand(0.5, 0.65), r: big ? rand(15, 19) : rand(10, 13), rot: Math.random() * 6 });
       }
     }
     for (const m of G.meteors) {
       m.t += dt;
       if (m.t >= m.dur) {
         m.dead = true;
-        boom(m.tx, m.ty, 22);
-        G.shake = Math.max(G.shake, 0.15);
-        for (const e of G.enemies) if (!e.dead && e.t >= 0 && Math.hypot(e.x - m.tx, e.y - m.ty) < 46 + e.r) hurt(e, 8 * hpK());
-        if (bossHittable() && Math.hypot(G.boss.x - m.tx, G.boss.y - m.ty) < 70) hurtBoss(G.boss.max * 0.012);
-        sfx.tone(120, 0.15, 'square', 0.03, 0, 60);
+        const R = 40 + m.r * 2;
+        boom(m.tx, m.ty, m.r * 2.4);
+        G.fx.push({ type: 'blast', x: m.tx, y: m.ty, r: R, t: 0.45, max: 0.45 });
+        G.scorch.push({ x: m.tx, y: m.ty, r: m.r * 1.6, t: 4 });
+        for (let i = 0; i < 10; i++) { const a = rand(0, TAU), sp = rand(80, 220); G.particles.push({ x: m.tx, y: m.ty, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.5, max: 0.5, color: ['#FFD23F', '#FF7A1A', '#FFFFFF'][i % 3], size: rand(2, 4.5), drag: true, glow: true }); }
+        G.shake = Math.max(G.shake, 0.25);
+        for (const e of G.enemies) if (!e.dead && e.t >= 0 && Math.hypot(e.x - m.tx, e.y - m.ty) < R + e.r) hurt(e, 14 * hpK());
+        if (bossHittable() && Math.hypot(G.boss.x - m.tx, G.boss.y - m.ty) < R + 40) hurtBoss(G.boss.max * 0.015);
+        sfx.tone(90 + Math.random() * 40, 0.25, 'square', 0.045, 0, 45);
       }
     }
     G.meteors = G.meteors.filter((m) => !m.dead);
@@ -1132,6 +1139,8 @@ window.DinoHydra = (core) => {
     drawMotes(c);
     drawClouds(c);
     drawRockWarn(c);
+    for (const sc of G.scorch) { const a = Math.min(1, sc.t) * 0.55; c.beginPath(); c.arc(sc.x, sc.y, sc.r, 0, TAU); c.fillStyle = `rgba(20,8,4,${a})`; c.fill(); c.beginPath(); c.arc(sc.x, sc.y, sc.r * 0.5, 0, TAU); c.fillStyle = `rgba(255,90,20,${a * 0.6})`; c.fill(); sc.y += 46 / 60; sc.t -= 1 / 60; }
+    G.scorch = G.scorch.filter((sc) => sc.t > 0);
     for (const cl of G.clouds) drawPoisonCloud(c, cl);
     for (const p of G.pickups) drawPickup(c, p);
     for (const k of G.rocks) drawRock(c, k);
@@ -1373,6 +1382,16 @@ window.DinoHydra = (core) => {
     c.beginPath(); c.arc(b.x, b.y, b.r * 0.55, 0, TAU); c.fillStyle = '#FFE0E8'; c.fill();
   }
   function drawFx(c) {
+    // during the meteor shower the sky goes dark red
+    if (G.meteorT > 0) { const k = Math.min(1, G.meteorT * 2, (G.meteorMax - G.meteorT) * 3); c.fillStyle = `rgba(90,10,0,${0.28 * k})`; c.fillRect(0, 0, VW, VH); }
+    for (const f of G.fx) {
+      if (f.type !== 'blast') continue;
+      const k = f.t / f.max;
+      c.save(); c.globalCompositeOperation = 'lighter';
+      c.beginPath(); c.arc(f.x, f.y, f.r * (1 - k * 0.5) * 0.7, 0, TAU); c.fillStyle = `rgba(255,170,60,${0.6 * k})`; c.fill();
+      c.restore();
+      c.beginPath(); c.arc(f.x, f.y, f.r * (1.2 - k), 0, TAU); c.strokeStyle = `rgba(255,230,180,${k})`; c.lineWidth = 5 * k + 1; c.stroke();
+    }
     for (const f of G.fx) {
       const k = f.t / f.max;
       if (f.type === 'ring') {
@@ -1399,11 +1418,22 @@ window.DinoHydra = (core) => {
     }
     for (const m of G.meteors) {
       const u = m.t / m.dur, x = m.x + (m.tx - m.x) * u, y = m.y + (m.ty - m.y) * u;
+      const dx = m.tx - m.x, dy = m.ty - m.y, L = Math.hypot(dx, dy), ux = dx / L, uy = dy / L, r = m.r;
+      // a target ring on the ground where it will land
+      c.beginPath(); c.arc(m.tx, m.ty, (40 + r * 2) * (0.4 + 0.6 * u), 0, TAU); c.strokeStyle = `rgba(255,120,40,${0.5 * u})`; c.lineWidth = 2; c.setLineDash([5, 5]); c.stroke(); c.setLineDash([]);
       c.save(); c.globalCompositeOperation = 'lighter';
-      c.beginPath(); c.moveTo(x, y); c.lineTo(x + 40, y - 80); c.strokeStyle = 'rgba(255,150,40,.5)'; c.lineWidth = 8; c.stroke();
-      c.beginPath(); c.arc(x, y, 9, 0, TAU); c.fillStyle = 'rgba(255,200,80,.9)'; c.fill();
+      // the fire tail
+      const tl = r * 9;
+      const g = c.createLinearGradient(x, y, x - ux * tl, y - uy * tl); g.addColorStop(0, 'rgba(255,210,90,.95)'); g.addColorStop(0.35, 'rgba(255,110,30,.6)'); g.addColorStop(1, 'rgba(255,40,20,0)');
+      c.beginPath(); c.moveTo(x + uy * r, y - ux * r); c.lineTo(x - ux * tl, y - uy * tl); c.lineTo(x - uy * r, y + ux * r); c.closePath(); c.fillStyle = g; c.fill();
+      c.beginPath(); c.arc(x, y, r * 2, 0, TAU); c.fillStyle = 'rgba(255,140,40,.35)'; c.fill();
       c.restore();
-      c.beginPath(); c.arc(x, y, 5, 0, TAU); c.fillStyle = '#5A3A2A'; c.fill();
+      // the rock itself
+      c.save(); c.translate(x, y); c.rotate(m.rot + m.t * 6);
+      c.beginPath(); for (let i = 0; i < 8; i++) { const a = i / 8 * TAU, rr = r * (0.85 + 0.15 * Math.sin(i * 2.7 + m.rot)); i ? c.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : c.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); } c.closePath();
+      c.fillStyle = '#4A2A20'; c.fill(); c.lineWidth = 2; c.strokeStyle = '#140808'; c.stroke();
+      c.beginPath(); c.moveTo(-r * 0.4, -r * 0.2); c.lineTo(r * 0.1, r * 0.1); c.lineTo(r * 0.35, -r * 0.35); c.strokeStyle = '#FFB020'; c.lineWidth = 2; c.stroke();
+      c.restore();
     }
     if (G.roarFx > 0) {
       const k = 1 - G.roarFx / 0.9;
