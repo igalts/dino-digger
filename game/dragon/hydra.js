@@ -63,10 +63,10 @@ window.DinoHydra = (core) => {
   WORLDS.forEach((wd) => { wd.levels[wd.levels.length - 1].bossFight = true; });
   const BOSSES = [
     { name: 'דרקון הלבה',    hp: 180, attacks: ['fan', 'summon', 'aimed', 'fan'] },
-    { name: 'דרקון הביצה',   hp: 290, attacks: ['aimed', 'charge', 'fan', 'summon'] },
-    { name: 'דרקון העצמות',  hp: 390, attacks: ['ring', 'fan', 'spiral', 'aimed'] },
-    { name: 'דרקון הקריסטל', hp: 480, attacks: ['ring', 'summon', 'fan', 'charge', 'aimed'] },
-    { name: 'דרקון הסערה',   hp: 580, attacks: ['spiral', 'fan', 'summon', 'ring', 'charge', 'aimed'] },
+    { name: 'דרקון הביצה',   hp: 280, attacks: ['aimed', 'charge', 'fan', 'summon'] },
+    { name: 'דרקון העצמות',  hp: 360, attacks: ['ring', 'fan', 'spiral', 'aimed'] },
+    { name: 'דרקון הקריסטל', hp: 420, attacks: ['ring', 'summon', 'fan', 'charge', 'aimed'] },
+    { name: 'דרקון הסערה',   hp: 480, attacks: ['spiral', 'fan', 'summon', 'ring', 'charge', 'aimed'] },
   ];
   // Enemy dragons are bright and warm against the dark ground, each world in its own colours.
   const DRAGONS = [
@@ -76,7 +76,7 @@ window.DinoHydra = (core) => {
     { c: '#FF8A2A', dark: '#A84400', belly: '#FFE6C8', wing: '#FFC24A', horn: '#FFFFFF' },
     { c: '#FF3D5A', dark: '#9E0A24', belly: '#FFE0E6', wing: '#FFB03D', horn: '#FFE95C' },
   ];
-  const KILL_PCT = 80;
+  const KILL_PCT = 80, HP_CHAL = 70; // challenges: beat 80% of the dragons; finish with 70% health or more
 
   // ---------- Level scripts: the same waves every time you play a level ----------
   function mulberry(seed) {
@@ -91,11 +91,13 @@ window.DinoHydra = (core) => {
     const rnd = mulberry((w + 1) * 1009 + l * 131 + 17);
     const g = w * 5 + l;
     const len = cfg.len;
-    const gap = clamp(3.3 - g * 0.06, 1.95, 3.3);
+    const gap = clamp(2.75 - g * 0.06, 1.55, 2.75);
     const kinds = ['line', 'vee', 'snake', 'swoop'];
-    if (g >= 1) kinds.push('shooters');
-    if (g >= 2) kinds.push('rain');
+    if (g >= 1) kinds.push('shooters', 'pincer');
+    if (g >= 2) kinds.push('rain', 'divers');
     if (g >= 3) kinds.push('shooters');
+    if (g >= 4) kinds.push('wall');
+    if (g >= 6) kinds.push('bomber', 'divers');
     const tanks = cfg.bossFight ? [] : g === 0 ? [0.6] : [0.4, 0.8];
     const ev = [];
     let t = 2, ti = 0, last = '';
@@ -105,7 +107,7 @@ window.DinoHydra = (core) => {
       else { do type = kinds[Math.floor(rnd() * kinds.length)]; while (type === last); }
       last = type;
       ev.push({ t, type, side: rnd() < 0.5 ? -1 : 1, x: 70 + rnd() * 220, seed: Math.floor(rnd() * 1e9) });
-      t += gap * (type === 'tank' ? 2.1 : type === 'shooters' ? 1.45 : 1) * (0.85 + rnd() * 0.3);
+      t += gap * (type === 'tank' ? 2.1 : type === 'shooters' || type === 'bomber' ? 1.45 : 1) * (0.85 + rnd() * 0.3);
     }
     if (cfg.bossFight) ev.push({ t: len, type: 'boss' });
     let foes = 0, coins = 0;
@@ -155,6 +157,29 @@ window.DinoHydra = (core) => {
         }
         break;
       }
+      case 'pincer': {
+        // a group from each side at once
+        for (const s of [-1, 1]) {
+          for (let i = 0; i < 3; i++) {
+            A({ mv: 'swoop', p0: [s < 0 ? -30 : VW + 30, 70 + i * 12], p1: [180 + s * -20, 380], p2: [s < 0 ? VW + 40 : -40, 120 + rnd() * 60],
+              dur: 4.6 / sp, delay: i * 0.4, face: true });
+          }
+        }
+        break;
+      }
+      case 'divers': {
+        // they stop at the top, shake, then dive straight at where the monster is
+        const n = 3 + Math.min(2, w);
+        for (let i = 0; i < n; i++) A({ mv: 'dive', x0: 50 + (i + 0.5) * (260 / n) + rnd() * 20, y0: -30, stop: 70 + rnd() * 60, tin: 0.9, hold: 0.7 + i * 0.35, v: 250 * sp, delay: i * 0.15 });
+        break;
+      }
+      case 'wall': {
+        for (let i = 0; i < 7; i++) A({ mv: 'down', x0: 28 + i * 50.6, y0: -30, v: 55 * sp, amp: 8, f: 1.5, ph: i * 0.6, delay: 0 });
+        break;
+      }
+      case 'bomber':
+        B({ mv: 'hover', bomber: true, x0: 70 + rnd() * 220, y0: -50, stop: 90 + rnd() * 50, tin: 1.8, hold: 6, v: 80, amp: 60, every: 1.9 - w * 0.05, coins: 4 });
+        break;
       case 'tank':
         B({ mv: 'hover', tank: true, x0: clamp(ev.x, 110, 250), y0: -60, stop: 150, tin: 2.4, hold: 9, v: 70, amp: 40, every: 1.7 - w * 0.06, coins: 6 });
         break;
@@ -168,7 +193,7 @@ window.DinoHydra = (core) => {
   const CHALS = [
     { bit: 1, icon: '🎯', label: () => `${KILL_PCT}%` },
     { bit: 2, icon: '🪙', label: (cfg) => `${cfg.coinGoal}` },
-    { bit: 4, icon: '🥚', label: () => 'כל הביצים' },
+    { bit: 4, icon: '❤️', label: () => `${HP_CHAL}%` },
   ];
   const goalText = (cfg) => (cfg.bossFight ? 'מביסים את הדרקון' : `<bdi>${cfg.foes}</bdi> דרקונים בדרך`);
 
@@ -192,10 +217,11 @@ window.DinoHydra = (core) => {
   const prize = (id) => ({ src: headURL(id), title: `${HEADS[id].name} גדל!`, line: HEADS[id].perk });
   const headsList = () => HEAD_ORDER.filter((h) => h === 'fire' || rec().unlocked.includes(h));
   // The heads you take along: the ones you've grown and switched on (at least one).
+  const MAX_HEADS = 3;
   const activeHeads = () => {
     const r = rec(), all = headsList();
-    if (!Array.isArray(r.active)) return all;
-    const on = all.filter((h) => r.active.includes(h));
+    if (!Array.isArray(r.active)) return all.slice(0, MAX_HEADS);
+    const on = all.filter((h) => r.active.includes(h)).slice(0, MAX_HEADS);
     return on.length ? on : [all[0]];
   };
   function toggleHead(id) {
@@ -203,7 +229,10 @@ window.DinoHydra = (core) => {
     if (on.includes(id)) {
       if (on.length === 1) return false; // the last head stays
       r.active = on.filter((h) => h !== id);
-    } else r.active = [...on, id];
+    } else {
+      if (on.length >= MAX_HEADS) return 'full';
+      r.active = [...on, id];
+    }
     store.save();
     return true;
   }
@@ -260,11 +289,11 @@ window.DinoHydra = (core) => {
     G = {
       mode: 'hydra', w, l, cfg, key, world, help, bossFight: boss, bossInfo: BOSSES[w],
       ch: { src: heroURL(heads) },
-      lives: 3, maxLives: 3, score: 0, coins: 0, kills: 0, spawned: 0,
+      hp: 100, maxHp: 100, score: 0, coins: 0, kills: 0, spawned: 0,
       state: 'ready', readyT: boss ? 3.2 : 2.4, t: 0, playT: 0, st: 0, shownSec: -1, ev: 0,
       P: { x: VW / 2, y: VH + 80, tx: VW / 2, ty: VH - 120, inv: 0, cool: {}, open: {}, heads, dead: 0 },
       lv: Object.fromEntries(heads.map((id) => [id, heroLevel(id)])), boost: 0,
-      enemies: [], shots: [], bullets: [], fx: [], pickups: [], particles: [], gusts: [], clouds: [], beam: null, meteors: [],
+      enemies: [], rocks: [], rockT: 6, shots: [], bullets: [], fx: [], pickups: [], particles: [], gusts: [], clouds: [], beam: null, meteors: [],
       motes: [], scroll: 0, special, charge: 0, roarFx: 0, shieldT: 0, freezeT: 0, meteorT: 0,
       shake: 0, flash: 0, boss: null, winT: 0, ending: false, killsSincePower: 0, hudKey: '',
     };
@@ -309,8 +338,8 @@ window.DinoHydra = (core) => {
   }
   function addEnemy(s, summon = false) {
     const F = FOES[s.kind];
-    const size = s.tank ? 1.85 : 1;
-    const hp = (s.tank ? 36 : F.hp) * hpK() * G.help;
+    const size = s.tank ? 1.85 : s.bomber ? 1.4 : 1;
+    const hp = (s.tank ? 36 : s.bomber ? 15 : F.hp) * hpK() * G.help;
     const e = { ...s, size, r: F.r * size, hp, maxHp: hp, t: -s.delay, x: -200, y: -200, slow: 0, poison: 0,
       flash: 0, push: 0, shootT: (s.every || 2) * rand(0.5, 1), seen: false, summon, anim: Math.random() * 6, rot: 0 };
     if (!summon) G.spawned++;
@@ -328,6 +357,14 @@ window.DinoHydra = (core) => {
       x = a * a * e.p0[0] + 2 * a * u * e.p1[0] + u * u * e.p2[0];
       y = a * a * e.p0[1] + 2 * a * u * e.p1[1] + u * u * e.p2[1];
       if (u > 1.05) e.gone = true;
+    } else if (e.mv === 'dive') {
+      if (t < e.tin) { x = e.x0; y = e.y0 + (e.stop - e.y0) * easeOut(t / e.tin); }
+      else if (t < e.tin + e.hold) { x = e.x0 + Math.sin(t * 40) * 1.6; y = e.stop; e.warn = true; }
+      else {
+        if (!e.dir) { const a = Math.atan2(G.P.y - e.stop, G.P.x - e.x0); e.dir = [Math.cos(a), Math.sin(a)]; e.face = true; e.warn = false; }
+        const h = t - e.tin - e.hold;
+        x = e.x0 + e.dir[0] * e.v * h; y = e.stop + e.dir[1] * e.v * h;
+      }
     } else if (e.mv === 'hover') {
       if (t < e.tin) { x = e.x0; y = e.y0 + (e.stop - e.y0) * easeOut(t / e.tin); }
       else if (t < e.tin + e.hold) { const h = t - e.tin; x = e.x0 + e.amp * Math.sin(h * 0.9); y = e.stop + Math.sin(h * 2) * 6; }
@@ -359,7 +396,7 @@ window.DinoHydra = (core) => {
         if (e.shootT <= 0) { e.shootT = e.every / G.help; enemyShoot(e); }
       }
       // Bumping into the monster hurts both.
-      if (G.state === 'play' && dist(e, G.P) < e.r * 0.75 + 9) { hit(); hurt(e, 4); }
+      if (G.state === 'play' && dist(e, G.P) < e.r * 0.75 + 9) { hit(e.tank ? 30 : 22); hurt(e, 4); }
       if (e.y > VH + 50 || (e.y < -140 && e.seen) || e.x < -80 || e.x > VW + 80) e.gone = true;
     }
     G.enemies = G.enemies.filter((e) => !e.gone && !e.dead);
@@ -367,12 +404,12 @@ window.DinoHydra = (core) => {
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   function enemyShoot(e) {
     const P = G.P, a = Math.atan2(P.y - e.y, P.x - e.x), s = (120 + G.w * 10) * G.help;
-    if (e.tank) { const n = G.w >= 3 ? 5 : 3; for (let i = 0; i < n; i++) bullet(e.x, e.y + e.r * 0.5, a + (i - (n - 1) / 2) * 0.24, s); }
+    if (e.tank || e.bomber) { const n = e.tank && G.w >= 3 ? 5 : 3; for (let i = 0; i < n; i++) bullet(e.x, e.y + e.r * 0.5, a + (i - (n - 1) / 2) * 0.24, s); }
     else bullet(e.x, e.y + e.r * 0.4, a, s);
     e.spat = 0.3;
     sfx.tone(300, 0.08, 'triangle', 0.025, 0, 200);
   }
-  function bullet(x, y, a, s, r = 6) { G.bullets.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, r, t: Math.random() }); }
+  function bullet(x, y, a, s, r = 6, dmg = 15) { G.bullets.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, r, t: Math.random(), dmg }); }
 
   // Damage. Kill: coins, sometimes a power-up, and some special charge.
   function hurt(e, dmg, quiet = false) {
@@ -390,7 +427,7 @@ window.DinoHydra = (core) => {
     if (!e.summon) for (let i = 0; i < e.coins; i++) drop('coin', e.x + rand(-e.r, e.r) * 0.8, e.y + rand(-e.r, e.r) * 0.8);
     G.killsSincePower++;
     if (e.tank || G.killsSincePower >= 26) { G.killsSincePower = 0; drop('power', e.x, e.y); }
-    if (e.tank && G.lives < G.maxLives) drop('egg', e.x + 18, e.y);
+    if (e.tank || (G.hp < G.maxHp * 0.6 && Math.random() < 0.06)) drop('heart', e.x + 18, e.y);
     sfx.tone(e.tank ? 160 : 520, e.tank ? 0.4 : 0.1, e.tank ? 'sawtooth' : 'square', 0.04, 0, e.tank ? 60 : 1300);
   }
   function boom(x, y, r) {
@@ -432,7 +469,7 @@ window.DinoHydra = (core) => {
       else if (c.t < 2.6) { const k = easeOut((c.t - 1.5) / 1.1); B.x = c.tx + (homeX - c.tx) * k; B.y = VH * 0.6 + (homeY - VH * 0.6) * k; }
       else B.charge = null;
     } else { B.x += (homeX - B.x) * Math.min(1, dt * 2); B.y += (homeY - B.y) * Math.min(1, dt * 2); }
-    if (G.state === 'play' && dist(B, G.P) < B.r * 0.8 + 9) hit();
+    if (G.state === 'play' && dist(B, G.P) < B.r * 0.8 + 9) hit(30);
     if (B.act) { runAttack(B, dt); return; }
     B.atkT -= dt * (B.hp < B.max / 2 ? 1.35 : 1);
     if (B.atkT <= 0) {
@@ -675,17 +712,18 @@ window.DinoHydra = (core) => {
   }
 
   // ---------- The monster ----------
-  function hit() {
+  function hit(dmg = 20) {
     const P = G.P;
     if (P.inv > 0 || G.shieldT > 0 || G.state !== 'play') return;
-    G.lives--;
+    G.hp = Math.max(0, G.hp - dmg * G.help);
     core.buildLives();
-    P.inv = 2.6; G.shake = 0.35; G.flash = 0.2;
-    // A clear moment to recover: enemy shots near the monster pop.
-    for (const b of G.bullets) if (dist(b, P) < 170) { b.dead = true; puff(b.x, b.y); }
-    for (let i = 0; i < 14; i++) G.particles.push({ x: P.x, y: P.y, vx: rand(-150, 150), vy: rand(-150, 100), life: 0.6, max: 0.6, color: ['#FFFFFF', '#FF6B7A', '#8A6CFF'][i % 3], size: rand(3, 5), drag: true });
+    P.inv = 1.1; G.shake = 0.3; G.flash = 0.15; G.hurtT = 0.5;
+    // A short moment to recover: enemy shots right around the monster pop.
+    for (const b of G.bullets) if (dist(b, P) < 90) { b.dead = true; puff(b.x, b.y); }
+    for (let i = 0; i < 12; i++) G.particles.push({ x: P.x, y: P.y, vx: rand(-150, 150), vy: rand(-150, 100), life: 0.5, max: 0.5, color: ['#FFFFFF', '#FF4D6D', '#8A6CFF'][i % 3], size: rand(3, 5), drag: true });
+    floatText(P.x + 24, P.y - 30, `-${Math.round(dmg * G.help)}`, '#FF6B7A');
     sfx.ouch();
-    if (G.lives <= 0) { G.state = 'dying'; P.dead = 0.001; core.lose(); }
+    if (G.hp <= 0) { G.state = 'dying'; P.dead = 0.001; core.lose(); }
   }
   function updatePlayer(dt) {
     const P = G.P;
@@ -693,10 +731,75 @@ window.DinoHydra = (core) => {
     if (G.state === 'play') {
       const vx = (held.right ? 1 : 0) - (held.left ? 1 : 0), vy = (held.down ? 1 : 0) - (held.up ? 1 : 0);
       if (vx || vy) { const m = Math.hypot(vx, vy); P.tx += vx / m * 270 * dt; P.ty += vy / m * 270 * dt; }
-      P.tx = clamp(P.tx, 22, VW - 22); P.ty = clamp(P.ty, VH * 0.3, VH - 40);
+      P.tx = clamp(P.tx, 22, VW - 30); P.ty = clamp(P.ty, VH * 0.3, VH - 40);
     }
     const k = Math.min(1, dt * 20);
     P.x += (P.tx - P.x) * k; P.y += (P.ty - P.y) * k;
+  }
+
+  // ---------- Things to avoid: a few slow floating hazards, a different kind in every world ----------
+  // They can't be destroyed; our shots break on them (the beam, lightning and wind pass by).
+  function updateRocks(dt) {
+    const ts = frozen() ? 0 : 1;
+    if (!G.ending) {
+      G.rockT -= dt * ts;
+      if (G.rockT <= 0) {
+        G.rockT = (G.bossFight ? 11 : 7.5) - G.w * 0.5 + rand(0, 3);
+        const r = rand(13, 19);
+        G.rocks.push({ x: rand(30, VW - 30), y: -30, vx: rand(-12, 12), vy: rand(60, 85) + G.w * 6, r, rot: rand(0, TAU), spin: rand(-1, 1), t: Math.random() * 6 });
+      }
+    }
+    const P = G.P;
+    for (const k of G.rocks) {
+      k.t += dt; k.x += k.vx * dt * ts; k.y += k.vy * dt * ts; k.rot += k.spin * dt * ts;
+      if (k.y > VH + 40) k.dead = true;
+      if (G.state === 'play' && dist(k, P) < k.r * 0.85 + 8) { hit(20); k.vy *= 0.6; }
+      for (const s of G.shots) {
+        if (!s.dead && (s.x - k.x) ** 2 + (s.y - k.y) ** 2 < (k.r + (s.r || 5)) ** 2) { if (s.glob) popGlob(s); else { s.dead = true; sparkHit(s); } }
+      }
+    }
+    G.rocks = G.rocks.filter((k) => !k.dead);
+  }
+  function drawRock(c, k) {
+    c.save(); c.translate(k.x, k.y);
+    // a faint red danger ring under every hazard
+    c.beginPath(); c.arc(0, 0, k.r + 6 + Math.sin(k.t * 5) * 1.5, 0, TAU); c.strokeStyle = 'rgba(255,70,90,.45)'; c.lineWidth = 1.5; c.setLineDash([4, 4]); c.stroke(); c.setLineDash([]);
+    c.rotate(k.rot);
+    c.lineJoin = 'round'; c.strokeStyle = INK; c.lineWidth = 2;
+    const r = k.r, w = G.w;
+    if (w === 0) { // molten rock
+      c.beginPath(); for (let i = 0; i < 7; i++) { const a = i / 7 * TAU, rr = r * (0.85 + 0.15 * Math.sin(i * 2.3)); i ? c.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : c.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); } c.closePath();
+      c.fillStyle = '#2E2228'; c.fill(); c.stroke();
+      c.beginPath(); c.moveTo(-r * 0.5, -r * 0.2); c.lineTo(0, r * 0.1); c.lineTo(r * 0.3, -r * 0.4); c.moveTo(0, r * 0.1); c.lineTo(r * 0.1, r * 0.6);
+      c.strokeStyle = '#FF7A2A'; c.lineWidth = 2.2; c.stroke();
+    } else if (w === 1) { // a ghost
+      c.rotate(-k.rot);
+      c.globalAlpha = 0.85;
+      c.beginPath(); c.arc(0, -r * 0.2, r * 0.8, Math.PI, 0); c.lineTo(r * 0.8, r * 0.7);
+      for (let i = 0; i < 4; i++) c.quadraticCurveTo(r * (0.6 - i * 0.4), r * (0.4 + (i % 2) * 0.5), r * (0.4 - i * 0.4), r * 0.7);
+      c.closePath(); c.fillStyle = '#BFFFE0'; c.fill(); c.stroke();
+      c.fillStyle = INK; for (const sd of [-1, 1]) { c.beginPath(); c.ellipse(sd * r * 0.3, -r * 0.25, r * 0.14, r * 0.2, 0, 0, TAU); c.fill(); }
+      c.beginPath(); c.ellipse(0, r * 0.15, r * 0.15, r * 0.1, 0, 0, TAU); c.fill();
+      c.globalAlpha = 1;
+    } else if (w === 2) { // a floating skull
+      c.beginPath(); c.moveTo(-r * 0.8, -r * 0.2); c.quadraticCurveTo(-r * 0.8, -r, 0, -r); c.quadraticCurveTo(r * 0.8, -r, r * 0.8, -r * 0.2); c.lineTo(r * 0.5, r * 0.5); c.lineTo(-r * 0.5, r * 0.5); c.closePath();
+      c.fillStyle = '#E6DCC4'; c.fill(); c.stroke();
+      c.fillStyle = '#1A1210'; for (const sd of [-1, 1]) { c.beginPath(); c.arc(sd * r * 0.35, -r * 0.3, r * 0.22, 0, TAU); c.fill(); }
+      c.fillStyle = '#FF4A2A'; for (const sd of [-1, 1]) { c.beginPath(); c.arc(sd * r * 0.35, -r * 0.3, r * 0.07, 0, TAU); c.fill(); }
+      c.beginPath(); c.moveTo(-r * 0.3, r * 0.5); c.lineTo(-r * 0.3, r * 0.75); c.moveTo(0, r * 0.5); c.lineTo(0, r * 0.75); c.moveTo(r * 0.3, r * 0.5); c.lineTo(r * 0.3, r * 0.75); c.stroke();
+    } else if (w === 3) { // a crystal cluster
+      for (const [a, h, col] of [[-0.5, 1.1, '#4AF0FF'], [0.4, 1.2, '#FF4FD8'], [0, 1.4, '#B8A8FF']]) {
+        c.save(); c.rotate(a); c.beginPath(); c.moveTo(-r * 0.25, r * 0.4); c.lineTo(0, -r * h); c.lineTo(r * 0.25, r * 0.4); c.closePath();
+        c.fillStyle = col; c.fill(); c.stroke(); c.restore();
+      }
+    } else { // a storm orb
+      c.save(); c.globalCompositeOperation = 'lighter';
+      c.beginPath(); c.arc(0, 0, r * 1.2, 0, TAU); c.fillStyle = 'rgba(120,180,255,.25)'; c.fill(); c.restore();
+      c.beginPath(); c.arc(0, 0, r * 0.75, 0, TAU); c.fillStyle = '#2A3A6A'; c.fill(); c.stroke();
+      c.beginPath(); c.moveTo(-r * 0.5, -r * 0.4); c.lineTo(r * 0.1, -r * 0.05); c.lineTo(-r * 0.15, r * 0.1); c.lineTo(r * 0.5, r * 0.45);
+      c.strokeStyle = '#FFF6B0'; c.lineWidth = 2.2; c.stroke();
+    }
+    c.restore();
   }
 
   // ---------- Pickups ----------
@@ -724,8 +827,9 @@ window.DinoHydra = (core) => {
       G.boost = Math.max(G.boost, 0) + 14;
       floatText(P.x, P.y - 50, 'כל הנשקים +1!', '#FFD23F');
       sfx.power();
-    } else if (p.type === 'egg') {
-      if (G.lives < G.maxLives) { G.lives++; core.buildLives(); floatText(P.x, P.y - 50, 'ביצה!', '#FFFFFF'); }
+    } else if (p.type === 'heart') {
+      G.hp = Math.min(G.maxHp, G.hp + 30); core.buildLives();
+      floatText(P.x, P.y - 50, '+30 חיים', '#7FE08A');
       sfx.power();
     }
   }
@@ -830,6 +934,7 @@ window.DinoHydra = (core) => {
     updateBoss(dt);
     if (G.state !== 'play') return;
     updateSpecials(dt);
+    updateRocks(dt);
     updateBullets(dt);
     updatePickups(dt);
     // A normal level ends once the last wave is over: the monster flies on and the coins left fly to it.
@@ -845,7 +950,7 @@ window.DinoHydra = (core) => {
     for (const b of G.bullets) {
       b.t += dt; b.x += b.vx * dt * ts; b.y += b.vy * dt * ts;
       if (b.y > VH + 20 || b.y < -30 || b.x < -20 || b.x > VW + 20) b.dead = true;
-      else if (G.state === 'play' && (b.x - P.x) ** 2 + (b.y - P.y) ** 2 < (b.r + 6) ** 2) { b.dead = true; hit(); }
+      else if (G.state === 'play' && (b.x - P.x) ** 2 + (b.y - P.y) ** 2 < (b.r + 6) ** 2) { b.dead = true; hit(b.dmg || 15); }
     }
     G.bullets = G.bullets.filter((b) => !b.dead);
   }
@@ -871,9 +976,10 @@ window.DinoHydra = (core) => {
     }
     sfx.win();
     const pct = G.spawned ? G.kills / G.spawned * 100 : 100;
-    const done = (pct >= KILL_PCT ? 1 : 0) | (G.coins >= G.cfg.coinGoal ? 2 : 0) | (G.lives >= G.maxLives ? 4 : 0);
+    const left = G.hp / G.maxHp;
+    const done = (pct >= KILL_PCT ? 1 : 0) | (G.coins >= G.cfg.coinGoal ? 2 : 0) | (left >= HP_CHAL / 100 ? 4 : 0);
     hud(true);
-    core.finishWin(clamp(G.lives, 1, 3), done, G.bossFight ? 2800 : 2200);
+    core.finishWin(left >= 0.7 ? 3 : left >= 0.35 ? 2 : 1, done, G.bossFight ? 2800 : 2200);
   }
   function updateWin(dt) {
     G.winT += dt;
@@ -924,6 +1030,7 @@ window.DinoHydra = (core) => {
     if (!force && key === G.hudKey) return;
     G.hudKey = key;
     $('.meter').classList.toggle('boss', G.bossFight);
+    $('.meter').style.visibility = G.bossFight ? '' : 'hidden';
     if (G.bossFight) {
       $('#levelName').textContent = BOSSES[G.w].name;
       const left = B ? B.hp / B.max : 1;
@@ -951,6 +1058,7 @@ window.DinoHydra = (core) => {
     drawClouds(c);
     for (const cl of G.clouds) drawPoisonCloud(c, cl);
     for (const p of G.pickups) drawPickup(c, p);
+    for (const k of G.rocks) drawRock(c, k);
     for (const e of G.enemies) if (e.t >= 0) drawEnemy(c, e);
     if (G.boss && !G.bossPopped) drawBossLive(c);
     drawPlayerShots(c);
@@ -959,6 +1067,7 @@ window.DinoHydra = (core) => {
     drawFx(c);
     drawParticles(c);
     if (G.freezeT > 0) { c.fillStyle = `rgba(120,200,255,${0.12 + 0.04 * Math.sin(G.t * 6)})`; c.fillRect(0, 0, VW, VH); }
+    drawTrack(c);
     drawUI(c);
     if (G.flash > 0) { c.fillStyle = `rgba(255,255,255,${G.flash * 0.8})`; c.fillRect(-10, -10, VW + 20, VH + 20); }
   }
@@ -1236,9 +1345,13 @@ window.DinoHydra = (core) => {
       c.fillStyle = '#FFB020'; c.fill(); c.lineWidth = 2.2; c.strokeStyle = INK; c.lineJoin = 'round'; c.stroke();
       c.beginPath(); c.moveTo(-5, 3); c.lineTo(0, -3); c.lineTo(5, 3); c.moveTo(-5, 8); c.lineTo(0, 2); c.lineTo(5, 8);
       c.strokeStyle = '#FFFFFF'; c.lineWidth = 2.2; c.lineCap = 'round'; c.stroke();
-    } else if (p.type === 'egg') {
-      c.rotate(Math.sin(p.t * 5) * 0.25);
-      c.drawImage(sprite('egg', 22, 27), -11, -13.5, 22, 27);
+    } else if (p.type === 'heart') {
+      const b = 1 + Math.sin(p.t * 7) * 0.1;
+      c.scale(b, b);
+      c.save(); c.globalCompositeOperation = 'lighter'; c.beginPath(); c.arc(0, 0, 18, 0, TAU); c.fillStyle = 'rgba(80,255,140,.25)'; c.fill(); c.restore();
+      c.beginPath(); c.moveTo(0, 10); c.bezierCurveTo(-14, 0, -10, -12, 0, -5); c.bezierCurveTo(10, -12, 14, 0, 0, 10); c.closePath();
+      c.fillStyle = '#3EE07A'; c.fill(); c.lineWidth = 2; c.strokeStyle = INK; c.stroke();
+      c.fillStyle = '#FFFFFF'; c.fillRect(-1.5, -4, 3, 9); c.fillRect(-4.5, -1, 9, 3);
     }
     c.restore();
   }
@@ -1306,6 +1419,31 @@ window.DinoHydra = (core) => {
       c.beginPath(); c.arc(-8, 8, 3.5, 0, TAU); c.fillStyle = '#7A5A48'; c.fill(); c.stroke();
     }
   }
+  // How far through the level: the monster climbs from the start to the finish flag (or the boss).
+  function drawTrack(c) {
+    const x = VW - 14, top = 54, bot = VH - 96;
+    const k = G.bossFight ? (G.boss ? 1 : clamp(G.st / G.cfg.len, 0, 1)) : clamp(G.st / G.cfg.len, 0, 1);
+    c.save();
+    c.lineCap = 'round';
+    c.beginPath(); c.moveTo(x, bot); c.lineTo(x, top); c.strokeStyle = 'rgba(5,4,12,.7)'; c.lineWidth = 7; c.stroke();
+    c.beginPath(); c.moveTo(x, bot); c.lineTo(x, top); c.strokeStyle = 'rgba(255,255,255,.18)'; c.lineWidth = 2; c.setLineDash([3, 6]); c.stroke(); c.setLineDash([]);
+    const y = bot - (bot - top) * k;
+    c.beginPath(); c.moveTo(x, bot); c.lineTo(x, y); c.strokeStyle = '#F2B84B'; c.lineWidth = 3; c.stroke();
+    // start: a small dot
+    c.beginPath(); c.arc(x, bot, 4, 0, TAU); c.fillStyle = '#F2B84B'; c.fill();
+    // finish: a flag, or the boss's skull
+    if (G.bossFight) {
+      c.beginPath(); c.arc(x, top - 6, 9, 0, TAU); c.fillStyle = '#3A0A14'; c.fill(); c.strokeStyle = '#FF6B4A'; c.lineWidth = 1.5; c.stroke();
+      c.font = `12px ${FONT}`; c.textAlign = 'center'; c.fillStyle = '#FFE0D0'; c.fillText('☠', x, top - 2);
+    } else {
+      c.beginPath(); c.moveTo(x, top + 2); c.lineTo(x, top - 16); c.strokeStyle = '#EEF1FF'; c.lineWidth = 1.6; c.stroke();
+      for (let i = 0; i < 3; i++) for (let j = 0; j < 2; j++) { c.fillStyle = (i + j) % 2 ? '#0A0614' : '#FFFFFF'; c.fillRect(x - 12 + i * 4, top - 16 + j * 4, 4, 4); }
+    }
+    // the monster: its first head, riding up the track
+    c.beginPath(); c.arc(x, y, 10, 0, TAU); c.fillStyle = 'rgba(12,8,22,.9)'; c.fill(); c.strokeStyle = '#F2B84B'; c.lineWidth = 1.6; c.stroke();
+    c.save(); c.translate(x, y + 2); c.scale(0.62, 0.62); drawHead(c, G.P.heads[0], 0, 0, G.t, 0, 0); c.restore();
+    c.restore();
+  }
   function drawUI(c) {
     const b = SPECIAL_BTN, full = G.charge >= 1, pulse = full ? 1 + Math.sin(G.t * 8) * 0.05 : 1;
     c.save(); c.translate(b.x, b.y); c.scale(pulse, pulse);
@@ -1330,11 +1468,11 @@ window.DinoHydra = (core) => {
       c.font = `12px ${FONT}`; c.textAlign = 'left'; c.fillStyle = '#FFE2A8'; c.fillText('+1 נשק', 78, VH - 40);
     }
     // coins
-    drawCoin(c, VW - 62, 20, 7.5, 0);
+    drawCoin(c, VW - 78, 20, 7.5, 0);
     c.font = `17px ${FONT}`; c.textAlign = 'left';
     c.lineWidth = 3; c.strokeStyle = INK;
     const txt = `${G.coins}`;
-    c.strokeText(txt, VW - 50, 26); c.fillStyle = G.coins >= G.cfg.coinGoal ? '#FFC93C' : '#FFFFFF'; c.fillText(txt, VW - 50, 26);
+    c.strokeText(txt, VW - 66, 26); c.fillStyle = G.coins >= G.cfg.coinGoal ? '#FFC93C' : '#FFFFFF'; c.fillText(txt, VW - 66, 26);
   }
 
   // ---------- Enemies, drawn ----------
@@ -1350,6 +1488,10 @@ window.DinoHydra = (core) => {
     else drawDragon(c, e.anim, P, G.w, {});
     c.restore();
     if (e.spat > 0) e.spat -= 1 / 60;
+    if (e.warn) {
+      c.font = `18px ${FONT}`; c.textAlign = 'center'; c.lineWidth = 3; c.strokeStyle = INK;
+      c.strokeText('!', e.x, e.y - e.r - 6); c.fillStyle = '#FF4D6D'; c.fillText('!', e.x, e.y - e.r - 6);
+    }
     if (e.flash > 0 || e.slow > 0) {
       c.beginPath(); c.arc(e.x, e.y, e.r * 0.95, 0, TAU);
       c.fillStyle = e.flash > 0 ? 'rgba(255,255,255,.55)' : 'rgba(150,220,255,.35)'; c.fill();
@@ -1449,13 +1591,17 @@ window.DinoHydra = (core) => {
       b.addEventListener('click', () => {
         sfx.init();
         shownHead = id;
-        if (open) { if (toggleHead(id)) sfx.tone(act ? 330 : 660, 0.08, 'triangle', 0.06); else sfx.tone(200, 0.12, 'square', 0.04); }
+        let res = null;
+        if (open) { res = toggleHead(id); if (res === true) sfx.tone(act ? 330 : 660, 0.08, 'triangle', 0.06); else sfx.tone(200, 0.12, 'square', 0.04); }
         else sfx.tap();
         buildTitle();
+        if (res === 'full') $('#charPerk').innerHTML = `אפשר לקחת עד ${MAX_HEADS} ראשים. מורידים ראש אחד כדי להחליף`;
+        if (res === false) $('#charPerk').innerHTML = 'צריך לפחות ראש אחד';
       });
       box.appendChild(b);
     });
     const H = HEADS[shownHead], open = shownHead === 'fire' || r.unlocked.includes(shownHead), act = on.includes(shownHead);
+    $('#headCount').textContent = `ראשים בקרב: ${on.length}/${MAX_HEADS}`;
     $('#charPerk').innerHTML = !open ? `${H.name} גדל אחרי עולם ${HEAD_ORDER.indexOf(shownHead)}`
       : `${H.name}: ${H.perk} · <b class="${act ? 'is-on' : 'is-off'}">${act ? 'בפנים' : 'בחוץ'}</b>`;
   }
@@ -1524,7 +1670,7 @@ window.DinoHydra = (core) => {
 
   return {
     game: { worlds: WORLDS, chals: CHALS, goal: goalText, start, bosses: BOSSES, map: MAP, prize, buildTitle, paintHero },
-    heads: { activeHeads, toggleHead },
+    heads: { activeHeads, toggleHead, MAX_HEADS },
     shop: { HEADS, HEAD_ORDER, LEVEL_PRICE, MAX_SHOP_LV, SPECIALS, SPECIAL_ORDER, headURL, specialURL, heroLevel },
     update: (dt) => { G = core.G(); update(dt); },
     render: () => { G = core.G(); render(); },

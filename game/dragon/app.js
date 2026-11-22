@@ -87,15 +87,15 @@
     G.readyT = 0;
     startPlay();
   }
+  // The health bar in the top bar (it used to be eggs).
   function buildLives() {
     const el = $('#lives');
-    el.innerHTML = '';
-    for (let i = 0; i < G.maxLives; i++) {
-      const im = document.createElement('img');
-      im.src = 'assets/egg.svg'; im.alt = '';
-      if (i >= G.lives) im.className = 'lost';
-      el.appendChild(im);
-    }
+    if (!el.firstChild) el.innerHTML = '<div class="hp"><i></i><b></b><span></span></div>';
+    const k = clamp(G.hp / G.maxHp, 0, 1);
+    el.querySelector('i').style.width = `${k * 100}%`;
+    el.querySelector('span').textContent = Math.ceil(G.hp);
+    el.classList.toggle('low', k < 0.35);
+    el.classList.remove('hurt'); void el.offsetWidth; el.classList.add('hurt');
   }
   const chalRow = (cfg, done, freshBits = 0, chals = game.chals) => `<span class="chal-row">${chals.map((ch) =>
     `<span class="chal${done & ch.bit ? ' done' : ''}${freshBits & ch.bit ? ' fresh' : ''}">${ch.icon} <bdi>${ch.label(cfg)}</bdi></span>`).join('')}</span>`;
@@ -113,7 +113,10 @@
     r.coins = (r.coins || 0) + G.coins;
     let unlocked = null;
     const world = WORLDS[G.w];
-    if (G.l === world.levels.length - 1 && world.unlock && !r.unlocked.includes(world.unlock)) { r.unlocked.push(world.unlock); unlocked = world.unlock; }
+    if (G.l === world.levels.length - 1 && world.unlock && !r.unlocked.includes(world.unlock)) {
+      r.unlocked.push(world.unlock); unlocked = world.unlock;
+      if (Array.isArray(r.active) && r.active.length < hydra.heads.MAX_HEADS) r.active.push(unlocked); // it joins the fight if there's room
+    }
     store.save();
     setTimeout(() => {
       if (!G || G.state !== 'won') return;
@@ -213,17 +216,18 @@
     $('#worldStars').innerHTML = `★ <bdi>${starsIn(w)}/${wd.levels.length * 3}</bdi>`;
     const list = $('#levelList');
     list.innerHTML = '';
+    let next = wd.levels.findIndex((_, l) => levelOpen(w, l) && !(r.stars[`${w + 1}-${l + 1}`] || 0));
     wd.levels.forEach((cfg, l) => {
       const key = `${w + 1}-${l + 1}`, open = levelOpen(w, l), stars = r.stars[key] || 0, best = r.best[key];
       const b = document.createElement('button');
-      b.className = `lvl-row${cfg.bossFight ? ' boss' : ''}${open ? '' : ' locked'}`;
+      b.className = `lvl-row${cfg.bossFight ? ' boss' : ''}${open ? ' open' : ' locked'}${l === next ? ' next' : ''}`;
       b.disabled = !open;
       const title = cfg.bossFight ? game.bosses[w].name : `שלב ${l + 1}`;
       const sub = cfg.bossFight ? 'הבוס של העולם' : `${cfg.foes} דרקונים`;
       b.innerHTML = `<span class="lvl-num">${cfg.bossFight ? '☠' : l + 1}</span>
-        <span class="lvl-main"><b>${title}</b><small>${sub}${best ? ` · השיא <bdi>${fmtTime(best)}</bdi>` : ''}</small>${chalRow(cfg, r.chal[key] || 0)}</span>
+        <span class="lvl-main"><b>${title}</b><small>${open ? `${sub}${best ? ` · השיא <bdi>${fmtTime(best)}</bdi>` : ''}` : 'נפתח אחרי השלב הקודם'}</small>${open ? chalRow(cfg, r.chal[key] || 0) : ''}</span>
         <span class="lvl-side"><span class="lvl-stars">${[0, 1, 2].map((k) => `<i class="${k < stars ? 'on' : ''}">★</i>`).join('')}</span>
-        <span class="lvl-play">${open ? '▶' : '🔒'}</span></span>`;
+        <span class="lvl-play">${open ? `<svg viewBox="0 0 24 24"><path d="M8 5 L19 12 L8 19 Z"/></svg>${l === next ? '<em>שחק!</em>' : ''}` : '🔒'}</span></span>`;
       b.addEventListener('click', () => { sfx.init(); sfx.tap(); playLevel(w, l); });
       list.appendChild(b);
     });
