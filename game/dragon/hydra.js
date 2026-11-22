@@ -103,7 +103,7 @@ window.DinoHydra = (core) => {
     if (g >= 6) kinds.push('bomber', 'divers');
     const tanks = cfg.bossFight ? [] : g === 0 ? [0.6] : [0.4, 0.8];
     const ev = [];
-    let t = 2, ti = 0, last = '';
+    let t = cfg.bossFight ? len : 2, ti = 0, last = '';
     while (t < len) {
       let type;
       if (ti < tanks.length && t >= tanks[ti] * len) { type = 'tank'; ti++; }
@@ -112,7 +112,6 @@ window.DinoHydra = (core) => {
       ev.push({ t, type, side: rnd() < 0.5 ? -1 : 1, x: 70 + rnd() * 220, seed: Math.floor(rnd() * 1e9) });
       t += gap * (type === 'tank' ? 2.1 : ['shooters', 'bomber', 'brute', 'caster'].includes(type) ? 1.5 : 1) * (0.85 + rnd() * 0.3);
     }
-    if (cfg.bossFight) ev.push({ t: len, type: 'boss' });
     let foes = 0, coins = 0;
     for (const e of ev) for (const s of formation(e, w)) { foes++; coins += s.coins; }
     if (cfg.bossFight) coins += BOSS_COINS;
@@ -226,7 +225,7 @@ window.DinoHydra = (core) => {
     return iconCache[key];
   }
   const headURL = (id) => paintURL(`h-${id}`, 160, 160, (c) => { c.translate(80, 84); c.scale(5.6, 5.6); drawHead(c, id, 0, 0, 0, 0, 0); });
-  const bossURL = (w) => paintURL(`b-${w}`, 240, 250, (c) => { c.translate(120, 132); c.scale(1.18, 1.18); drawBoss(c, w, 0.4, null); });
+  const bossURL = (w) => paintURL(`b-${w}`, 240, 250, (c) => { c.translate(120, 132); c.scale(1.18, 1.18); drawBoss(c, w, 0.4, null, 3.3); });
   const heroURL = (heads) => paintURL(`hero-${heads.join()}`, 200, 200, (c) => { c.translate(100, 112); c.scale(1.6, 1.6); drawHydra(c, 0, 0, heads, 0.3, {}); });
   const specialURL = (id) => paintURL(`s-${id}`, 120, 120, (c) => { c.translate(60, 60); c.scale(2.2, 2.2); drawSpecialIcon(c, id); });
   const MAP = { banner: (w) => `assets/hworld-${w + 1}.svg`, boss: bossURL };
@@ -330,6 +329,7 @@ window.DinoHydra = (core) => {
       shake: 0, flash: 0, boss: null, winT: 0, ending: false, killsSincePower: 0, hudKey: '',
     };
     G.readyMax = G.readyT;
+    if (boss) bossEnters(); // it flies in during the intro card and the fight starts with it
     for (let i = 0; i < 26; i++) G.motes.push(newMote(true));
     core.setG(G);
     core.setPaused(false);
@@ -484,8 +484,7 @@ window.DinoHydra = (core) => {
   // ---------- The boss ----------
   function bossEnters() {
     const hp = BOSSES[G.w].hp * G.help;
-    G.boss = { x: VW / 2, y: -120, hp, max: hp, t: 0, atk: 0, atkT: 2.6, act: null, enter: 1.8, r: 52, flash: 0, charge: null };
-    sfx.boss();
+    G.boss = { x: VW / 2, y: -160, hp, max: hp, t: 0, atk: 0, atkT: 1.6, act: null, enter: G.readyT, enterMax: G.readyT, r: 68, flash: 0, charge: null };
     hud(true);
   }
   function updateBoss(dt) {
@@ -494,12 +493,13 @@ window.DinoHydra = (core) => {
     if (B.flash > 0) B.flash -= dt;
     if (frozen()) return;
     B.t += dt;
-    const homeX = VW / 2 + Math.sin(B.t * 0.55) * 105, homeY = 118 + Math.sin(B.t * 1.3) * 10;
+    const homeX = VW / 2 + Math.sin(B.t * 0.55) * 90, homeY = 165 + Math.sin(B.t * 1.3) * 10;
     if (B.enter > 0) {
       B.enter -= dt;
-      B.x = homeX; B.y = homeY - 240 * easeOut(Math.max(0, B.enter) / 1.8);
+      B.x = homeX; B.y = homeY - 330 * (1 - easeOut(1 - Math.max(0, B.enter) / B.enterMax));
       return;
     }
+    if (G.state !== 'play') return;
     if (B.charge) {
       // A dive: shakes in place (with a warning), dashes down at the monster, then flies back up.
       const c = B.charge;
@@ -527,13 +527,13 @@ window.DinoHydra = (core) => {
       if (a.t > 0.45 && a.n < 2) {
         a.n++;
         const n = 5 + Math.min(2, G.w);
-        for (let i = 0; i < n; i++) bullet(B.x, B.y + 34, aim + (i - (n - 1) / 2) * 0.2 + (a.n === 2 ? 0.1 : 0), s);
+        for (let i = 0; i < n; i++) bullet(B.x, B.y + 52, aim + (i - (n - 1) / 2) * 0.2 + (a.n === 2 ? 0.1 : 0), s);
         sfx.tone(260, 0.15, 'triangle', 0.05, 0, 140);
         a.t = 0.2;
       }
       if (a.n >= 2) B.act = null;
     } else if (a.type === 'aimed') {
-      if (a.t > 0.3 + a.n * 0.2 && a.n < 4) { a.n++; bullet(B.x, B.y + 34, aim, s * 1.15, 7); sfx.tone(400, 0.08, 'square', 0.03, 0, 250); }
+      if (a.t > 0.3 + a.n * 0.2 && a.n < 4) { a.n++; bullet(B.x, B.y + 52, aim, s * 1.15, 7); sfx.tone(400, 0.08, 'square', 0.03, 0, 250); }
       if (a.n >= 4) B.act = null;
     } else if (a.type === 'ring') {
       if (a.t > 0.5) {
@@ -965,6 +965,7 @@ window.DinoHydra = (core) => {
     G.fx = G.fx.filter((f) => f.t > 0);
     if (G.state === 'ready') {
       G.readyT -= dt;
+      updateBoss(dt);
       const k = easeOut(clamp(1 - G.readyT / G.readyMax, 0, 1));
       G.P.y = VH + 80 + (G.P.ty - VH - 80) * Math.min(1, k * 1.4); G.P.x = G.P.tx;
       if (G.readyT <= 0) core.startPlay();
@@ -1485,6 +1486,7 @@ window.DinoHydra = (core) => {
     c.restore();
   }
   function drawTrack(c) {
+    if (G.bossFight) return; // a boss fight has the boss's health bar instead
     const x = VW - 14, top = 54, bot = VH - 96;
     const k = G.bossFight ? (G.boss ? 1 : clamp(G.st / G.cfg.len, 0, 1)) : clamp(G.st / G.cfg.len, 0, 1);
     c.save();
@@ -1654,8 +1656,8 @@ window.DinoHydra = (core) => {
     }
   }
   // The boss: a huge dragon of the world.
-  function drawBoss(c, w, t, B) {
-    c.save(); c.scale(3.3, 3.3);
+  function drawBoss(c, w, t, B, scale = 4.4) {
+    c.save(); c.scale(scale, scale);
     drawDragon(c, t * 0.8, DRAGONS[w], w, { boss: true, angry: true, open: B && B.act ? 1 : 0, lw: 0.6 });
     c.restore();
   }
@@ -1666,11 +1668,11 @@ window.DinoHydra = (core) => {
       // the warning before a dive: a red stripe where it will come down
       c.save(); c.translate(B.charge.tx - B.x, 0);
       c.fillStyle = `rgba(255,40,70,${0.18 + 0.12 * Math.sin(B.charge.t * 30)})`;
-      c.fillRect(-46, 30, 92, VH * 0.6);
+      c.fillRect(-62, 40, 124, VH * 0.6);
       c.restore();
     }
     c.save(); c.globalCompositeOperation = 'lighter';
-    c.beginPath(); c.arc(0, 0, 80, 0, TAU); c.fillStyle = 'rgba(255,80,40,.12)'; c.fill(); c.restore();
+    c.beginPath(); c.arc(0, 0, 110, 0, TAU); c.fillStyle = 'rgba(255,80,40,.12)'; c.fill(); c.restore();
     drawBoss(c, G.w, G.t, B);
     if (B.flash > 0) { c.beginPath(); c.arc(0, 0, B.r, 0, TAU); c.fillStyle = 'rgba(255,255,255,.3)'; c.fill(); }
     c.restore();
@@ -1688,7 +1690,7 @@ window.DinoHydra = (core) => {
       b.className = `char head${open ? '' : ' locked'}${act ? ' sel' : open ? ' off' : ''}`;
       b.setAttribute('aria-label', open ? HEADS[id].name : `נעול, נפתח אחרי עולם ${i}`);
       b.setAttribute('aria-pressed', act);
-      b.innerHTML = `<img src="${headURL(id)}" alt="">${open ? '' : '<span class="lock">🔒</span>'}`;
+      b.innerHTML = `<img src="${headURL(id)}" alt="">${!open ? '<span class="lock">🔒</span>' : act ? '<span class="mark on">✓</span>' : '<span class="mark add">+</span>'}`;
       b.addEventListener('click', () => {
         sfx.init();
         shownHead = id;

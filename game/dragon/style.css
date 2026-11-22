@@ -498,3 +498,16 @@ img { -webkit-user-drag: none; }
 }
 .lvl-row.open .lvl-play .go-pill svg { width: 15px; height: 15px; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; fill: #2A1700; }
 .win-panel .pause-nap { width: 120px; height: 120px; top: -70px; }
+/* ---------- Heads on the title: picked / earned / locked look clearly different ---------- */
+.char.head { width: min(50px, 12.6vw); height: min(50px, 12.6vw); }
+.char.off { opacity: 1; border-style: solid; border-color: rgba(255,255,255,.35); background: rgba(30,36,64,.85); }
+.char.off img { filter: none; }
+.char.sel { background: rgba(60,44,14,.9); }
+.char.locked { background: rgba(5,6,14,.8); border-color: rgba(255,255,255,.08); }
+.char.locked img { filter: brightness(0) opacity(.35); }
+.char .mark {
+  position: absolute; top: -7px; left: -7px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
+  font-family: var(--display); font-size: 14px; line-height: 1; border: 1.5px solid #000;
+}
+.char .mark.on { background: var(--gold); color: #2A1700; }
+.char .mark.add { background: #2C3760; color: #fff; border-color: rgba(255,255,255,.5); }
