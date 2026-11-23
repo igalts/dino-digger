@@ -2205,8 +2205,8 @@ window.DinoHydra = (core) => {
   function drawAltar(c, heads, t) {
     c.save(); c.translate(0, 44); c.scale(0.86, 0.3);
     c.save(); c.globalCompositeOperation = 'lighter';
-    const gl = c.createRadialGradient(0, 0, 4, 0, 0, 70); gl.addColorStop(0, 'rgba(150,110,255,.38)'); gl.addColorStop(1, 'rgba(150,110,255,0)');
-    c.fillStyle = gl; c.beginPath(); c.arc(0, 0, 70, 0, TAU); c.fill();
+    if (!lair.glow || lair.glowC !== c) { lair.glowC = c; lair.glow = c.createRadialGradient(0, 0, 4, 0, 0, 70); lair.glow.addColorStop(0, 'rgba(150,110,255,.38)'); lair.glow.addColorStop(1, 'rgba(150,110,255,0)'); }
+    c.fillStyle = lair.glow; c.beginPath(); c.arc(0, 0, 70, 0, TAU); c.fill();
     c.restore();
     c.lineWidth = 2.4;
     const seg = TAU / MAX_HEADS;
@@ -2225,13 +2225,19 @@ window.DinoHydra = (core) => {
     c.restore();
   }
   function paintHero(cv2, t) {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
-    const cw = cv2.clientWidth || 200, chh = cv2.clientHeight || 200;
-    if (cv2.width !== Math.round(cw * dpr) || cv2.height !== Math.round(chh * dpr)) { cv2.width = Math.round(cw * dpr); cv2.height = Math.round(chh * dpr); }
-    const c = cv2.getContext('2d');
+    // The picture is only decoration, so it draws at a lighter resolution, and its size is read twice a second, not every frame.
+    const L = lair;
+    if (!L.sz || L.sz.cv !== cv2 || (L.frame = (L.frame || 0) + 1) % 30 === 0) {
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.6);
+      L.sz = { cv: cv2, dpr, cw: cv2.clientWidth || 200, chh: cv2.clientHeight || 200, c: L.sz && L.sz.cv === cv2 ? L.sz.c : cv2.getContext('2d') };
+      const W = Math.round(L.sz.cw * dpr), H = Math.round(L.sz.chh * dpr);
+      if (cv2.width !== W || cv2.height !== H) { cv2.width = W; cv2.height = H; }
+    }
+    const { dpr, cw, chh, c } = L.sz;
+    if (!chh || !cw) return;
     c.setTransform(1, 0, 0, 1, 0, 0);
     c.clearRect(0, 0, cv2.width, cv2.height);
-    const L = lair, dt = clamp(t - L.last, 0, 0.05);
+    const dt = clamp(t - L.last, 0, 0.05);
     L.last = t; L.t = t;
     const s = Math.min(chh / 140, cw / 150), oy = chh * 0.64, top = -oy / s;
     c.setTransform(dpr * s, 0, 0, dpr * s, dpr * cw / 2, dpr * oy);

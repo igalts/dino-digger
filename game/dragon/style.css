@@ -586,3 +586,16 @@ img { -webkit-user-drag: none; }
 .perk .pips i { width: 9px; height: 6px; }
 #title .btn.big { padding: 6px 50px; }
 @media (max-height: 700px) { .lair { min-height: 190px; } .title-inner { padding-top: 58px; } #title .btn.big { font-size: 28px; } }
+
+/* ---------- Title: everything fits on short phones (the lair shrinks first) ---------- */
+#title .title-inner { min-height: 0; overflow: hidden; }
+#title .lair { flex: 1 1 0; min-height: 130px; max-height: 360px; }
+#title .chars-box, #title .btn, #title .logo { flex: none; }
+@media (max-height: 620px) {
+  #title .title-inner { padding-top: 54px; gap: 4px; }
+  .logo { font-size: clamp(32px, 9.5vw, 48px); }
+  #title .btn.big { font-size: 24px; padding: 4px 40px; }
+  #title .shop-btn { font-size: 16px; padding: 5px 16px; }
+  .slot { width: 40px; height: 40px; }
+  .perk { font-size: 13px; padding: 3px 10px; min-height: 0; }
+}
