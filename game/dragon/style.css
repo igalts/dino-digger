@@ -532,3 +532,57 @@ img { -webkit-user-drag: none; }
 .ready-prize span { font-family: var(--body); font-size: 14px; color: var(--text); line-height: 1.2; }
 .ready-prize b { color: var(--gold2); }
 .ready-prize small { color: var(--muted); }
+/* ---------- The title is the monster's lair: pick its heads right here ---------- */
+.title-inner { justify-content: space-between; padding: 64px 14px 14px; gap: 6px; }
+.logo { font-size: clamp(38px, 11.5vw, 64px); line-height: 1; white-space: nowrap; }
+.logo span { font-size: 1em; }
+.lair {
+  position: relative; width: min(100%, 440px); flex: 1 1 auto; min-height: 220px; max-height: 360px; border-radius: 22px;
+  background: radial-gradient(ellipse at 50% 78%, rgba(120,80,255,.28), rgba(10,12,30,.0) 62%), linear-gradient(rgba(8,10,24,.15), rgba(8,10,24,.72));
+  border: 1.5px solid rgba(242,184,75,.35); box-shadow: inset 0 0 40px rgba(0,0,0,.6), 0 10px 24px rgba(0,0,0,.4); overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.lair .hero { flex: 1; min-height: 0; width: 100%; height: auto; filter: none; }
+.lair-bar {
+  flex: none; display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 7px 10px; background: rgba(5,6,16,.8); border-top: 1px solid rgba(242,184,75,.25);
+}
+.head-count { font-family: var(--display); font-size: 15px; color: var(--text); line-height: 1.05; text-align: center; }
+.head-count b { display: block; font-weight: 400; font-size: 20px; color: var(--gold2); }
+.slots { display: flex; gap: 8px; }
+.slot {
+  width: 46px; height: 46px; border-radius: 50%; padding: 2px; display: grid; place-items: center; position: relative;
+  background: rgba(5,6,14,.75); border: 2px dashed rgba(255,255,255,.28); color: rgba(255,255,255,.45); font-family: var(--display); font-size: 24px;
+}
+.slot img { width: 100%; height: 100%; object-fit: contain; }
+.slot.full {
+  border: 2.5px solid var(--hc); background: radial-gradient(circle, color-mix(in srgb, var(--hc) 45%, #000), #05060E 75%);
+  box-shadow: 0 0 12px var(--hc), inset 0 0 8px rgba(0,0,0,.6); animation: slotIn .35s cubic-bezier(.3,1.6,.5,1);
+}
+.slot.full::after { content: "×"; position: absolute; top: -5px; left: -5px; width: 17px; height: 17px; border-radius: 50%; background: #1A1F38; border: 1.5px solid rgba(255,255,255,.5); font: 13px/14px var(--body); font-weight: 800; color: #fff; }
+.slot:active { transform: scale(.92); }
+@keyframes slotIn { from { transform: scale(.3); } }
+.chars { gap: 7px; flex-wrap: nowrap; }
+.char.head {
+  width: min(52px, 13.2vw); height: min(62px, 15.8vw); border-radius: 14px; padding: 3px 2px 9px; align-content: start;
+  --hc: #888; --hg: #fff;
+}
+.char.head.sel {
+  border: 2px solid var(--hc); background: linear-gradient(180deg, color-mix(in srgb, var(--hc) 38%, #0A0C1A), #0A0C1A);
+  box-shadow: 0 0 0 1px #000, 0 0 14px color-mix(in srgb, var(--hc) 70%, transparent); transform: translateY(-3px);
+}
+.char.head.off { border: 1.5px solid color-mix(in srgb, var(--hc) 55%, #555); background: linear-gradient(180deg, color-mix(in srgb, var(--hc) 14%, #141932), #0E1226); }
+.char.head.shown { outline: 2px solid #fff; outline-offset: 2px; }
+.char.head.locked { background: #05060E; border: 1.5px dashed rgba(255,255,255,.12); }
+.char .mark.on { background: var(--hc); color: #12081A; font-size: 13px; box-shadow: 0 0 8px var(--hc); }
+.char .lock { bottom: auto; top: 50%; left: 50%; transform: translate(-50%, -60%); font-size: 16px; display: flex; flex-direction: column; align-items: center; line-height: 1; }
+.char .lock small { font-family: var(--display); font-size: 11px; color: var(--muted); margin-top: 2px; }
+.char .pips { position: absolute; bottom: 3px; left: 0; right: 0; display: flex; justify-content: center; gap: 2px; direction: ltr; }
+.pips i { width: 6px; height: 4px; border-radius: 2px; background: rgba(255,255,255,.18); }
+.pips i.on { background: var(--hc, var(--gold)); box-shadow: 0 0 4px var(--hc, var(--gold)); }
+.perk { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 4px 8px; font-size: 14px; line-height: 1.2; max-width: 100%; }
+.perk .hn { font-family: var(--display); font-weight: 400; font-size: 16px; color: var(--hc); }
+.perk .pips { display: inline-flex; gap: 2px; direction: ltr; }
+.perk .pips i { width: 9px; height: 6px; }
+#title .btn.big { padding: 6px 50px; }
+@media (max-height: 700px) { .lair { min-height: 190px; } .title-inner { padding-top: 58px; } #title .btn.big { font-size: 28px; } }

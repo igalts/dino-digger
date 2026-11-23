@@ -17,15 +17,17 @@
 
 <section id="title" class="screen" hidden>
   <div class="title-inner">
-    <div id="titleLogo" class="logo">מפלצת<br><span>הראשים!</span></div>
-    <canvas id="titleHero" class="hero bob" aria-hidden="true"></canvas>
-    <button id="playBtn" class="btn big">שחק!</button>
+    <div id="titleLogo" class="logo">מפלצת <span>הראשים!</span></div>
+    <div class="lair">
+      <canvas id="titleHero" class="hero" aria-hidden="true"></canvas>
+      <div class="lair-bar"><div id="headCount" class="head-count"></div><div id="slots" class="slots"></div></div>
+    </div>
     <div class="chars-box">
-      <div id="headCount" class="head-count"></div>
       <div id="chars" class="chars"></div>
       <div id="charPerk" class="perk"></div>
-      <button id="shopBtn" class="btn alt shop-btn">החנות <span id="titleCoins" class="coin-pill"></span></button>
     </div>
+    <button id="playBtn" class="btn big">שחק!</button>
+    <button id="shopBtn" class="btn alt shop-btn">החנות <span id="titleCoins" class="coin-pill"></span></button>
   </div>
   <button id="muteBtn" class="icon-btn corner" aria-label="צליל">🔊</button>
   <button id="settingsBtn" class="icon-btn corner end" aria-label="הגדרות">⚙️</button>

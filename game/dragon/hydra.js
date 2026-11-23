@@ -1209,9 +1209,11 @@ window.DinoHydra = (core) => {
     c.restore();
     // necks (drawn under the body so they grow out of the shoulders)
     const n = heads.length, geo = heads.map((_, k) => headGeo(k, n, t));
+    // o.grow[id] (0..1): a head that's just growing out (the title screen uses it)
+    const gr = (id) => (o.grow && o.grow[id] != null ? o.grow[id] : 1);
     heads.forEach((id, k) => {
-      const g = geo[k];
-      c.beginPath(); c.moveTo(g.bx * 0.7, -4); c.quadraticCurveTo(g.bx + Math.sin(g.a) * 6, g.by - 6, g.hx, g.hy);
+      const g = geo[k], q = Math.min(1, gr(id));
+      c.beginPath(); c.moveTo(g.bx * 0.7, -4); c.quadraticCurveTo(g.bx + Math.sin(g.a) * 6 * q, -4 + (g.by - 2) * q, g.bx * 0.7 + (g.hx - g.bx * 0.7) * q, -4 + (g.hy + 4) * q);
       c.strokeStyle = INK; c.lineWidth = 8; c.stroke();
       c.strokeStyle = BODY.c; c.lineWidth = 5; c.stroke();
       c.strokeStyle = HEADS[id].c; c.globalAlpha = 0.7; c.lineWidth = 1.6; c.stroke(); c.globalAlpha = 1;
@@ -1246,8 +1248,9 @@ window.DinoHydra = (core) => {
     // heads, the middle ones last so they sit on top (a bit bigger than before)
     const order = heads.map((_, k) => k).sort((i, j) => Math.abs(geo[j].a) - Math.abs(geo[i].a));
     for (const k of order) {
-      const g = geo[k], id = heads[k];
-      c.save(); c.translate(g.hx, g.hy); c.rotate(g.a); c.scale(1.18, 1.18);
+      const g = geo[k], id = heads[k], q = gr(id), qm = Math.min(1, q);
+      if (q <= 0.02) continue;
+      c.save(); c.translate(g.bx * 0.7 + (g.hx - g.bx * 0.7) * qm, -4 + (g.hy + 4) * qm); c.rotate(g.a); c.scale(1.18 * q, 1.18 * q);
       drawHead(c, id, 0, 0, t + k, o.roar ? 1 : (o.open && o.open[id]) || 0, 0);
       c.restore();
     }
@@ -2073,46 +2076,204 @@ window.DinoHydra = (core) => {
 
   // ---------- Title screen: the heads ----------
   let shownHead = 'fire';
-  // Tap a head: switch it on or off (it shows what it does either way).
+  // The title is the monster's lair: it hovers over a rune circle and really fires with the heads you picked.
+  // Tap a head card to put it in or take it out (up to 3); tap a slot under the monster to take that head out.
+  const lair = { t: 0, last: 0, shots: [], gusts: [], fx: [], clouds: [], meteors: [], bits: [], cool: {}, grow: {}, pop: {}, beam: null, meteorT: 0, roarFx: 0, P: { x: 0, y: 0 } };
+  const isOpen = (id) => id === 'fire' || rec().unlocked.includes(id);
+  function growHead(id) {
+    lair.grow[id] = 0; lair.pop[id] = true; lair.cool[id] = 0.5;
+    sfx.tone(150, 0.32, 'sawtooth', 0.05, 0, 60); sfx.tone(520, 0.14, 'triangle', 0.05, 0.08, 900);
+  }
+  function dropHead(id) {
+    const H = HEADS[id];
+    for (let i = 0; i < 16; i++) lair.bits.push({ x: rand(-14, 14), y: rand(-50, -30), vx: rand(-60, 60), vy: rand(-70, 10), life: 0.6, max: 0.6, color: H.glow, size: rand(1.5, 3.5) });
+    sfx.tone(330, 0.16, 'triangle', 0.05, 0, 140);
+  }
+  function pickHead(id) {
+    sfx.init();
+    shownHead = id;
+    let note = '';
+    if (!isOpen(id)) { sfx.tap(); buildTitle(); return; }
+    const res = toggleHead(id);
+    if (res === false) { sfx.tone(200, 0.12, 'square', 0.04); note = 'צריך לפחות ראש אחד'; }
+    else if (res === 'off') dropHead(id);
+    else { growHead(id); if (res !== 'on') { dropHead(res); note = `${HEADS[id].name} נכנס, ${HEADS[res].name} יצא (עד ${MAX_HEADS} ראשים)`; } }
+    buildTitle();
+    if (note) $('#charPerk').innerHTML = note;
+  }
+  const pips = (lv) => `<span class="pips">${[1, 2, 3, 4].map((k) => `<i class="${k <= lv ? 'on' : ''}"></i>`).join('')}</span>`;
   function buildTitle() {
-    const r = rec(), box = $('#chars'), on = activeHeads();
+    const box = $('#chars'), on = activeHeads();
     box.innerHTML = '';
     HEAD_ORDER.forEach((id, i) => {
-      const open = id === 'fire' || r.unlocked.includes(id), act = on.includes(id);
+      const H = HEADS[id], open = isOpen(id), act = on.includes(id);
       const b = document.createElement('button');
-      b.className = `char head${open ? '' : ' locked'}${act ? ' sel' : open ? ' off' : ''}`;
-      b.setAttribute('aria-label', open ? HEADS[id].name : `נעול, נפתח אחרי עולם ${i}`);
+      b.className = `char head${open ? '' : ' locked'}${act ? ' sel' : open ? ' off' : ''}${id === shownHead ? ' shown' : ''}`;
+      b.style.setProperty('--hc', H.c); b.style.setProperty('--hg', H.glow);
+      b.setAttribute('aria-label', open ? H.name : `נעול, נפתח אחרי עולם ${i}`);
       b.setAttribute('aria-pressed', act);
-      b.innerHTML = `<img src="${headURL(id)}" alt="">${!open ? '<span class="lock">🔒</span>' : act ? '<span class="mark on">✓</span>' : '<span class="mark add">+</span>'}`;
-      b.addEventListener('click', () => {
-        sfx.init();
-        shownHead = id;
-        let res = null;
-        if (open) { res = toggleHead(id); if (res) sfx.tone(res === 'off' ? 330 : 660, 0.08, 'triangle', 0.06); else sfx.tone(200, 0.12, 'square', 0.04); }
-        else sfx.tap();
-        buildTitle();
-        if (res && res !== 'on' && res !== 'off') $('#charPerk').innerHTML = `${HEADS[id].name} נכנס, ${HEADS[res].name} יצא (עד ${MAX_HEADS} ראשים)`;
-        if (res === false) $('#charPerk').innerHTML = 'צריך לפחות ראש אחד';
-      });
+      b.innerHTML = `<img src="${headURL(id)}" alt="">`
+        + (!open ? `<span class="lock">🔒<small>${i}</small></span>` : act ? `<span class="mark on">${on.indexOf(id) + 1}</span>` : '<span class="mark add">+</span>')
+        + (open ? pips(heroLevel(id)) : '');
+      b.addEventListener('click', () => pickHead(id));
       box.appendChild(b);
     });
-    const H = HEADS[shownHead], open = shownHead === 'fire' || r.unlocked.includes(shownHead), act = on.includes(shownHead);
-    $('#headCount').textContent = `ראשים בקרב: ${on.length}/${MAX_HEADS}`;
-    $('#charPerk').innerHTML = !open ? `${H.name} גדל אחרי עולם ${HEAD_ORDER.indexOf(shownHead)}`
-      : `${H.name}: ${H.perk} · <b class="${act ? 'is-on' : 'is-off'}">${act ? 'בפנים' : 'בחוץ'}</b>`;
+    // the three slots on the monster
+    const slots = $('#slots');
+    slots.innerHTML = '';
+    for (let k = 0; k < MAX_HEADS; k++) {
+      const id = on[k], b = document.createElement('button');
+      b.className = `slot${id ? ' full' : ''}`;
+      if (id) {
+        b.style.setProperty('--hc', HEADS[id].c); b.style.setProperty('--hg', HEADS[id].glow);
+        b.innerHTML = `<img src="${headURL(id)}" alt="">`;
+        b.setAttribute('aria-label', `להוציא את ${HEADS[id].name}`);
+        b.addEventListener('click', () => pickHead(id));
+      } else {
+        b.innerHTML = '<span>+</span>';
+        b.setAttribute('aria-label', 'מקום פנוי לראש');
+        b.addEventListener('click', () => { sfx.init(); sfx.tap(); $('#charPerk').innerHTML = 'בוחרים ראש מהרשימה למטה'; });
+      }
+      slots.appendChild(b);
+    }
+    $('#headCount').innerHTML = `ראשים בקרב <b>${on.length}/${MAX_HEADS}</b>`;
+    const H = HEADS[shownHead], open = isOpen(shownHead), act = on.includes(shownHead);
+    const perk = $('#charPerk');
+    perk.style.setProperty('--hc', H.c);
+    perk.innerHTML = !open ? `🔒 ${H.name} גדל אחרי עולם ${HEAD_ORDER.indexOf(shownHead)}`
+      : `<b class="hn">${H.name}</b> ${H.lv[heroLevel(shownHead) - 1]} ${pips(heroLevel(shownHead))} <b class="${act ? 'is-on' : 'is-off'}">${act ? 'בקרב' : 'בחוץ'}</b>`;
   }
-  function paintHero(cv2, t, scale = 1) {
+
+  // The lair's little show: the same shots as in the game, flying up out of the picture.
+  function lairFire(heads, dt, top) {
+    const L = lair, n = heads.length;
+    L.beam = null;
+    heads.forEach((id, k) => {
+      if ((L.grow[id] ?? 1) < 1) return;
+      const lv = heroLevel(id), h = headPos(L.P, k, n, L.t);
+      if (id === 'ice') { L.beam = { x: h.x, y0: h.y, y1: top, w: 3 + lv * 1.2, hit: false }; return; }
+      L.cool[id] = (L.cool[id] ?? rand(0, 0.4)) - dt;
+      if (L.cool[id] > 0) return;
+      L.pop[id] = false;
+      const S = (x, y, a, sp, o) => L.shots.push({ id, x, y, vx: Math.sin(a) * sp, vy: -Math.cos(a) * sp, t: 0, ...o });
+      if (id === 'fire') {
+        L.cool[id] += 0.3;
+        const r = lv >= 4 ? 6.5 : 5;
+        const pat = lv === 1 ? [[0, 0]] : lv === 2 ? [[-4, 0], [4, 0]] : lv === 3 ? [[0, 0], [-2, -0.15], [2, 0.15]] : [[-4, 0], [4, 0], [-2, -0.18], [2, 0.18]];
+        for (const [ox, a] of pat) S(h.x + ox, h.y, a + h.a * 0.2, 190, { r });
+      } else if (id === 'poison') {
+        L.cool[id] += 1.0;
+        S(h.x, h.y, h.a * 0.3, 120, { glob: true, fuse: 0.42, lv, r: 5.5 });
+      } else if (id === 'bolt') {
+        L.cool[id] += 0.9;
+        const pts = [{ x: h.x, y: h.y }];
+        for (let j = 0; j < Math.min(4, lv + 1); j++) { const p = pts[pts.length - 1]; pts.push({ x: clamp(p.x + rand(-30, 30), -70, 70), y: p.y - rand(18, 28) }); }
+        L.fx.push({ type: 'bolt', pts, t: 0.22, max: 0.22, seed: Math.random() * 100 });
+      } else if (id === 'wind') {
+        L.cool[id] += 0.8;
+        L.gusts.push({ x: h.x, y: h.y - 4, vy: -120, life: 0.9, w: 22 + lv * 5 });
+      } else if (id === 'star') {
+        L.cool[id] += 0.55;
+        const cnt = lv >= 3 ? 2 : 1;
+        for (let i = 0; i < cnt; i++) S(h.x, h.y, h.a * 0.8 + (i - (cnt - 1) / 2) * 0.6, 130, { spin: 0, trail: [], r: 6, wob: rand(0, TAU) });
+      }
+    });
+    for (const s of L.shots) {
+      s.t += dt;
+      if (s.id === 'star') {
+        s.spin += dt * 8; s.trail.push(s.x, s.y); if (s.trail.length > 12) s.trail.splice(0, 2);
+        s.vx += Math.sin(s.t * 7 + s.wob) * 300 * dt;
+      }
+      s.x += s.vx * dt; s.y += s.vy * dt;
+      if (s.glob) {
+        s.fuse -= dt; s.vy *= Math.pow(0.3, dt);
+        if (s.fuse <= 0) { s.dead = true; L.clouds.push({ x: s.x, y: s.y, r: 10 + s.lv * 2.5, life: 1.2, max: 1.2 }); }
+      }
+      if (s.y < top - 20) s.dead = true;
+    }
+    for (const g of L.gusts) { g.y += g.vy * dt; g.life -= dt; }
+    for (const cl of L.clouds) cl.life -= dt;
+    for (const f of L.fx) f.t -= dt;
+    for (const p of L.bits) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 90 * dt; p.life -= dt; }
+    L.shots = L.shots.filter((s) => !s.dead);
+    L.gusts = L.gusts.filter((g) => g.life > 0 && g.y > top - 30);
+    L.clouds = L.clouds.filter((cl) => cl.life > 0);
+    L.fx = L.fx.filter((f) => f.t > 0);
+    L.bits = L.bits.filter((p) => p.life > 0);
+  }
+  // The rune circle under the monster, one coloured arc for each head in the fight.
+  function drawAltar(c, heads, t) {
+    c.save(); c.translate(0, 44); c.scale(0.86, 0.3);
+    c.save(); c.globalCompositeOperation = 'lighter';
+    const gl = c.createRadialGradient(0, 0, 4, 0, 0, 70); gl.addColorStop(0, 'rgba(150,110,255,.38)'); gl.addColorStop(1, 'rgba(150,110,255,0)');
+    c.fillStyle = gl; c.beginPath(); c.arc(0, 0, 70, 0, TAU); c.fill();
+    c.restore();
+    c.lineWidth = 2.4;
+    const seg = TAU / MAX_HEADS;
+    for (let k = 0; k < MAX_HEADS; k++) {
+      const id = heads[k], a0 = t * 0.5 + k * seg + 0.12, a1 = a0 + seg - 0.24;
+      c.beginPath(); c.arc(0, 0, 58, a0, a1);
+      c.strokeStyle = id ? HEADS[id].c : 'rgba(255,255,255,.14)'; c.globalAlpha = id ? 0.95 : 1; c.stroke();
+    }
+    c.globalAlpha = 1;
+    c.setLineDash([3, 7]); c.lineWidth = 1.5; c.strokeStyle = 'rgba(242,184,75,.55)';
+    c.beginPath(); c.arc(0, 0, 46, -t * 0.8, -t * 0.8 + TAU); c.stroke(); c.setLineDash([]);
+    for (let i = 0; i < 6; i++) {
+      const a = -t * 0.8 + i * TAU / 6;
+      c.beginPath(); c.arc(Math.cos(a) * 46, Math.sin(a) * 46, 3, 0, TAU); c.fillStyle = '#FFDE95'; c.fill();
+    }
+    c.restore();
+  }
+  function paintHero(cv2, t) {
     const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
     const cw = cv2.clientWidth || 200, chh = cv2.clientHeight || 200;
     if (cv2.width !== Math.round(cw * dpr) || cv2.height !== Math.round(chh * dpr)) { cv2.width = Math.round(cw * dpr); cv2.height = Math.round(chh * dpr); }
     const c = cv2.getContext('2d');
     c.setTransform(1, 0, 0, 1, 0, 0);
     c.clearRect(0, 0, cv2.width, cv2.height);
-    const s = Math.min(cw / 110, chh / 105) * scale;
-    c.setTransform(dpr * s, 0, 0, dpr * s, dpr * cw / 2, dpr * (chh * 0.56));
-    const heads = activeHeads(), open = {};
-    heads.forEach((id, k) => { open[id] = Math.max(0, Math.sin(t * 3 - k * 0.8)) * 0.8; });
-    drawHydra(c, 0, 0, heads, t, { open });
+    const L = lair, dt = clamp(t - L.last, 0, 0.05);
+    L.last = t; L.t = t;
+    const s = Math.min(chh / 140, cw / 150), oy = chh * 0.64, top = -oy / s;
+    c.setTransform(dpr * s, 0, 0, dpr * s, dpr * cw / 2, dpr * oy);
+    const heads = activeHeads(), open = {}, grow = {};
+    for (const id of heads) {
+      if (L.grow[id] != null && L.grow[id] < 1.6) {
+        L.grow[id] += dt * 3.2;
+        if (L.grow[id] >= 1.6) delete L.grow[id];
+      }
+      const g = L.grow[id];
+      // a springy grow: overshoot a little, then settle
+      grow[id] = g == null ? 1 : g < 1 ? easeOut(g) * 1.25 : 1.25 - (g - 1) / 0.6 * 0.25;
+    }
+    heads.forEach((id, k) => { open[id] = L.grow[id] != null ? 1 : Math.max(0, Math.sin(t * 3 - k * 0.8)) * 0.8; });
+    L.P.y = Math.sin(t * 2.2) * 2.5;
+    lairFire(heads, dt, top);
+    drawAltar(c, heads, t);
+    const keep = G; G = L;
+    try {
+      for (const cl of L.clouds) drawPoisonCloud(c, cl);
+      drawPlayerShots(c);
+      drawHydra(c, 0, L.P.y, heads, t, { open, grow });
+      drawFx(c);
+    } finally { G = keep; }
+    // a flash and sparks where a new head pops out
+    heads.forEach((id, k) => {
+      const g = L.grow[id];
+      if (g == null) return;
+      const h = headPos(L.P, k, heads.length, t);
+      if (L.pop[id] && g > 0.5) {
+        L.pop[id] = false;
+        for (let i = 0; i < 22; i++) { const a = rand(0, TAU), v = rand(40, 120); L.bits.push({ x: h.x, y: h.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0.7, max: 0.7, color: i % 3 ? HEADS[id].glow : '#FFFFFF', size: rand(1.5, 3.5) }); }
+      }
+      if (g < 1) {
+        c.save(); c.globalCompositeOperation = 'lighter';
+        c.beginPath(); c.arc(h.x, h.y, 6 + g * 26, 0, TAU); c.strokeStyle = HEADS[id].glow; c.globalAlpha = 1 - g; c.lineWidth = 3; c.stroke();
+        c.restore();
+      }
+    });
+    c.save(); c.globalCompositeOperation = 'lighter';
+    for (const p of L.bits) { c.globalAlpha = p.life / p.max; c.beginPath(); c.arc(p.x, p.y, p.size, 0, TAU); c.fillStyle = p.color; c.fill(); }
+    c.restore();
   }
 
   // ---------- Controls ----------
